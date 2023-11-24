@@ -44,7 +44,10 @@ export function MarketCard({ proposal: fromProposal }: { proposal: ProposalAccou
   const [isBetting, setIsBetting] = useState<boolean>(false);
   const isBeneficial = passPrice > failPrice;
   const usedToken = (selectedToken !== tokens?.usdc ? tokens?.meta : tokens?.usdc) || tokens?.meta;
+  const usingBaseToken = usedToken === tokens?.meta;
   const payoutToken = selectedToken === tokens?.usdc ? tokens?.meta : tokens?.usdc;
+  const passPayoutAmount = usingBaseToken ? passPrice * amount : amount / passPrice;
+  const failPayoutAmount = usingBaseToken ? failPrice * amount : amount / failPrice;
 
   useEffect(() => {
     if (!selectedToken) {
@@ -88,13 +91,13 @@ export function MarketCard({ proposal: fromProposal }: { proposal: ProposalAccou
   const handleBet = useCallback(async () => {
     if (!markets || !proposal) return;
 
-    const mintTxs = await mintTokensTransactions(amount, usedToken !== tokens?.usdc);
+    const mintTxs = await mintTokensTransactions(amount, usingBaseToken);
     const placePassTxs = await placeOrderTransactions(
       amount / passPrice,
       passPrice,
       { publicKey: proposal.account.openbookPassMarket, account: markets.pass },
       true,
-      usedToken !== tokens?.usdc,
+      usingBaseToken,
       true,
     );
     const placeFailTxs = await placeOrderTransactions(
@@ -102,7 +105,7 @@ export function MarketCard({ proposal: fromProposal }: { proposal: ProposalAccou
       failPrice,
       { publicKey: proposal.account.openbookFailMarket, account: markets.fail },
       true,
-      usedToken !== tokens?.usdc,
+      usingBaseToken,
       false,
       1,
     );
@@ -175,7 +178,7 @@ export function MarketCard({ proposal: fromProposal }: { proposal: ProposalAccou
                 onChange={(e) => setPassPrice(Number(e.target.value))}
               />
               <Text fw="lighter" size="sm">
-                You believe that if it fails, this proposal will change the value of the DAO to{' '}
+                You believe that if it passes, this proposal will change the value of the DAO to{' '}
                 <Text fw="bolder" ff="monospace" size="md" span>
                   {numeral(circulatingBeliefPassValue).format(NUMERAL_FORMAT)}$
                 </Text>{' '}
@@ -251,23 +254,25 @@ export function MarketCard({ proposal: fromProposal }: { proposal: ProposalAccou
                     <Container size="sm">
                       <Stack gap={3} maw="100%">
                         <Text>
-                          If PASS market goes {usedToken !== tokens?.meta ? 'below' : 'above'}{' '}
-                          {numeral(passPrice).format(NUMERAL_FORMAT)}$ and the proposal passes, you
-                          will receive {numeral(passPrice * amount).format(NUMERAL_FORMAT)} $
-                          {payoutToken?.symbol}
+                          If PASS market goes {usingBaseToken ? 'above' : 'below'}{' '}
+                          {numeral(passPrice).format(NUMERAL_FORMAT)}$ and the proposal passes,
+                          {' you will receive '}
+                          {numeral(passPayoutAmount).format(NUMERAL_FORMAT)}
+                          {' $'}{payoutToken?.symbol}
                         </Text>
                         <Text>
-                          If FAIL market goes {usedToken !== tokens?.meta ? 'below' : 'above'}{' '}
-                          {numeral(failPrice).format(NUMERAL_FORMAT)}$ and the proposal fails, you
-                          will receive {numeral(failPrice * amount).format(NUMERAL_FORMAT)} $
-                          {payoutToken?.symbol}
+                          If FAIL market goes {usingBaseToken ? 'above' : 'below'}{' '}
+                          {numeral(failPrice).format(NUMERAL_FORMAT)}$ and the proposal fails,
+                          {' you will receive '}
+                          {numeral(failPayoutAmount).format(NUMERAL_FORMAT)}
+                          {' $'}{payoutToken?.symbol}
                         </Text>
                         <Text>
                           Otherwise you get back your {numeral(amount).format(NUMERAL_FORMAT)} $
                           {usedToken?.symbol}
                         </Text>
                         <Text size="sm" fw="lighter">
-                          Places two {usedToken !== tokens?.usdc ? 'asks' : 'bids'} at the defined
+                          Places two {usingBaseToken ? 'asks' : 'bids'} at the defined
                           prices
                         </Text>
                       </Stack>
