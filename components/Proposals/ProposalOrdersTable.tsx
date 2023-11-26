@@ -311,7 +311,7 @@ export function ProposalOrdersTable({
                       }`}
                     </Table.Td>
                     <Table.Td>
-                      {`${order.account.position.quoteFreeNative * 1_000_000}${
+                      {`${order.account.position.quoteFreeNative / 1_000_000}${
                         isPassOrFail(order) ? 'p' : 'f'
                       }`}
                     </Table.Td>
