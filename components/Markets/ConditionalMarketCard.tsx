@@ -12,7 +12,6 @@ import {
   Button,
   Tooltip,
   NativeSelect,
-  Pill,
   HoverCard,
   Group,
   InputLabel,
