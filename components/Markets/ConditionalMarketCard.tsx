@@ -92,21 +92,23 @@ export function ConditionalMarketCard({
   const passTwap = calculateTWAP(markets.passTwap.twapOracle);
   const failTwap = calculateTWAP(markets.failTwap.twapOracle);
   const twap = isPassMarket ? passTwap : failTwap;
+  const isAskSide = orderSide === 'Sell';
+  const isLimitOrder = orderType === 'Limit';
   const _orderPrice = () => {
-    if (orderType === 'Limit') {
+    if (isLimitOrder) {
       if (Number(price) > 0) {
         return Number(price);
       }
       return 0;
     }
-      if (orderSide === 'Sell') {
-        return 0;
-      }
-        return Number.MAX_SAFE_INTEGER;
+    if (orderSide === 'Sell') {
+      return 0;
+    }
+    return Number.MAX_SAFE_INTEGER;
   };
 
   const priceValidator = (value: string) => {
-    if (orderType === 'Limit') {
+    if (isLimitOrder) {
       if (Number(value) > 0) {
         setPriceError(null);
       } else {
@@ -116,25 +118,58 @@ export function ConditionalMarketCard({
   };
 
   const maxOrderAmount = () => {
-    if (orderSide === 'Sell') {
+    if (isAskSide) {
       if (Number(baseBalance) > 0) {
         return Number(baseBalance);
       }
       return 0;
     } if (quoteBalance && price) {
-      return (Number(quoteBalance) / Number(price));
+      const _maxAmountRatio = Math.floor((Number(quoteBalance) / Number(price)));
+      return _maxAmountRatio;
     }
     return 0;
   };
 
   const amountValidator = (value: number) => {
     if (value > 0) {
-      setAmountError(null);
-    } else if (value > maxOrderAmount()) {
+      if (!isLimitOrder) {
+        setAmountError(`A market order may execute at an 
+        extremely ${isAskSide ? 'low' : 'high'} price
+        be sure you know what you're doing`);
+        return;
+      }
+      if (value > maxOrderAmount()) {
         setAmountError("You don't have enough funds");
       } else {
-        setAmountError('You must enter a whole number');
+        setAmountError(null);
       }
+    } else {
+      setAmountError('You must enter a whole number');
+    }
+  };
+
+  const changeOrderSide = (side: string) => {
+    // Clear out our errors
+    setPriceError(null);
+    setAmountError(null);
+    // Reset amount
+    setAmount(0);
+    // Check and change values to match order type
+    if (isLimitOrder) {
+      // We can safely reset our price to nothing
+      setPrice('');
+    } else if (side === 'Buy') {
+        // Sets up the market order for the largest value
+        setPrice(Number.MAX_SAFE_INTEGER.toString());
+      } else {
+        // Sets up the market order for the smallest value
+        setPrice('0');
+      }
+  };
+
+  const isOrderAmountNan = () => {
+    const _orderAmount = numeral(maxOrderAmount()).format(isAskSide ? BASE_FORMAT : NUMERAL_FORMAT);
+    return Number.isNaN(Number(_orderAmount));
   };
 
   return (
@@ -194,26 +229,43 @@ export function ConditionalMarketCard({
             style={{ marginTop: '10px' }}
             styles={{
               indicator: {
-                backgroundColor: orderSide === 'Buy' ? 'green' : 'red',
+                backgroundColor: isAskSide ? 'red' : 'green',
+                color: '#FFFFFF',
               },
             }}
             data={['Buy', 'Sell']}
             value={orderSide}
-            onChange={(e) => setOrderSide(e)}
+            onChange={(e) => {
+              setOrderSide(e);
+              changeOrderSide(e);
+            }}
             fullWidth
           />
           <NativeSelect
             style={{ marginTop: '10px' }}
             data={['Limit', 'Market']}
             value={orderType}
-            onChange={(e) => setOrderType(e.target.value)}
+            onChange={(e) => {
+              setOrderType(e.target.value);
+              if (e.target.value === 'Market') {
+                if (isAskSide) {
+                  setPrice('0');
+                } else {
+                  setPrice(Number.MAX_SAFE_INTEGER.toString());
+                }
+              } else {
+                setPrice('');
+              }
+              setPriceError(null);
+              setAmountError(null);
+            }}
           />
           <TextInput
             label="Price"
             placeholder="Enter price..."
             type="number"
-            value={orderType === 'Market' ? '' : price}
-            disabled={orderType === 'Market'}
+            value={!isLimitOrder ? '' : price}
+            disabled={!isLimitOrder}
             error={priceError}
             onChange={(e) => {
               setPrice(e.target.value);
@@ -232,9 +284,8 @@ export function ConditionalMarketCard({
                     <>
                     <IconWallet height={12} />
                     <Text size="xs">
-
                       {
-                        orderSide === 'Sell' ?
+                        isAskSide ?
                           (`${isPassMarket ? 'p' : 'f'}META ${numeral(baseBalance).format(BASE_FORMAT) || ''}`)
                         :
                           (`${isPassMarket ? 'p' : 'f'}USDC $${numeral(quoteBalance).format(NUMERAL_FORMAT) || ''}`)
@@ -247,7 +298,7 @@ export function ConditionalMarketCard({
             }
             placeholder="Enter amount..."
             type="number"
-            value={amount === 0 || amount || amount === null ? amount : ''}
+            value={amount || ''}
             rightSectionWidth={100}
             rightSection={
               <ActionIcon
@@ -255,10 +306,20 @@ export function ConditionalMarketCard({
                 radius="md"
                 w={80}
                 color="grey"
-                onClick={() => { setAmount(maxOrderAmount()! ? maxOrderAmount()! : 0); }}
+                onClick={() => {
+                  setAmount(maxOrderAmount()! ? maxOrderAmount()! : 0);
+                  amountValidator(maxOrderAmount()! ? maxOrderAmount()! : 0);
+                }}
+                disabled={!isLimitOrder ? (!!isOrderAmountNan()) : !price}
               >
                 <Text size="xs">
-                  Max{' '}{maxOrderAmount() ? maxOrderAmount() : ''}
+                  Max{' '}{
+                    maxOrderAmount()
+                    ? (!isOrderAmountNan()
+                      ? numeral(maxOrderAmount()).format(BASE_FORMAT)
+                      : '')
+                    : ''
+                  }
                 </Text>
               </ActionIcon>
             }
@@ -272,18 +333,18 @@ export function ConditionalMarketCard({
             <GridCol span={12}>
               <Button
                 fullWidth
-                color={orderSide === 'Sell' ? 'red' : 'green'}
+                color={isAskSide ? 'red' : 'green'}
                 onClick={() =>
                   placeOrder(
                     amount,
                     _orderPrice(),
-                    orderType === 'Limit',
-                    orderSide === 'Sell',
+                    isLimitOrder,
+                    isAskSide,
                     isPassMarket,
                   )
                 }
                 variant="light"
-                disabled={!amount || (orderType !== 'Market' ? !price : false)}
+                disabled={!amount || (isLimitOrder ? !price : false)}
               >
                 {orderSide} {isPassMarket ? 'p' : 'f'}META
               </Button>
