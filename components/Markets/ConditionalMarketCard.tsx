@@ -27,7 +27,7 @@ import { Markets, MarketAccountWithKey, ProposalAccountWithKey } from '@/lib/typ
 import { NotificationLink } from '../Layout/NotificationLink';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { calculateTWAP } from '../../lib/openbookTwap';
-import { NUMERAL_FORMAT } from '../../lib/constants';
+import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
 
 export function ConditionalMarketCard({
   isPassMarket,
@@ -116,12 +116,26 @@ export function ConditionalMarketCard({
     }
   };
 
+  const maxOrderAmount = () => {
+    if (orderSide === 'Sell') {
+      if (Number(baseBalance) > 0) {
+        return Number(baseBalance);
+      }
+      return 0;
+    } if (quoteBalance && price) {
+      return (Number(quoteBalance) / Number(price));
+    }
+    return 0;
+  };
+
   const amountValidator = (value: number) => {
     if (value > 0) {
       setAmountError(null);
-    } else {
-      setAmountError('You must enter a whole number');
-    }
+    } else if (value > maxOrderAmount()) {
+        setAmountError("You don't have enough funds");
+      } else {
+        setAmountError('You must enter a whole number');
+      }
   };
 
   return (
@@ -179,6 +193,11 @@ export function ConditionalMarketCard({
         <Stack>
           <SegmentedControl
             style={{ marginTop: '10px' }}
+            styles={{
+              indicator: {
+                backgroundColor: orderSide === 'Buy' ? 'green' : 'red',
+              },
+            }}
             data={['Buy', 'Sell']}
             value={orderSide}
             onChange={(e) => setOrderSide(e)}
@@ -205,44 +224,44 @@ export function ConditionalMarketCard({
           <TextInput
             label={
               <>
-              <Flex justify="space-between" align="flex-start" direction="row" wrap="wrap">
-                <InputLabel>
+              <Flex justify="space-between" align="center" direction="row" wrap="wrap">
+                <InputLabel pr={50} mr="sm">
                   Amount of META
                 </InputLabel>
-                {baseBalance || quoteBalance ? (
-                <Group>
-                  <Text size="xs" pl={0}>
-                  <IconWallet height={12} />
-                  {
-                    orderSide === 'Sell' ?
-                      (`${isPassMarket ? 'p' : 'f'}META ${baseBalance || ''}`)
-                     :
-                      (`${isPassMarket ? 'p' : 'f'}USDC $${quoteBalance || ''}`)
-                  }
-                  </Text>
+                <Group justify="flex-start" align="center" ml="auto" gap={0}>
+                  {baseBalance || quoteBalance ? (
+                    <>
+                    <IconWallet height={12} />
+                    <Text size="xs">
+
+                      {
+                        orderSide === 'Sell' ?
+                          (`${isPassMarket ? 'p' : 'f'}META ${numeral(baseBalance).format(BASE_FORMAT) || ''}`)
+                        :
+                          (`${isPassMarket ? 'p' : 'f'}USDC $${numeral(quoteBalance).format(NUMERAL_FORMAT) || ''}`)
+                      }
+                    </Text>
+                    </>) : (<Text>{' '}</Text>)}
                 </Group>
-                ) : null}
               </Flex>
               </>
             }
             placeholder="Enter amount..."
             type="number"
-            rightSectionPointerEvents="none"
+            value={amount === 0 || amount || amount === null ? amount : ''}
             rightSectionWidth={100}
             rightSection={
-              <>
-                <Pill style={{ verticalAlign: 'center' }}>
-                  Max{' '}{
-                    orderSide === 'Sell' ? (
-                      Number(baseBalance) > 0 ? (
-                       baseBalance
-                      ) : null
-                    ) : quoteBalance && price ? (
-                      (Number(quoteBalance) / Number(price)).toFixed(0)
-                    ) : null
-                  }
-                </Pill>
-              </>
+              <ActionIcon
+                size={20}
+                radius="md"
+                w={80}
+                color="grey"
+                onClick={() => { setAmount(maxOrderAmount()! ? maxOrderAmount()! : 0); }}
+              >
+                <Text size="xs">
+                  Max{' '}{maxOrderAmount() ? maxOrderAmount() : ''}
+                </Text>
+              </ActionIcon>
             }
             error={amountError}
             onChange={(e) => {
