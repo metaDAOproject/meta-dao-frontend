@@ -238,13 +238,6 @@ export function ProposalOrdersTable({
                           QUOTE_LOTS)).format(NUMERAL_FORMAT)}
                     </Table.Td>
                     <Table.Td>
-                      <ActionIcon
-                        variant="light"
-                        loading={isCanceling}
-                        onClick={() => handleCancel([order])}
-                      >
-                        <IconTrash />
-                      </ActionIcon>
                       {isPartiallyFilled(order) ? (
                         <>
                           <ActionIcon
@@ -254,17 +247,27 @@ export function ProposalOrdersTable({
                           >
                             <Icon3dRotate />
                           </ActionIcon>
-                          {
-                            order.account.position.asksBaseLots > BN_0 ||
-                            order.account.position.bidsBaseLots > BN_0 ? (
-                            <Tooltip label="Crank the market 🐷">
-                              <ActionIcon variant="light" loading={isCranking} onClick={() => handleCrank(isPass(order), order.publicKey)}>
-                                <Icon12Hours />
-                              </ActionIcon>
-                            </Tooltip>
-                            ) : null }
                         </>
                       ) : null}
+                      {orderStatus === 'uncranked' &&
+                        (
+                          order.account.position.asksBaseLots > BN_0
+                          || order.account.position.bidsBaseLots > BN_0
+                        ) ? (
+                          <Tooltip label="Crank the market 🐷">
+                            <ActionIcon variant="light" loading={isCranking} onClick={() => handleCrank(isPass(order), order.publicKey)}>
+                              <Icon12Hours />
+                            </ActionIcon>
+                          </Tooltip>
+                        ) : null
+                      }
+                      <ActionIcon
+                        variant="light"
+                        loading={isCanceling}
+                        onClick={() => handleCancel([order])}
+                      >
+                        <IconTrash />
+                      </ActionIcon>
                     </Table.Td>
                   </>
                 ) : (
