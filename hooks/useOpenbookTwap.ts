@@ -86,13 +86,18 @@ export function useOpenbookTwap() {
       openTx.add(...ixs);
 
       // const baseLot = 1;
-      const priceLots = new BN(Math.floor(price / QUOTE_LOTS));
+      let priceLots = new BN(Math.floor(price / QUOTE_LOTS));
       const maxBaseLots = new BN(Math.floor(amount));
+      let maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
+      if (!limitOrder && ask) {
+        priceLots = new BN(1);
+        maxQuoteLotsIncludingFees = new BN(Math.floor(10 / QUOTE_LOTS));
+      }
       const args: PlaceOrderArgs = {
         side: ask ? Side.Ask : Side.Bid,
         priceLots,
         maxBaseLots,
-        maxQuoteLotsIncludingFees: priceLots.mul(maxBaseLots),
+        maxQuoteLotsIncludingFees,
         clientOrderId: accountIndex,
         orderType: limitOrder ? OrderType.Limit : OrderType.Market,
         expiryTimestamp: new BN(0),
@@ -124,39 +129,66 @@ export function useOpenbookTwap() {
   );
 
   const crankMarketTransaction = useCallback(
-    async (market: MarketAccountWithKey, eventHeap: PublicKey) => {
+    async (market: MarketAccountWithKey, eventHeap: PublicKey, individualEvent?: PublicKey) => {
       if (!wallet.publicKey || !wallet.signAllTransactions || !openbook || !openbookTwap) {
         return;
       }
       let accounts: PublicKey[] = new Array<PublicKey>();
       const _eventHeap = await openbook.program.account.eventHeap.fetch(eventHeap);
-      if (_eventHeap != null) {
-        // eslint-disable-next-line no-restricted-syntax
-        for (const node of _eventHeap.nodes) {
-          if (node.event.eventType === 0) {
-            const fillEvent: FillEvent = openbook.program.coder.types.decode(
-              'FillEvent',
-              Buffer.from([0, ...node.event.padding]),
-            );
-            accounts = accounts.filter((a) => a !== fillEvent.maker).concat([fillEvent.maker]);
-          } else {
-            const outEvent: OutEvent = openbook.program.coder.types.decode(
-              'OutEvent',
-              Buffer.from([0, ...node.event.padding]),
-            );
-            accounts = accounts.filter((a) => a !== outEvent.owner).concat([outEvent.owner]);
-          }
-          // Tx would be too big, do not add more accounts
-          if (accounts.length > 20) {
-            break;
+      // TODO: If null we should bail...
+      if (!individualEvent) {
+        if (_eventHeap != null) {
+          // eslint-disable-next-line no-restricted-syntax
+          for (const node of _eventHeap.nodes) {
+            if (node.event.eventType === 0) {
+              const fillEvent: FillEvent = openbook.program.coder.types.decode(
+                'FillEvent',
+                Buffer.from([0, ...node.event.padding]),
+              );
+              accounts = accounts.filter((a) => a !== fillEvent.maker).concat([fillEvent.maker]);
+            } else {
+              const outEvent: OutEvent = openbook.program.coder.types.decode(
+                'OutEvent',
+                Buffer.from([0, ...node.event.padding]),
+              );
+              accounts = accounts.filter((a) => a !== outEvent.owner).concat([outEvent.owner]);
+            }
+            // Tx would be too big, do not add more accounts
+            if (accounts.length > 20) {
+              break;
+            }
           }
         }
-      }
+      } else if (_eventHeap != null) {
+          // eslint-disable-next-line no-restricted-syntax
+          for (const node of _eventHeap.nodes) {
+            if (node.event.eventType === 0) {
+              const fillEvent: FillEvent = openbook.program.coder.types.decode(
+                'FillEvent',
+                Buffer.from([0, ...node.event.padding]),
+              );
+              accounts = accounts.filter((a) => a !== fillEvent.maker).concat([fillEvent.maker]);
+            } else {
+              const outEvent: OutEvent = openbook.program.coder.types.decode(
+                'OutEvent',
+                Buffer.from([0, ...node.event.padding]),
+              );
+              accounts = accounts.filter((a) => a !== outEvent.owner).concat([outEvent.owner]);
+            }
+          }
+        }
+
       const accountsMeta: AccountMeta[] = accounts.map((remaining) => ({
         pubkey: remaining,
         isSigner: false,
         isWritable: true,
       }));
+      let filteredAccounts = accountsMeta;
+      if (individualEvent) {
+        filteredAccounts = accountsMeta.filter((order) =>
+          (order.pubkey === individualEvent)
+        );
+      }
       const crankIx = await openbook.program.methods
         .consumeEvents(new BN(accounts.length))
         .accounts({
@@ -164,7 +196,7 @@ export function useOpenbookTwap() {
           market: market.publicKey,
           eventHeap: market.account.eventHeap,
         })
-        .remainingAccounts(accountsMeta)
+        .remainingAccounts(filteredAccounts)
         .instruction();
 
       const latestBlockhash = await provider.connection.getLatestBlockhash();

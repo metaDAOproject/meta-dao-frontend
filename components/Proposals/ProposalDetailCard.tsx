@@ -15,21 +15,28 @@ import {
   TextInput,
 } from '@mantine/core';
 import Link from 'next/link';
-import { useConnection } from '@solana/wallet-adapter-react';
+import { PublicKey } from '@solana/web3.js';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { IconExternalLink, IconQuestionMark } from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
 import { useProposal } from '@/hooks/useProposal';
 import { useTokens } from '@/hooks/useTokens';
 import { useTokenAmount } from '@/hooks/useTokenAmount';
-// import { TWAPOracle, LeafNode } from '@/lib/types';
+import { MarketAccountWithKey } from '@/lib/types';
+import { NotificationLink } from '../Layout/NotificationLink';
 import { ProposalOrdersCard } from './ProposalOrdersCard';
 import { ConditionalMarketCard } from '../Markets/ConditionalMarketCard';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
+import { useAutocrat } from '@/contexts/AutocratContext';
 import { shortKey } from '@/lib/utils';
 import { StateBadge } from './StateBadge';
+import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { SLOTS_PER_10_SECS, TEN_DAYS_IN_SLOTS } from '../../lib/constants';
 
 export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number }) {
   const { connection } = useConnection();
+  const { fetchOpenOrders } = useAutocrat();
+  const wallet = useWallet();
   const { proposal, markets, orders, mintTokens, placeOrder, loading } = useProposal({
     fromNumber: proposalNumber,
   });
@@ -53,6 +60,8 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
   const { generateExplorerLink } = useExplorerConfiguration();
   const [lastSlot, setLastSlot] = useState<number>();
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
+  const { crankMarketTransaction } = useOpenbookTwap();
+  const [isCranking, setIsCranking] = useState<boolean>(false);
   const remainingSlots = useMemo(() => {
     if (!proposal) return;
 
@@ -104,6 +113,35 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
 
     fetchSlot();
   }, [connection, lastSlot]);
+
+  const handleCrank = useCallback(async (isPassMarket: boolean, individualEvent?: PublicKey) => {
+    if (!proposal || !markets || !wallet?.publicKey) return;
+    let marketAccounts: MarketAccountWithKey = {
+      publicKey: markets.passTwap.market,
+      account: markets.pass,
+    };
+    let { eventHeap } = markets.pass;
+    if (!isPassMarket) {
+      marketAccounts = { publicKey: markets.failTwap.market, account: markets.fail };
+      eventHeap = markets.fail.eventHeap;
+    }
+    try {
+      setIsCranking(true);
+      const signature = await crankMarketTransaction(marketAccounts, eventHeap, individualEvent);
+      if (signature) {
+        notifications.show({
+          title: 'Transaction Submitted',
+          message: <NotificationLink signature={signature} />,
+          autoClose: 5000,
+        });
+        fetchOpenOrders(proposal, wallet.publicKey);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCranking(false);
+    }
+  }, [markets, proposal, wallet.publicKey, crankMarketTransaction, fetchOpenOrders]);
 
   return !proposal || !markets ? (
     <Group justify="center">
@@ -296,24 +334,32 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
             <ConditionalMarketCard
               isPassMarket
               markets={markets}
-              proposal={proposal}
               placeOrder={placeOrder}
+              handleCrank={handleCrank}
               quoteBalance={quotePassAmount?.uiAmountString}
               baseBalance={basePassAmount?.uiAmountString}
+              isCranking={isCranking}
             />
             <ConditionalMarketCard
               isPassMarket={false}
               markets={markets}
-              proposal={proposal}
               placeOrder={placeOrder}
+              handleCrank={handleCrank}
               quoteBalance={quoteFailAmount?.uiAmountString}
               baseBalance={baseFailAmount?.uiAmountString}
+              isCranking={isCranking}
             />
           </Group>
         ) : null}
 
         {proposal && orders ? (
-          <ProposalOrdersCard markets={markets} proposal={proposal} orders={orders} />
+          <ProposalOrdersCard
+            markets={markets}
+            proposal={proposal}
+            orders={orders}
+            handleCrank={handleCrank}
+            isCranking={isCranking}
+          />
         ) : null}
       </Stack>
     </Stack>
