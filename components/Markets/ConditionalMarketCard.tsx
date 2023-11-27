@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   ActionIcon,
   Card,
@@ -17,13 +17,10 @@ import {
   InputLabel,
 } from '@mantine/core';
 import numeral from 'numeral';
+import { PublicKey } from '@solana/web3.js';
 import { Icon12Hours, IconQuestionMark, IconWallet } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
-import { useWallet } from '@solana/wallet-adapter-react';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
-import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
-import { Markets, MarketAccountWithKey, ProposalAccountWithKey } from '@/lib/types';
-import { NotificationLink } from '../Layout/NotificationLink';
+import { Markets } from '@/lib/types';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { calculateTWAP } from '../../lib/openbookTwap';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
@@ -31,14 +28,14 @@ import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
 export function ConditionalMarketCard({
   isPassMarket,
   markets,
-  proposal,
   placeOrder,
+  handleCrank,
   quoteBalance,
   baseBalance,
+  isCranking,
 }: {
   isPassMarket: boolean;
   markets: Markets;
-  proposal: ProposalAccountWithKey;
   placeOrder: (
     amount: number,
     price: number,
@@ -46,65 +43,42 @@ export function ConditionalMarketCard({
     ask?: boolean,
     pass?: boolean,
   ) => void;
+  handleCrank: (isPassMarket: boolean, individualEvent?: PublicKey) => void;
   quoteBalance: string | undefined;
   baseBalance: string | undefined;
+  isCranking: boolean
 }) {
-  const wallet = useWallet();
-  const { daoState, fetchOpenOrders } = useAutocrat();
+  const { daoState } = useAutocrat();
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
   const [price, setPrice] = useState<string>('');
   const [priceError, setPriceError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
-  const { crankMarketTransaction } = useOpenbookTwap();
-  const [isCranking, setIsCranking] = useState<boolean>(false);
-
-  const handleCrank = useCallback(async () => {
-    if (!proposal || !markets || !wallet?.publicKey) return;
-    let marketAccounts: MarketAccountWithKey = {
-      publicKey: markets.passTwap.market,
-      account: markets.pass,
-    };
-    let { eventHeap } = markets.pass;
-    if (!isPassMarket) {
-      marketAccounts = { publicKey: markets.failTwap.market, account: markets.fail };
-      eventHeap = markets.fail.eventHeap;
-    }
-    try {
-      setIsCranking(true);
-      const signature = await crankMarketTransaction(marketAccounts, eventHeap);
-      if (signature) {
-        notifications.show({
-          title: 'Transaction Submitted',
-          message: <NotificationLink signature={signature} />,
-          autoClose: 5000,
-        });
-        fetchOpenOrders(proposal, wallet.publicKey);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsCranking(false);
-    }
-  }, [markets, proposal, wallet.publicKey, crankMarketTransaction, fetchOpenOrders]);
 
   const passTwap = calculateTWAP(markets.passTwap.twapOracle);
   const failTwap = calculateTWAP(markets.failTwap.twapOracle);
   const twap = isPassMarket ? passTwap : failTwap;
   const isAskSide = orderSide === 'Sell';
   const isLimitOrder = orderType === 'Limit';
+
+  // TODO: Review this as anything less than this fails to work
+  const minMarketPrice = 10;
+  // TODO: Review this number as max safe doesn't work
+  const maxMarketPrice = 10000000000;
+
   const _orderPrice = () => {
     if (isLimitOrder) {
       if (Number(price) > 0) {
         return Number(price);
       }
+      // TODO: This is not a great value or expected behavior.. We need to throw error..
       return 0;
     }
     if (orderSide === 'Sell') {
-      return 0;
+      return minMarketPrice;
     }
-    return Number.MAX_SAFE_INTEGER;
+    return maxMarketPrice;
   };
 
   const priceValidator = (value: string) => {
@@ -160,10 +134,10 @@ export function ConditionalMarketCard({
       setPrice('');
     } else if (side === 'Buy') {
         // Sets up the market order for the largest value
-        setPrice(Number.MAX_SAFE_INTEGER.toString());
+        setPrice(maxMarketPrice.toString());
       } else {
         // Sets up the market order for the smallest value
-        setPrice('0');
+        setPrice(minMarketPrice.toString());
       }
   };
 
@@ -212,7 +186,7 @@ export function ConditionalMarketCard({
             ) : null}
           </Group>
           <Tooltip label="Crank the market 🐷">
-            <ActionIcon variant="subtle" loading={isCranking} onClick={() => handleCrank()}>
+            <ActionIcon variant="subtle" loading={isCranking} onClick={() => handleCrank(isPassMarket)}>
               <Icon12Hours />
             </ActionIcon>
           </Tooltip>
@@ -225,13 +199,16 @@ export function ConditionalMarketCard({
           />
         </Card>
         <Stack>
+          <style dangerouslySetInnerHTML={{ __html: '.label {&[data-active] {color: #FFFFFF;}}' }} />
           <SegmentedControl
             style={{ marginTop: '10px' }}
             styles={{
               indicator: {
                 backgroundColor: isAskSide ? 'red' : 'green',
-                color: '#FFFFFF',
               },
+            }}
+            classNames={{
+              label: 'label',
             }}
             data={['Buy', 'Sell']}
             value={orderSide}
@@ -249,9 +226,9 @@ export function ConditionalMarketCard({
               setOrderType(e.target.value);
               if (e.target.value === 'Market') {
                 if (isAskSide) {
-                  setPrice('0');
+                  setPrice(minMarketPrice.toString());
                 } else {
-                  setPrice(Number.MAX_SAFE_INTEGER.toString());
+                  setPrice(maxMarketPrice.toString());
                 }
               } else {
                 setPrice('');

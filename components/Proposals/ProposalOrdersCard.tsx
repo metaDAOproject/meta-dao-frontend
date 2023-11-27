@@ -1,12 +1,13 @@
-import { ActionIcon, Button, Group, Loader, Stack, Tabs, Text } from '@mantine/core';
-import { Transaction } from '@solana/web3.js';
+import { ActionIcon, Button, Flex, Group, Loader, Stack, Tabs, Text } from '@mantine/core';
+import { Transaction, PublicKey } from '@solana/web3.js';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { IconRefresh } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import { BN } from '@coral-xyz/anchor';
 import { notifications } from '@mantine/notifications';
-import { useTokens } from '@/hooks/useTokens';
+import numeral from 'numeral';
 import { OpenOrdersAccountWithKey, ProposalAccountWithKey, Markets } from '@/lib/types';
+import { NUMERAL_FORMAT, BASE_FORMAT } from '@/lib/constants';
 import { useProposal } from '@/hooks/useProposal';
 import { ProposalOrdersTable } from './ProposalOrdersTable';
 import { NotificationLink } from '../Layout/NotificationLink';
@@ -17,13 +18,16 @@ export function ProposalOrdersCard({
   markets,
   orders,
   proposal,
+  handleCrank,
+  isCranking,
 }: {
   markets: Markets;
   orders: OpenOrdersAccountWithKey[];
   proposal: ProposalAccountWithKey;
+  handleCrank: (isPassMarket: boolean, individualEvent?: PublicKey) => void;
+  isCranking: boolean;
 }) {
   const wallet = useWallet();
-  const { tokens } = useTokens();
   const sender = useTransactionSender();
   const { metaDisabled, usdcDisabled, fetchOpenOrders, createTokenAccounts } = useProposal({
     fromNumber: proposal.account.number,
@@ -35,53 +39,73 @@ export function ProposalOrdersCard({
     'Order ID',
     'Market',
     'Status',
-    'Side',
-    'Quantity',
+    'Size',
     'Price',
-    'Amount',
+    'Notional',
     'Actions',
   ];
 
   const unsettledOrdersHeaders = [
     'Order ID',
     'Market',
-    `Amount ${tokens?.meta?.symbol}`,
-    `Amount ${tokens?.usdc?.symbol}`,
-    'Settle',
-    'Close',
+    'Claimable',
+    'Actions',
   ];
 
   const handleSettleFunds = useCallback(
-    async (ordersToSettle: OpenOrdersAccountWithKey[], passMarket: boolean) => {
+    async (
+      ordersToSettle: OpenOrdersAccountWithKey[],
+      passMarket: boolean,
+      dontClose: boolean = false
+      ) => {
       if (!proposal || !markets) return;
-
-      const txs = (
-        await Promise.all(
-          ordersToSettle.map((order) =>
-            settleFundsTransactions(
-              new BN(order.account.accountNum),
-              passMarket,
-              proposal,
-              proposal.account.openbookPassMarket.equals(order.account.market)
-                ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
-                : { publicKey: proposal.account.openbookFailMarket, account: markets.fail },
-            ),
-          ),
-        )
-      )
-        .flat()
-        .filter(Boolean)
-        .concat(
-          (
-            await Promise.all(
-              ordersToSettle.map((order) =>
-                closeOpenOrdersAccountTransactions(new BN(order.account.accountNum)),
+      let txs;
+      if (!dontClose) {
+        txs = (
+          await Promise.all(
+            ordersToSettle.map((order) =>
+              settleFundsTransactions(
+                new BN(order.account.accountNum),
+                passMarket,
+                proposal,
+                proposal.account.openbookPassMarket.equals(order.account.market)
+                  ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
+                  : { publicKey: proposal.account.openbookFailMarket, account: markets.fail },
               ),
-            )
+            ),
           )
-            .flat()
-            .filter(Boolean),
-        );
+        )
+          .flat()
+          .filter(Boolean)
+          .concat(
+            (
+              await Promise.all(
+                ordersToSettle.map((order) =>
+                  closeOpenOrdersAccountTransactions(new BN(order.account.accountNum)),
+                ),
+              )
+            )
+              .flat()
+              .filter(Boolean),
+          );
+      } else {
+        txs = (
+          await Promise.all(
+            ordersToSettle.map((order) =>
+              settleFundsTransactions(
+                new BN(order.account.accountNum),
+                passMarket,
+                proposal,
+                proposal.account.openbookPassMarket.equals(order.account.market)
+                  ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
+                  : { publicKey: proposal.account.openbookFailMarket, account: markets.fail },
+              ),
+            ),
+          )
+        )
+          .flat()
+          .filter(Boolean);
+      }
 
       if (!wallet.publicKey || !txs) return;
 
@@ -141,7 +165,7 @@ export function ProposalOrdersCard({
           Conditional USDC
         </Button>
       </Group>
-      <Group>
+      <Group justify="flex-end">
         <Button
           loading={isSettling}
           onClick={() =>
@@ -150,8 +174,9 @@ export function ProposalOrdersCard({
               proposal.account.openbookFailMarket.equals(markets.passTwap.market),
             )
           }
+          disabled={filterEmptyOrders().length === 0 || false}
         >
-          Settle all orders
+          Settle And Close All Orders
         </Button>
       </Group>
     </Stack>
@@ -233,27 +258,104 @@ export function ProposalOrdersCard({
     return [];
   };
 
+  const isBidOrAsk = (order: OpenOrdersAccountWithKey) => {
+    const isBidSide = order.account.position.bidsBaseLots.gt(order.account.position.asksBaseLots);
+    if (isBidSide) {
+      return true;
+    }
+    return false;
+  };
+
+  const totalInOrder = () => {
+    let sumOrders = [];
+    sumOrders = orders?.map(
+      (order) =>
+        (order.account.position.bidsBaseLots.toNumber() / 10_000 +
+          order.account.position.asksBaseLots.toNumber() / 10_000) *
+        order.account.openOrders[0].lockedPrice.toNumber(),
+    );
+    const totalValueLocked = sumOrders.reduce((partialSum, amount) => partialSum + amount, 0);
+    return numeral(totalValueLocked).format(NUMERAL_FORMAT);
+  };
+
+  const totalUsdcInOrder = () => {
+    let sumOrders = [];
+    sumOrders = orders?.map((order) => {
+      if (isBidOrAsk(order)) {
+        return (
+          order.account.position.bidsBaseLots.toNumber() +
+          order.account.position.asksBaseLots.toNumber()
+        );
+      }
+      return 0;
+    });
+
+    const totalValueLocked = sumOrders.reduce((partialSum, amount) => partialSum + amount, 0);
+    return numeral(totalValueLocked).format(NUMERAL_FORMAT);
+  };
+
+  const totalMetaInOrder = () => {
+    let sumOrders = [];
+    sumOrders = orders?.map((order) => {
+      if (!isBidOrAsk(order)) {
+        return (
+          order.account.position.bidsBaseLots.toNumber() +
+          order.account.position.asksBaseLots.toNumber()
+        );
+      }
+      return 0;
+    });
+
+    const totalValueLocked = sumOrders.reduce((partialSum, amount) => partialSum + amount, 0);
+    return numeral(totalValueLocked).format(BASE_FORMAT);
+  };
+
   return !proposal || !markets || !orders ? (
     <Group justify="center">
       <Loader />
     </Group>
   ) : (
-    <Tabs defaultValue="open">
-      <Tabs.List>
-        <Tabs.Tab value="open">Open Orders</Tabs.Tab>
-        <Tabs.Tab value="uncranked">Uncranked Orders</Tabs.Tab>
-        <Tabs.Tab value="unsettled">Unsettled Orders</Tabs.Tab>
+    <>
+    <Group justify="space-between" align="center">
+      <Group>
+        <Text fw="bolder" size="xl">Orders</Text>
         <ActionIcon
           variant="subtle"
-          // @ts-ignore
+            // @ts-ignore
           onClick={() => fetchOpenOrders(proposal, wallet.publicKey)}
         >
           <IconRefresh />
         </ActionIcon>
+      </Group>
+      <Flex justify="flex-end" align="flex-end" direction="row" wrap="wrap">
+        <Stack gap={0} align="center" justify="flex-end">
+          <Group>
+            <Text size="xl" fw="bold">
+              ${totalUsdcInOrder()}
+            </Text>
+            <Text size="md">condUSDC</Text>|
+            <Text size="xl" fw="bold">
+              {totalMetaInOrder()}
+            </Text>
+            <Text size="md">condMETA</Text>
+
+          </Group>
+          <Text fw="bolder" size="xl">
+              (${totalInOrder()}) Total
+          </Text>
+        </Stack>
+      </Flex>
+    </Group>
+    <Tabs defaultValue="open">
+
+      <Tabs.List>
+        <Tabs.Tab value="open">Open</Tabs.Tab>
+        <Tabs.Tab value="uncranked">Uncranked</Tabs.Tab>
+        <Tabs.Tab value="unsettled">Unsettled</Tabs.Tab>
+
       </Tabs.List>
       <Tabs.Panel value="open">
         <ProposalOrdersTable
-          heading="Open Orders"
           description="If you see orders here with a settle button, you can settle them to redeem the partial fill amount. These exist
             when there is a balance available within the Open Orders Account."
           headers={genericOrdersHeaders}
@@ -262,11 +364,12 @@ export function ProposalOrdersCard({
           orderStatus="open"
           markets={markets}
           settleOrders={handleSettleFunds}
+          handleCrank={handleCrank}
+          isCranking={isCranking}
         />
       </Tabs.Panel>
       <Tabs.Panel value="uncranked">
         <ProposalOrdersTable
-          heading="Uncranked Orders"
           description=" If you see orders here, you can use the cycle icon with the 12 on it next to the
             respective market which will crank it and push the orders into the Unsettled, Open
             Accounts below."
@@ -276,11 +379,12 @@ export function ProposalOrdersCard({
           orderStatus="uncranked"
           markets={markets}
           settleOrders={handleSettleFunds}
+          handleCrank={handleCrank}
+          isCranking={isCranking}
         />
       </Tabs.Panel>
       <Tabs.Panel value="unsettled">
         <ProposalOrdersTable
-          heading="Unsettled Orders"
           description={unsettledOrdersDescription()}
           headers={unsettledOrdersHeaders}
           orders={filterEmptyOrders()}
@@ -288,8 +392,11 @@ export function ProposalOrdersCard({
           orderStatus="closed"
           markets={markets}
           settleOrders={handleSettleFunds}
+          handleCrank={handleCrank}
+          isCranking={isCranking}
         />
       </Tabs.Panel>
     </Tabs>
+    </>
   );
 }

@@ -1,9 +1,9 @@
 import { ReactNode, useCallback, useState } from 'react';
-import { ActionIcon, Group, Flex, Table, Text, useMantineTheme } from '@mantine/core';
+import { ActionIcon, Group, Stack, Table, Text, Tooltip, useMantineTheme, Space } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import numeral from 'numeral';
-import { IconTrash, Icon3dRotate, IconAssemblyOff } from '@tabler/icons-react';
-import { Transaction } from '@solana/web3.js';
+import { IconTrash, Icon3dRotate, IconAssemblyOff, IconWriting, Icon12Hours } from '@tabler/icons-react';
+import { Transaction, PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { notifications } from '@mantine/notifications';
 import { NotificationLink } from '../Layout/NotificationLink';
@@ -16,7 +16,6 @@ import { useProposal } from '@/hooks/useProposal';
 import { useWeb3 } from '@/hooks/useWeb3';
 
 export function ProposalOrdersTable({
-  heading,
   description,
   headers,
   orders,
@@ -24,15 +23,22 @@ export function ProposalOrdersTable({
   orderStatus,
   markets,
   settleOrders,
+  handleCrank,
+  isCranking,
 }: {
-  heading: string;
   description: ReactNode;
   headers: string[];
   orders: OpenOrdersAccountWithKey[];
   proposal: ProposalAccountWithKey;
   orderStatus: string;
   markets: Markets;
-  settleOrders: (orders: OpenOrdersAccountWithKey[], passMarket: boolean) => Promise<void>;
+  settleOrders: (
+    orders: OpenOrdersAccountWithKey[],
+    passMarket: boolean,
+    dontClose?: boolean
+  ) => Promise<void>;
+  handleCrank: (isPassMarket: boolean, individualEvent?: PublicKey) => void;
+  isCranking: boolean;
 }) {
   const theme = useMantineTheme();
   const sender = useTransactionSender();
@@ -93,10 +99,10 @@ export function ProposalOrdersTable({
   );
 
   const handleSettleFunds = useCallback(
-    async (order: OpenOrdersAccountWithKey, passMarket: boolean) => {
+    async (order: OpenOrdersAccountWithKey, passMarket: boolean, dontClose?: boolean) => {
       setIsSettling(true);
       try {
-        await settleOrders([order], passMarket);
+        await settleOrders([order], passMarket, dontClose);
       } finally {
         setIsSettling(false);
       }
@@ -128,7 +134,7 @@ export function ProposalOrdersTable({
     [proposal, closeOrderAccount, sender],
   );
 
-  const isPassOrFail = (order: OpenOrdersAccountWithKey) => {
+  const isPass = (order: OpenOrdersAccountWithKey) => {
     if (!proposal) return false;
     const isPassMarket = order.account.market.equals(proposal.account.openbookPassMarket);
     if (isPassMarket) {
@@ -137,56 +143,12 @@ export function ProposalOrdersTable({
     return false;
   };
 
-  const isBidOrAsk = (order: OpenOrdersAccountWithKey) => {
+  const isBid = (order: OpenOrdersAccountWithKey) => {
     const isBidSide = order.account.position.bidsBaseLots.gt(order.account.position.asksBaseLots);
     if (isBidSide) {
       return true;
     }
     return false;
-  };
-
-  const totalInOrder = () => {
-    let sumOrders = [];
-    sumOrders = orders?.map(
-      (order) =>
-        (order.account.position.bidsBaseLots.toNumber() / 10_000 +
-          order.account.position.asksBaseLots.toNumber() / 10_000) *
-        order.account.openOrders[0].lockedPrice.toNumber(),
-    );
-    const totalValueLocked = sumOrders.reduce((partialSum, amount) => partialSum + amount, 0);
-    return numeral(totalValueLocked).format(NUMERAL_FORMAT);
-  };
-
-  const totalUsdcInOrder = () => {
-    let sumOrders = [];
-    sumOrders = orders?.map((order) => {
-      if (isBidOrAsk(order)) {
-        return (
-          order.account.position.bidsBaseLots.toNumber() +
-          order.account.position.asksBaseLots.toNumber()
-        );
-      }
-      return 0;
-    });
-
-    const totalValueLocked = sumOrders.reduce((partialSum, amount) => partialSum + amount, 0);
-    return numeral(totalValueLocked).format(NUMERAL_FORMAT);
-  };
-
-  const totalMetaInOrder = () => {
-    let sumOrders = [];
-    sumOrders = orders?.map((order) => {
-      if (!isBidOrAsk(order)) {
-        return (
-          order.account.position.bidsBaseLots.toNumber() +
-          order.account.position.asksBaseLots.toNumber()
-        );
-      }
-      return 0;
-    });
-
-    const totalValueLocked = sumOrders.reduce((partialSum, amount) => partialSum + amount, 0);
-    return numeral(totalValueLocked).format(BASE_FORMAT);
   };
 
   const isPartiallyFilled = (order: OpenOrdersAccountWithKey): boolean => {
@@ -199,30 +161,7 @@ export function ProposalOrdersTable({
 
   return (
     <>
-      <Group justify="space-between">
-        <Text fw="bolder" size="xl">
-          {heading}
-        </Text>
-
-        <Flex justify="flex-end" align="center" direction="row" wrap="wrap">
-          {orderStatus === 'open' ? (
-            <>
-              <Group>
-                <Text size="xl" fw="bold">
-                  ${totalUsdcInOrder()}
-                </Text>
-                <Text size="md">condUSDC</Text>/
-                <Text size="xl" fw="bold">
-                  {totalMetaInOrder()}
-                </Text>
-                <Text size="md">condMETA</Text>
-                <Text fw="bolder" size="xl">
-                  (${totalInOrder()})
-                </Text>
-              </Group>
-            </>
-          ) : null}
-        </Flex>
+      <Group justify="flex-end">
         {description}
       </Group>
       <Table>
@@ -246,8 +185,25 @@ export function ProposalOrdersTable({
                     {order.account.accountNum}
                   </a>
                 </Table.Td>
-                <Table.Td c={isPassOrFail(order) ? theme.colors.green[9] : theme.colors.red[9]}>
-                  {isPassOrFail(order) ? 'PASS' : 'FAIL'}
+                <Table.Td>
+                    <Group justify="flex-start" align="center" gap={10}>
+                      <IconWriting
+                        color={isPass(order) ? theme.colors.green[9] : theme.colors.red[9]}
+                        scale="xs"
+                      />
+                      <Stack gap={0} justify="flex-start" align="flex-start">
+                      <Text>
+                      {isPass(order) ? 'PASS' : 'FAIL'}
+                      </Text>
+
+                    {orderStatus !== 'closed' ? (
+                    <Text size="xs" c={isBid(order) ? theme.colors.green[9] : theme.colors.red[9]}>
+                      {isBid(order) ? 'Bid' : 'Ask'}
+                    </Text>
+
+                    ) : null }
+                      </Stack>
+                    </Group>
                 </Table.Td>
                 {orderStatus === 'open' || orderStatus === 'uncranked' ? (
                   <>
@@ -258,12 +214,9 @@ export function ProposalOrdersTable({
                         ? 'Partial Fill'
                         : 'Open'}
                     </Table.Td>
-                    <Table.Td c={isBidOrAsk(order) ? theme.colors.green[9] : theme.colors.red[9]}>
-                      {isBidOrAsk(order) ? 'BID' : 'ASK'}
-                    </Table.Td>
                     <Table.Td>
                       {numeral(
-                        isBidOrAsk(order)
+                        isBid(order)
                           ? order.account.position.bidsBaseLots
                           : order.account.position.asksBaseLots,
                       ).format(BASE_FORMAT)}
@@ -276,7 +229,7 @@ export function ProposalOrdersTable({
                     <Table.Td>
                       $
                       {numeral(
-                        (isBidOrAsk(order)
+                        (isBid(order)
                         ? order.account.position.bidsBaseLots *
                           order.account.openOrders[0].lockedPrice *
                           QUOTE_LOTS
@@ -286,58 +239,82 @@ export function ProposalOrdersTable({
                     </Table.Td>
                     <Table.Td>
                       <ActionIcon
-                        variant="subtle"
+                        variant="light"
                         loading={isCanceling}
                         onClick={() => handleCancel([order])}
                       >
                         <IconTrash />
                       </ActionIcon>
                       {isPartiallyFilled(order) ? (
-                        <ActionIcon
-                          variant="subtle"
-                          loading={isSettling}
-                          onClick={() => handleSettleFunds(order, isPassOrFail(order))}
-                        >
-                          <Icon3dRotate />
-                        </ActionIcon>
+                        <>
+                          <ActionIcon
+                            variant="light"
+                            loading={isSettling}
+                            onClick={() => handleSettleFunds(order, isPass(order), true)}
+                          >
+                            <Icon3dRotate />
+                          </ActionIcon>
+                          {
+                            order.account.position.asksBaseLots > BN_0 ||
+                            order.account.position.bidsBaseLots > BN_0 ? (
+                            <Tooltip label="Crank the market 🐷">
+                              <ActionIcon variant="light" loading={isCranking} onClick={() => handleCrank(isPass(order), order.publicKey)}>
+                                <Icon12Hours />
+                              </ActionIcon>
+                            </Tooltip>
+                            ) : null }
+                        </>
                       ) : null}
                     </Table.Td>
                   </>
                 ) : (
                   <>
                     <Table.Td>
-                      {`${order.account.position.baseFreeNative.toNumber() / 1_000_000_000}${
-                        isPassOrFail(order) ? 'p' : 'f'
-                      }`}
+                      <Stack gap={0}>
+                        <Text>
+                        {`${order.account.position.baseFreeNative.toNumber() / 1_000_000_000} ${
+                          isPass(order) ? 'pMETA' : 'fMETA'
+                        }`}
+                        </Text>
+                        <Text>
+                        {`${order.account.position.quoteFreeNative / 1_000_000} ${
+                          isPass(order) ? 'pUSDC' : 'fUSDC'
+                        }`}
+                        </Text>
+                      </Stack>
                     </Table.Td>
                     <Table.Td>
-                      {`${order.account.position.quoteFreeNative / 1_000_000}${
-                        isPassOrFail(order) ? 'p' : 'f'
-                      }`}
-                    </Table.Td>
-                    <Table.Td>
-                      <ActionIcon
-                        variant="subtle"
-                        loading={isSettling}
-                        onClick={() => handleSettleFunds(order, isPassOrFail(order))}
-                      >
-                        <Icon3dRotate />
-                      </ActionIcon>
-                    </Table.Td>
-                    <Table.Td>
-                      <ActionIcon
-                        disabled={
-                          order.account.position.asksBaseLots > BN_0 ||
-                          order.account.position.bidsBaseLots > BN_0 ||
-                          order.account.position.baseFreeNative > BN_0 ||
-                          order.account.position.quoteFreeNative > BN_0
-                        }
-                        variant="subtle"
-                        loading={isSettling}
-                        onClick={() => handleCloseAccount(order)}
-                      >
-                        <IconAssemblyOff />
-                      </ActionIcon>
+                      <Group>
+                        {order.account.position.asksBaseLots > BN_0 ||
+                         order.account.position.bidsBaseLots > BN_0 ? (
+                        <Tooltip label="Crank the market 🐷">
+                          <ActionIcon variant="light" loading={isCranking} onClick={() => handleCrank(isPass(order), order.publicKey)}>
+                            <Icon12Hours />
+                          </ActionIcon>
+                        </Tooltip>
+                         ) : null }
+                        <ActionIcon
+                          variant="light"
+                          loading={isSettling}
+                          onClick={() => handleSettleFunds(order, isPass(order), true)}
+                        >
+                          <Icon3dRotate />
+                        </ActionIcon>
+                        <Space />
+                        <ActionIcon
+                          disabled={
+                            order.account.position.asksBaseLots > BN_0 ||
+                            order.account.position.bidsBaseLots > BN_0 ||
+                            order.account.position.baseFreeNative > BN_0 ||
+                            order.account.position.quoteFreeNative > BN_0
+                          }
+                          variant="light"
+                          loading={isSettling}
+                          onClick={() => handleCloseAccount(order)}
+                        >
+                          <IconAssemblyOff />
+                        </ActionIcon>
+                      </Group>
                     </Table.Td>
                   </>
                 )}
