@@ -121,6 +121,13 @@ export function ConditionalMarketCard({
     }
   };
 
+  const failMidPrice = (
+    Number(orderBookObject?.failToB.topAsk) + Number(orderBookObject?.failToB.topBid)
+  ) / 2;
+  const passMidPrice = (
+    Number(orderBookObject?.passToB.topAsk) + Number(orderBookObject?.passToB.topBid)
+  ) / 2;
+
   const setPriceFromOrderBook = (value: string) => {
     priceValidator(value);
     setPrice(value);
@@ -193,9 +200,21 @@ export function ConditionalMarketCard({
               <HoverCard>
                 <HoverCard.Target>
                   <Group justify="center" align="flex-start">
-                    <Text size="lg" pb="1rem">
-                      TWAP@${numeral(twap).format(NUMERAL_FORMAT)}
-                    </Text>
+                    <Stack gap={0} pb="1rem">
+                      <Group gap={3} justify="center" align="center">
+                        <Text fw="bold" size="md">
+                          ${numeral(twap).format(NUMERAL_FORMAT)}
+                        </Text>
+                        <Text size="sm">
+                          TWAP
+                        </Text>
+                      </Group>
+                      <Text size="xs">
+                        ${numeral(
+                          isPassMarket ? passMidPrice : failMidPrice
+                          ).format(NUMERAL_FORMAT)} (mid)
+                      </Text>
+                    </Stack>
                     <ActionIcon variant="transparent">
                       <IconQuestionMark />
                     </ActionIcon>
