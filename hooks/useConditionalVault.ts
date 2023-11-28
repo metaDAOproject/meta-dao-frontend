@@ -133,7 +133,7 @@ export function useConditionalVault() {
       }
       const token = Object.values(tokens).find(
         (e) => e.publicKey.toString() === vault.underlyingTokenMint.toString(),
-      )!;
+      );
 
       return {
         ixs: [
@@ -153,7 +153,7 @@ export function useConditionalVault() {
             .mintConditionalTokens(
               new BN(
                 numeral(amount)
-                  .multiply(10 ** token.decimals)
+                  .multiply(10 ** (token?.decimals || 0))
                   .format('0'),
               ),
             )

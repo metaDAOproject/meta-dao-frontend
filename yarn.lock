@@ -1746,9 +1746,6 @@
     bs58 "^5.0.0"
     uuid "^8.3.2"
 
-"@lab49/react-order-book@../react-order-book":
-  version "0.1.5-dev"
-
 "@lab49/react-order-book@https://github.com/R-K-H/react-order-book":
   version "0.1.5-dev"
   resolved "https://github.com/R-K-H/react-order-book#a9bff2d6d13d438b164e4846ae038a580163be15"
