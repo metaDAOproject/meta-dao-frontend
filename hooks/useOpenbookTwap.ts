@@ -89,9 +89,14 @@ export function useOpenbookTwap() {
       let priceLots = new BN(Math.floor(price / QUOTE_LOTS));
       const maxBaseLots = new BN(Math.floor(amount));
       let maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
-      if (!limitOrder && ask) {
-        priceLots = new BN(1);
-        maxQuoteLotsIncludingFees = new BN(Math.floor(10 / QUOTE_LOTS));
+      if (!limitOrder) {
+        if (ask) {
+          priceLots = new BN(1);
+          maxQuoteLotsIncludingFees = new BN(Math.floor(10 / QUOTE_LOTS));
+        } else {
+          priceLots = new BN(1_000_000_000_000_000);
+          maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
+        }
       }
       const args: PlaceOrderArgs = {
         side: ask ? Side.Ask : Side.Bid,
@@ -186,11 +191,11 @@ export function useOpenbookTwap() {
       let filteredAccounts = accountsMeta;
       if (individualEvent) {
         filteredAccounts = accountsMeta.filter((order) =>
-          (order.pubkey === individualEvent)
+          (order.pubkey.toString() === individualEvent.toString())
         );
       }
       const crankIx = await openbook.program.methods
-        .consumeEvents(new BN(accounts.length))
+        .consumeEvents(new BN(filteredAccounts.length))
         .accounts({
           consumeEventsAdmin: openbook.programId,
           market: market.publicKey,
