@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.28.0-beta2",
-    "@lab49/react-order-book": "^0.1.4",
+    "@lab49/react-order-book": "https://github.com/R-K-H/react-order-book",
     "@mantine/core": "7.1.3",
     "@mantine/hooks": "7.1.3",
     "@mantine/modals": "^7.1.5",

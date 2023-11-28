@@ -20,13 +20,14 @@ import numeral from 'numeral';
 import { PublicKey } from '@solana/web3.js';
 import { Icon12Hours, IconQuestionMark, IconWallet } from '@tabler/icons-react';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
-import { Markets } from '@/lib/types';
+import { Markets, OrderBook } from '@/lib/types';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { calculateTWAP } from '../../lib/openbookTwap';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
 
 export function ConditionalMarketCard({
   isPassMarket,
+  orderBookObject,
   markets,
   placeOrder,
   handleCrank,
@@ -35,6 +36,7 @@ export function ConditionalMarketCard({
   isCranking,
 }: {
   isPassMarket: boolean;
+  orderBookObject: OrderBook;
   markets: Markets;
   placeOrder: (
     amount: number,
@@ -84,11 +86,51 @@ export function ConditionalMarketCard({
   const priceValidator = (value: string) => {
     if (isLimitOrder) {
       if (Number(value) > 0) {
+        if (isAskSide) {
+          if (isPassMarket) {
+            if (Number(value) <= Number(orderBookObject?.passToB.topBid)) {
+              setPriceError('You will cross the books with a taker order');
+              return;
+            }
+            setPriceError(null);
+            return;
+          }
+          if (Number(value) <= Number(orderBookObject?.failToB.topBid)) {
+            setPriceError('You will cross the books with a taker order');
+            return;
+          }
+          setPriceError(null);
+          return;
+        }
+        if (isPassMarket) {
+          if (Number(value) >= Number(orderBookObject?.passToB.topAsk)) {
+            setPriceError('You will cross the books with a taker order');
+            return;
+          }
+          setPriceError(null);
+          return;
+        }
+        if (Number(value) >= Number(orderBookObject?.failToB.topAsk)) {
+          setPriceError('You will cross the books with a taker order');
+          return;
+        }
         setPriceError(null);
       } else {
         setPriceError('Enter a value greater than 0');
       }
     }
+  };
+
+  const failMidPrice = (
+    Number(orderBookObject?.failToB.topAsk) + Number(orderBookObject?.failToB.topBid)
+  ) / 2;
+  const passMidPrice = (
+    Number(orderBookObject?.passToB.topAsk) + Number(orderBookObject?.passToB.topBid)
+  ) / 2;
+
+  const setPriceFromOrderBook = (value: string) => {
+    priceValidator(value);
+    setPrice(value);
   };
 
   const maxOrderAmount = () => {
@@ -158,9 +200,21 @@ export function ConditionalMarketCard({
               <HoverCard>
                 <HoverCard.Target>
                   <Group justify="center" align="flex-start">
-                    <Text size="lg" pb="1rem">
-                      TWAP@${numeral(twap).format(NUMERAL_FORMAT)}
-                    </Text>
+                    <Stack gap={0} pb="1rem">
+                      <Group gap={3} justify="center" align="center">
+                        <Text fw="bold" size="md">
+                          ${numeral(twap).format(NUMERAL_FORMAT)}
+                        </Text>
+                        <Text size="sm">
+                          TWAP
+                        </Text>
+                      </Group>
+                      <Text size="xs">
+                        ${numeral(
+                          isPassMarket ? passMidPrice : failMidPrice
+                          ).format(NUMERAL_FORMAT)} (mid)
+                      </Text>
+                    </Stack>
                     <ActionIcon variant="transparent">
                       <IconQuestionMark />
                     </ActionIcon>
@@ -194,8 +248,9 @@ export function ConditionalMarketCard({
         {/* <Text fw="bold">Book</Text> */}
         <Card withBorder style={{ backgroundColor: 'rgb(250, 250, 250)' }}>
           <ConditionalMarketOrderBook
-            bids={isPassMarket ? markets.passBids : markets.failBids}
-            asks={isPassMarket ? markets.passAsks : markets.failAsks}
+            orderBookObject={orderBookObject}
+            isPassMarket={isPassMarket}
+            setPriceFromOrderBook={setPriceFromOrderBook}
           />
         </Card>
         <Stack>

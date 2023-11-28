@@ -154,6 +154,8 @@ export function useProposal({
               autoClose: 5000,
             }),
           );
+        } catch (err) {
+          console.error(err);
         } finally {
           setLoading(false);
         }
@@ -270,6 +272,8 @@ export function useProposal({
         );
         await fetchMarketsInfo(proposal);
         await fetchOpenOrders(proposal, wallet.publicKey);
+      } catch (err) {
+        console.error(err);
       } finally {
         setLoading(false);
       }

@@ -1,71 +1,21 @@
-import { useMemo } from 'react';
 import { OrderBook } from '@lab49/react-order-book';
-import { LeafNode } from '@/lib/types';
+import { OrderBook as _OrderBook } from '@/lib/types';
 
-export function ConditionalMarketOrderBook({ bids, asks }: { bids: LeafNode[]; asks: LeafNode[] }) {
-  const orderbook = useMemo(() => {
-    const getSide = (side: LeafNode[], isBidSide?: boolean) => {
-      if (side.length === 0) {
-        return null;
-      }
-      const parsed = side
-        .map((e) => ({
-          price: e.key.shrn(64).toNumber(),
-          size: e.quantity.toNumber(),
-        }))
-        .sort((a, b) => a.price - b.price);
-
-      const sorted = isBidSide
-        ? parsed.sort((a, b) => b.price - a.price)
-        : parsed.sort((a, b) => a.price - b.price);
-
-      const deduped = new Map();
-      sorted.forEach((order) => {
-        if (deduped.get(order.price) === undefined) {
-          deduped.set(order.price, order.size);
-        } else {
-          deduped.set(order.price, deduped.get(order.price) + order.size);
-        }
-      });
-
-      const total = parsed.reduce((a, b) => ({
-        price: a.price + b.price,
-        size: a.size + b.size,
-      }));
-      return { parsed, total, deduped };
-    };
-
-    const orderBookSide = (orderBookForSide: LeafNode[], isBidSide?: boolean) => {
-      if (orderBookForSide) {
-        const _orderBookSide = getSide(orderBookForSide, isBidSide);
-        if (_orderBookSide) {
-          return Array.from(_orderBookSide.deduped?.entries()).map((side) => [
-            (side[0] / 10_000).toFixed(4),
-            side[1],
-          ]);
-        }
-      }
-      if (isBidSide) {
-        return [[0, 0]];
-      }
-        return [[Number.MAX_SAFE_INTEGER, 0]];
-    };
-    const _bids = orderBookSide(bids, true);
-    const _asks = orderBookSide(asks);
-
-    const tobAsk: number = Number(_asks[0][0]);
-    const tobBid: number = Number(_bids[0][0]);
-    const spread: number = (tobAsk - tobBid);
-    const spreadPercent: string = ((spread / tobAsk) * 100).toFixed(2);
-
-    const spreadString = `${spread.toFixed(2).toString()} (${spreadPercent}%)`;
-
-    return {
-      bids: getSide(bids, true),
-      asks: getSide(asks),
-      spreadString,
-    };
-  }, [bids, asks]);
+export function ConditionalMarketOrderBook({
+  isPassMarket, orderBookObject, setPriceFromOrderBook,
+}: {
+  isPassMarket: boolean,
+  orderBookObject: _OrderBook,
+  setPriceFromOrderBook: (price: string) => void;
+}) {
+  let bids = orderBookObject?.failBidsArray;
+  let asks = orderBookObject?.failAsksArray;
+  let spreadString = orderBookObject?.failSpreadString;
+  if (isPassMarket) {
+    bids = orderBookObject?.passBidsArray;
+    asks = orderBookObject?.passAsksArray;
+    spreadString = orderBookObject?.passSpreadString;
+  }
 
   return (
     <>
@@ -132,21 +82,12 @@ export function ConditionalMarketOrderBook({ bids, asks }: { bids: LeafNode[]; a
       />
       <OrderBook
         book={{
-          bids: orderbook?.bids
-            ? Array.from(orderbook?.bids?.deduped.entries()).map((bid) => [
-                (bid[0] / 10_000).toFixed(4),
-                bid[1],
-              ])
-            : [[0, 0]],
-          asks: orderbook?.asks
-            ? Array.from(orderbook?.asks?.deduped.entries()).map((ask) => [
-                (ask[0] / 10_000).toFixed(4),
-                ask[1],
-              ])
-            : [[Number.MAX_SAFE_INTEGER, 0]],
+          bids: bids || [[0, 0]],
+          asks: asks || [[Number.MAX_SAFE_INTEGER, 0]],
         }}
         fullOpacity
-        spread={orderbook.spreadString}
+        onClickFunction={setPriceFromOrderBook}
+        spread={spreadString}
         interpolateColor={(color) => color}
         listLength={5}
         stylePrefix="MakeItNice"
