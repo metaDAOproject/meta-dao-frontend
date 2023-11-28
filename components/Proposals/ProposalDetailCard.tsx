@@ -35,7 +35,7 @@ import { SLOTS_PER_10_SECS, TEN_DAYS_IN_SLOTS } from '../../lib/constants';
 
 export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number }) {
   const { connection } = useConnection();
-  const { fetchOpenOrders } = useAutocrat();
+  const { fetchOpenOrders, orderBookObject } = useAutocrat();
   const wallet = useWallet();
   const { proposal, markets, orders, mintTokens, placeOrder, loading } = useProposal({
     fromNumber: proposalNumber,
@@ -333,6 +333,7 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
           <Group gap="md" justify="space-around" p="sm">
             <ConditionalMarketCard
               isPassMarket
+              orderBookObject={orderBookObject}
               markets={markets}
               placeOrder={placeOrder}
               handleCrank={handleCrank}
@@ -342,6 +343,7 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
             />
             <ConditionalMarketCard
               isPassMarket={false}
+              orderBookObject={orderBookObject}
               markets={markets}
               placeOrder={placeOrder}
               handleCrank={handleCrank}
