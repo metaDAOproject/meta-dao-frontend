@@ -32,14 +32,26 @@ import { shortKey } from '@/lib/utils';
 import { StateBadge } from './StateBadge';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { SLOTS_PER_10_SECS, TEN_DAYS_IN_SLOTS } from '../../lib/constants';
+import { useTransactionSender } from '../../hooks/useTransactionSender';
+import { useConditionalVault } from '../../hooks/useConditionalVault';
 
 export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number }) {
   const { connection } = useConnection();
-  const { fetchOpenOrders, orderBookObject } = useAutocrat();
+  const { fetchOpenOrders, fetchProposals, orderBookObject } = useAutocrat();
+  const { redeemTokensTransactions } = useConditionalVault();
   const wallet = useWallet();
-  const { proposal, markets, orders, mintTokens, placeOrder, loading } = useProposal({
+  const {
+    proposal,
+    markets,
+    orders,
+    mintTokens,
+    placeOrder,
+    finalizeProposalTransactions,
+    loading,
+  } = useProposal({
     fromNumber: proposalNumber,
   });
+  const sender = useTransactionSender();
   const [mintBaseAmount, setMintBaseAmount] = useState<number>();
   const [mintQuoteAmount, setMintQuoteAmount] = useState<number>();
   const { amount: baseAmount } = useTokenAmount(markets?.baseVault.underlyingTokenMint);
@@ -62,11 +74,13 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const { crankMarketTransaction } = useOpenbookTwap();
   const [isCranking, setIsCranking] = useState<boolean>(false);
+  const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
+  const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
   const remainingSlots = useMemo(() => {
     if (!proposal) return;
 
     const endSlot = proposal.account.slotEnqueued.toNumber() + TEN_DAYS_IN_SLOTS;
-    return endSlot - (lastSlot || endSlot);
+    return Math.max(endSlot - (lastSlot || endSlot), 0);
   }, [proposal, lastSlot]);
 
   useEffect(() => {
@@ -105,6 +119,40 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
     [mintTokens, mintBaseAmount, mintQuoteAmount],
   );
 
+  const handleFinalize = useCallback(async () => {
+    setIsFinalizing(true);
+    const txs = await finalizeProposalTransactions();
+    if (!txs) return;
+    try {
+      await sender.send(txs);
+      await fetchProposals();
+    } finally {
+      setIsFinalizing(false);
+    }
+  }, [finalizeProposalTransactions, fetchProposals]);
+
+  const handleRedeem = useCallback(async () => {
+    if (!markets || !proposal) return;
+    setIsRedeeming(true);
+    const baseTxs = await redeemTokensTransactions({
+      publicKey: proposal.account.baseVault,
+      account: markets.baseVault,
+    });
+    const quoteTxs = await redeemTokensTransactions({
+      publicKey: proposal.account.quoteVault,
+      account: markets.quoteVault,
+    });
+    if (!baseTxs || !quoteTxs) {
+      throw new Error('Failed creating redeem txs, some accounts are missing values');
+    }
+    const txs = baseTxs.concat(quoteTxs);
+    try {
+      await sender.send(txs);
+    } finally {
+      setIsRedeeming(false);
+    }
+  }, [redeemTokensTransactions, fetchProposals]);
+
   useEffect(() => {
     if (lastSlot) return;
     async function fetchSlot() {
@@ -114,34 +162,37 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
     fetchSlot();
   }, [connection, lastSlot]);
 
-  const handleCrank = useCallback(async (isPassMarket: boolean, individualEvent?: PublicKey) => {
-    if (!proposal || !markets || !wallet?.publicKey) return;
-    let marketAccounts: MarketAccountWithKey = {
-      publicKey: markets.passTwap.market,
-      account: markets.pass,
-    };
-    let { eventHeap } = markets.pass;
-    if (!isPassMarket) {
-      marketAccounts = { publicKey: markets.failTwap.market, account: markets.fail };
-      eventHeap = markets.fail.eventHeap;
-    }
-    try {
-      setIsCranking(true);
-      const signature = await crankMarketTransaction(marketAccounts, eventHeap, individualEvent);
-      if (signature) {
-        notifications.show({
-          title: 'Transaction Submitted',
-          message: <NotificationLink signature={signature} />,
-          autoClose: 5000,
-        });
-        fetchOpenOrders(proposal, wallet.publicKey);
+  const handleCrank = useCallback(
+    async (isPassMarket: boolean, individualEvent?: PublicKey) => {
+      if (!proposal || !markets || !wallet?.publicKey) return;
+      let marketAccounts: MarketAccountWithKey = {
+        publicKey: markets.passTwap.market,
+        account: markets.pass,
+      };
+      let { eventHeap } = markets.pass;
+      if (!isPassMarket) {
+        marketAccounts = { publicKey: markets.failTwap.market, account: markets.fail };
+        eventHeap = markets.fail.eventHeap;
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsCranking(false);
-    }
-  }, [markets, proposal, wallet.publicKey, crankMarketTransaction, fetchOpenOrders]);
+      try {
+        setIsCranking(true);
+        const signature = await crankMarketTransaction(marketAccounts, eventHeap, individualEvent);
+        if (signature) {
+          notifications.show({
+            title: 'Transaction Submitted',
+            message: <NotificationLink signature={signature} />,
+            autoClose: 5000,
+          });
+          fetchOpenOrders(proposal, wallet.publicKey);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsCranking(false);
+      }
+    },
+    [markets, proposal, wallet.publicKey, crankMarketTransaction, fetchOpenOrders],
+  );
 
   return !proposal || !markets ? (
     <Group justify="center">
@@ -246,6 +297,20 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
                     {shortKey(proposal.account.baseVault.toString())}
                   </a>
                 </Text>
+                {proposal.account.state.pending ? (
+                  <Button
+                    disabled={(remainingSlots || 0) > 0}
+                    loading={isFinalizing}
+                    onClick={handleFinalize}
+                  >
+                    Finalize
+                  </Button>
+                ) : null}
+                {proposal.account.state.passed ? (
+                  <Button color="green" loading={isRedeeming} onClick={handleRedeem}>
+                    Redeem
+                  </Button>
+                ) : null}
               </Stack>
             </Accordion.Panel>
           </Accordion.Item>

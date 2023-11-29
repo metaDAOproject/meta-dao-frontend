@@ -10,6 +10,7 @@ export type AccountWithKey<T> = { publicKey: PublicKey; account: T };
 export type ProposalAccount = IdlAccounts<AutocratV0>['proposal'];
 export type ProposalAccountWithKey = AccountWithKey<ProposalAccount>;
 export type VaultAccount = IdlAccounts<ConditionalVault>['conditionalVault'];
+export type VaultAccountWithKey = AccountWithKey<VaultAccount>;
 export type DaoState = IdlAccounts<AutocratV0>['dao'];
 export type TwapMarketAccount = IdlAccounts<OpenbookTwap>['twapMarket'];
 export type TWAPOracle = IdlTypes<OpenbookTwap>['TWAPOracle'];
@@ -17,7 +18,7 @@ export type ProposalInstruction = IdlTypes<AutocratV0>['ProposalInstruction'];
 export type OrderBookSide = {
   parsed: {
     price: any;
-    size: any
+    size: any;
   }[];
   total: {
     price: any;
@@ -25,26 +26,28 @@ export type OrderBookSide = {
   };
   deduped: Map<any, any>;
 };
-export type OrderBook = {
-  passBidsProcessed: OrderBookSide | null;
-  passAsksProcessed: OrderBookSide | null;
-  failBidsProcessed: OrderBookSide | null;
-  failAsksProcessed: OrderBookSide | null;
-  passBidsArray: any[][];
-  passAsksArray: any[][];
-  failBidsArray: any[][];
-  failAsksArray: any[][];
-  passToB: {
-    topAsk: number;
-    topBid: number;
-  }
-  failToB: {
-    topAsk: number;
-    topBid: number;
-  }
-  passSpreadString: string;
-  failSpreadString: string;
-} | undefined;
+export type OrderBook =
+  | {
+      passBidsProcessed: OrderBookSide | null;
+      passAsksProcessed: OrderBookSide | null;
+      failBidsProcessed: OrderBookSide | null;
+      failAsksProcessed: OrderBookSide | null;
+      passBidsArray: any[][];
+      passAsksArray: any[][];
+      failBidsArray: any[][];
+      failAsksArray: any[][];
+      passToB: {
+        topAsk: number;
+        topBid: number;
+      };
+      failToB: {
+        topAsk: number;
+        topBid: number;
+      };
+      passSpreadString: string;
+      failSpreadString: string;
+    }
+  | undefined;
 export type Markets = {
   pass: MarketAccount;
   passAsks: LeafNode[];

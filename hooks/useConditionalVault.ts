@@ -9,7 +9,7 @@ import numeral from 'numeral';
 import { ConditionalVault, IDL as CONDITIONAL_VAULT_IDL } from '../lib/idl/conditional_vault';
 import { useProvider } from './useProvider';
 import { useTokens } from './useTokens';
-import { ProposalAccount, VaultAccount } from '../lib/types';
+import { ProposalAccount, VaultAccount, VaultAccountWithKey } from '../lib/types';
 
 export function useConditionalVault() {
   const provider = useProvider();
@@ -182,11 +182,43 @@ export function useConditionalVault() {
     [program, tokens],
   );
 
+  const redeemTokensTransactions = useCallback(
+    async (vault: VaultAccountWithKey) => {
+      if (!program || !program.provider.publicKey) return;
+
+      return [
+        await program.methods
+          .redeemConditionalTokensForUnderlyingTokens()
+          .accounts({
+            vault: vault.publicKey,
+            conditionalOnFinalizeTokenMint: vault.account.conditionalOnFinalizeTokenMint,
+            conditionalOnRevertTokenMint: vault.account.conditionalOnRevertTokenMint,
+            vaultUnderlyingTokenAccount: vault.account.underlyingTokenAccount,
+            userConditionalOnFinalizeTokenAccount: getAssociatedTokenAddressSync(
+              vault.account.conditionalOnFinalizeTokenMint,
+              program.provider.publicKey,
+            ),
+            userConditionalOnRevertTokenAccount: getAssociatedTokenAddressSync(
+              vault.account.conditionalOnRevertTokenMint,
+              program.provider.publicKey,
+            ),
+            userUnderlyingTokenAccount: getAssociatedTokenAddressSync(
+              vault.account.underlyingTokenMint,
+              program.provider.publicKey,
+            ),
+          })
+          .transaction(),
+      ];
+    },
+    [program],
+  );
+
   return {
     program,
     initializeVault,
     mintConditionalTokens,
     createConditionalTokensAccounts,
+    redeemTokensTransactions,
     getVaultMint,
   };
 }
