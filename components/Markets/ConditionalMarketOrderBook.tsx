@@ -2,10 +2,12 @@ import { OrderBook } from '@lab49/react-order-book';
 import { OrderBook as _OrderBook } from '@/lib/types';
 
 export function ConditionalMarketOrderBook({
-  isPassMarket, orderBookObject, setPriceFromOrderBook,
+  isPassMarket,
+  orderBookObject,
+  setPriceFromOrderBook,
 }: {
-  isPassMarket: boolean,
-  orderBookObject: _OrderBook,
+  isPassMarket: boolean;
+  orderBookObject: _OrderBook;
   setPriceFromOrderBook: (price: string) => void;
 }) {
   let bids = orderBookObject?.failBidsArray;

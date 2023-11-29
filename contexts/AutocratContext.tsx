@@ -13,7 +13,13 @@ import { useConnection } from '@solana/wallet-adapter-react';
 import { AutocratV0 } from '../lib/idl/autocrat_v0';
 import { useProvider } from '@/hooks/useProvider';
 import { AUTOCRAT_PROGRAM_ID, OPENBOOK_PROGRAM_ID } from '@/lib/constants';
-import { AllMarketsInfo, AllOrders, DaoState, OrderBook, ProposalAccountWithKey } from '../lib/types';
+import {
+  AllMarketsInfo,
+  AllOrders,
+  DaoState,
+  OrderBook,
+  ProposalAccountWithKey,
+} from '../lib/types';
 import { useNetworkConfiguration } from '../hooks/useNetworkConfiguration';
 import { useConditionalVault } from '../hooks/useConditionalVault';
 import { useOpenbookTwap } from '../hooks/useOpenbookTwap';
@@ -141,7 +147,7 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
       if (isBidSide) {
         return [[0, 0]];
       }
-        return [[Number.MAX_SAFE_INTEGER, 0]];
+      return [[Number.MAX_SAFE_INTEGER, 0]];
     };
 
     const getToB = (bids: LeafNode[], asks: LeafNode[]) => {
@@ -157,10 +163,12 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
 
     const getSpreadString = (bids: LeafNode[], asks: LeafNode[]) => {
       const { topAsk, topBid } = getToB(bids, asks);
-      const spread: number = (topAsk - topBid);
+      const spread: number = topAsk - topBid;
       const spreadPercent: string = ((spread / topAsk) * 100).toFixed(2);
 
-      return `${spread.toFixed(2).toString()} (${spreadPercent}%)`;
+      return spread === topAsk
+        ? '∞ (100.00%)'
+        : `${spread.toFixed(2).toString()} (${spreadPercent}%)`;
     };
     if (Object.keys(allMarketsInfo).length > 0) {
       const proposalInfo = allMarketsInfo[Object.keys(allMarketsInfo)[0]];
@@ -183,9 +191,7 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
       return undefined;
     }
     return undefined;
-  }, [
-    allMarketsInfo,
-  ]);
+  }, [allMarketsInfo]);
 
   const fetchMarketsInfo = useCallback(
     debounce(async (proposal: ProposalAccountWithKey) => {

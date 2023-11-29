@@ -18,12 +18,26 @@ export function useProposal({
   fromNumber?: number | undefined;
   fromProposal?: ProposalAccountWithKey;
 }) {
-  const { proposals, allMarketsInfo, allOrders, fetchMarketsInfo, fetchOpenOrders } = useAutocrat();
+  const {
+    autocratProgram,
+    dao,
+    daoState,
+    daoTreasury,
+    proposals,
+    allMarketsInfo,
+    allOrders,
+    fetchMarketsInfo,
+    fetchOpenOrders,
+  } = useAutocrat();
   const { connection } = useConnection();
   const wallet = useWallet();
   const { placeOrderTransactions } = useOpenbookTwap();
-  const { mintConditionalTokens, getVaultMint, createConditionalTokensAccounts } =
-    useConditionalVault();
+  const {
+    program: vaultProgram,
+    mintConditionalTokens,
+    getVaultMint,
+    createConditionalTokensAccounts,
+  } = useConditionalVault();
   const [loading, setLoading] = useState(false);
   const [metaDisabled, setMetaDisabled] = useState(false);
   const [usdcDisabled, setUsdcDisabled] = useState(false);
@@ -164,6 +178,26 @@ export function useProposal({
     [wallet, connection, createTokenAccountsTransactions],
   );
 
+  const finalizeProposalTransactions = useCallback(async () => {
+    if (!autocratProgram || !proposal || !dao || !daoState || !vaultProgram) return;
+
+    const tx = await autocratProgram.methods
+      .finalizeProposal()
+      .accounts({
+        proposal: proposal.publicKey,
+        openbookTwapPassMarket: proposal.account.openbookTwapPassMarket,
+        openbookTwapFailMarket: proposal.account.openbookTwapFailMarket,
+        dao,
+        daoTreasury,
+        baseVault: proposal.account.baseVault,
+        quoteVault: proposal.account.quoteVault,
+        vaultProgram: vaultProgram.programId,
+      })
+      .transaction();
+
+    return [tx];
+  }, [autocratProgram, proposal, vaultProgram, dao, daoTreasury]);
+
   const mintTokensTransactions = useCallback(
     async (amount: number, fromBase?: boolean) => {
       if (!proposal || !markets || !wallet.publicKey) {
@@ -299,6 +333,7 @@ export function useProposal({
     fetchOpenOrders,
     createTokenAccounts,
     createTokenAccountsTransactions,
+    finalizeProposalTransactions,
     mintTokensTransactions,
     mintTokens,
     placeOrderTransactions,
