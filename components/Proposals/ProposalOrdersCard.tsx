@@ -45,19 +45,14 @@ export function ProposalOrdersCard({
     'Actions',
   ];
 
-  const unsettledOrdersHeaders = [
-    'Order ID',
-    'Market',
-    'Claimable',
-    'Actions',
-  ];
+  const unsettledOrdersHeaders = ['Order ID', 'Market', 'Claimable', 'Actions'];
 
   const handleSettleFunds = useCallback(
     async (
       ordersToSettle: OpenOrdersAccountWithKey[],
       passMarket: boolean,
-      dontClose: boolean = false
-      ) => {
+      dontClose: boolean = false,
+    ) => {
       if (!proposal || !markets) return;
       let txs;
       if (!dontClose) {
@@ -71,23 +66,17 @@ export function ProposalOrdersCard({
                 proposal.account.openbookPassMarket.equals(order.account.market)
                   ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
                   : { publicKey: proposal.account.openbookFailMarket, account: markets.fail },
+              ).then((settleTx) =>
+                closeOpenOrdersAccountTransactions(new BN(order.account.accountNum)).then(
+                  (closeTx) =>
+                    settleTx && closeTx ? new Transaction().add(...settleTx, ...closeTx) : null,
+                ),
               ),
             ),
           )
         )
           .flat()
-          .filter(Boolean)
-          .concat(
-            (
-              await Promise.all(
-                ordersToSettle.map((order) =>
-                  closeOpenOrdersAccountTransactions(new BN(order.account.accountNum)),
-                ),
-              )
-            )
-              .flat()
-              .filter(Boolean),
-          );
+          .filter(Boolean);
       } else {
         txs = (
           await Promise.all(
@@ -111,7 +100,7 @@ export function ProposalOrdersCard({
 
       try {
         setIsSettling(true);
-        const txSignatures = await sender.send(txs as Transaction[]);
+        const txSignatures = await sender.send(txs as Transaction[], true);
         txSignatures.map((sig) =>
           notifications.show({
             title: 'Transaction Submitted',
@@ -316,87 +305,86 @@ export function ProposalOrdersCard({
     </Group>
   ) : (
     <>
-    <Group justify="space-between" align="center">
-      <Group>
-        <Text fw="bolder" size="xl">Orders</Text>
-        <ActionIcon
-          variant="subtle"
-            // @ts-ignore
-          onClick={() => fetchOpenOrders(proposal, wallet.publicKey)}
-        >
-          <IconRefresh />
-        </ActionIcon>
-      </Group>
-      <Flex justify="flex-end" align="flex-end" direction="row" wrap="wrap">
-        <Stack gap={0} align="center" justify="flex-end">
-          <Group>
-            <Text size="xl" fw="bold">
-              ${totalUsdcInOrder()}
-            </Text>
-            <Text size="md">condUSDC</Text>|
-            <Text size="xl" fw="bold">
-              {totalMetaInOrder()}
-            </Text>
-            <Text size="md">condMETA</Text>
-
-          </Group>
+      <Group justify="space-between" align="center">
+        <Group>
           <Text fw="bolder" size="xl">
-              (${totalInOrder()}) Total
+            Orders
           </Text>
-        </Stack>
-      </Flex>
-    </Group>
-    <Tabs defaultValue="open">
-
-      <Tabs.List>
-        <Tabs.Tab value="open">Open</Tabs.Tab>
-        <Tabs.Tab value="uncranked">Uncranked</Tabs.Tab>
-        <Tabs.Tab value="unsettled">Unsettled</Tabs.Tab>
-
-      </Tabs.List>
-      <Tabs.Panel value="open">
-        <ProposalOrdersTable
-          description="If you see orders here with a settle button, you can settle them to redeem the partial fill amount. These exist
+          <ActionIcon
+            variant="subtle"
+            // @ts-ignore
+            onClick={() => fetchOpenOrders(proposal, wallet.publicKey)}
+          >
+            <IconRefresh />
+          </ActionIcon>
+        </Group>
+        <Flex justify="flex-end" align="flex-end" direction="row" wrap="wrap">
+          <Stack gap={0} align="center" justify="flex-end">
+            <Group>
+              <Text size="xl" fw="bold">
+                ${totalUsdcInOrder()}
+              </Text>
+              <Text size="md">condUSDC</Text>|
+              <Text size="xl" fw="bold">
+                {totalMetaInOrder()}
+              </Text>
+              <Text size="md">condMETA</Text>
+            </Group>
+            <Text fw="bolder" size="xl">
+              (${totalInOrder()}) Total
+            </Text>
+          </Stack>
+        </Flex>
+      </Group>
+      <Tabs defaultValue="open">
+        <Tabs.List>
+          <Tabs.Tab value="open">Open</Tabs.Tab>
+          <Tabs.Tab value="uncranked">Uncranked</Tabs.Tab>
+          <Tabs.Tab value="unsettled">Unsettled</Tabs.Tab>
+        </Tabs.List>
+        <Tabs.Panel value="open">
+          <ProposalOrdersTable
+            description="If you see orders here with a settle button, you can settle them to redeem the partial fill amount. These exist
             when there is a balance available within the Open Orders Account."
-          headers={genericOrdersHeaders}
-          orders={filterOpenOrders()}
-          proposal={proposal}
-          orderStatus="open"
-          markets={markets}
-          settleOrders={handleSettleFunds}
-          handleCrank={handleCrank}
-          isCranking={isCranking}
-        />
-      </Tabs.Panel>
-      <Tabs.Panel value="uncranked">
-        <ProposalOrdersTable
-          description=" If you see orders here, you can use the cycle icon with the 12 on it next to the
+            headers={genericOrdersHeaders}
+            orders={filterOpenOrders()}
+            proposal={proposal}
+            orderStatus="open"
+            markets={markets}
+            settleOrders={handleSettleFunds}
+            handleCrank={handleCrank}
+            isCranking={isCranking}
+          />
+        </Tabs.Panel>
+        <Tabs.Panel value="uncranked">
+          <ProposalOrdersTable
+            description=" If you see orders here, you can use the cycle icon with the 12 on it next to the
             respective market which will crank it and push the orders into the Unsettled, Open
             Accounts below."
-          headers={genericOrdersHeaders}
-          orders={filterCompletedOrders()}
-          proposal={proposal}
-          orderStatus="uncranked"
-          markets={markets}
-          settleOrders={handleSettleFunds}
-          handleCrank={handleCrank}
-          isCranking={isCranking}
-        />
-      </Tabs.Panel>
-      <Tabs.Panel value="unsettled">
-        <ProposalOrdersTable
-          description={unsettledOrdersDescription()}
-          headers={unsettledOrdersHeaders}
-          orders={filterEmptyOrders()}
-          proposal={proposal}
-          orderStatus="closed"
-          markets={markets}
-          settleOrders={handleSettleFunds}
-          handleCrank={handleCrank}
-          isCranking={isCranking}
-        />
-      </Tabs.Panel>
-    </Tabs>
+            headers={genericOrdersHeaders}
+            orders={filterCompletedOrders()}
+            proposal={proposal}
+            orderStatus="uncranked"
+            markets={markets}
+            settleOrders={handleSettleFunds}
+            handleCrank={handleCrank}
+            isCranking={isCranking}
+          />
+        </Tabs.Panel>
+        <Tabs.Panel value="unsettled">
+          <ProposalOrdersTable
+            description={unsettledOrdersDescription()}
+            headers={unsettledOrdersHeaders}
+            orders={filterEmptyOrders()}
+            proposal={proposal}
+            orderStatus="closed"
+            markets={markets}
+            settleOrders={handleSettleFunds}
+            handleCrank={handleCrank}
+            isCranking={isCranking}
+          />
+        </Tabs.Panel>
+      </Tabs>
     </>
   );
 }

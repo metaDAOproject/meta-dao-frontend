@@ -129,7 +129,7 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
     } finally {
       setIsFinalizing(false);
     }
-  }, [finalizeProposalTransactions, fetchProposals]);
+  }, [sender, finalizeProposalTransactions, fetchProposals]);
 
   const handleRedeem = useCallback(async () => {
     if (!markets || !proposal) return;
@@ -151,7 +151,7 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
     } finally {
       setIsRedeeming(false);
     }
-  }, [redeemTokensTransactions, fetchProposals]);
+  }, [sender, redeemTokensTransactions, fetchProposals]);
 
   useEffect(() => {
     if (lastSlot) return;
