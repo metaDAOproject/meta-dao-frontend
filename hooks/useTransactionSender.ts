@@ -7,7 +7,7 @@ export const useTransactionSender = () => {
   const wallet = useWallet();
 
   const send = useCallback(
-    async (txs: Transaction[]) => {
+    async (txs: Transaction[], asynchronous?: boolean) => {
       if (!connection || !wallet.publicKey || !wallet.signAllTransactions) {
         throw new Error('Bad wallet connection');
       }
@@ -21,16 +21,33 @@ export const useTransactionSender = () => {
       });
       const signedTxs = await wallet.signAllTransactions(timedTxs);
       const signatures = [];
-      // Using loops here to make sure transaction are executed in the correct order
-      // eslint-disable-next-line no-restricted-syntax
-      for (const tx of signedTxs) {
-        // eslint-disable-next-line no-await-in-loop
-        const txSignature = await connection.sendRawTransaction(tx.serialize(), {
-          skipPreflight: true,
-        });
-        // eslint-disable-next-line no-await-in-loop
-        await connection.confirmTransaction(txSignature);
-        signatures.push(txSignature);
+
+      if (asynchronous) {
+        // Using loops here to make sure transaction are executed in the correct order
+        // eslint-disable-next-line no-restricted-syntax
+        for (const tx of signedTxs) {
+          // eslint-disable-next-line no-await-in-loop
+          const txSignature = await connection.sendRawTransaction(tx.serialize(), {
+            skipPreflight: true,
+          });
+          // eslint-disable-next-line no-await-in-loop
+          await connection.confirmTransaction(txSignature);
+          signatures.push(txSignature);
+        }
+      } else {
+        signatures.push(
+          ...(await Promise.all(
+            signedTxs.map((tx) =>
+              connection
+                .sendRawTransaction(tx.serialize(), {
+                  skipPreflight: true,
+                })
+                .then((txSignature) =>
+                  connection.confirmTransaction(txSignature).then(() => txSignature),
+                ),
+            ),
+          )),
+        );
       }
       return signatures;
     },

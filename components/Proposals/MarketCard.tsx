@@ -36,7 +36,7 @@ export function MarketCard({ proposal: fromProposal }: { proposal: ProposalAccou
   const { tokens } = useTokens();
   const { amount: treasuryBalance } = useTokenAmount(tokens?.meta?.publicKey, daoTreasury);
   const { mint } = useTokenMint(tokens?.meta?.publicKey);
-  const { send: sender } = useTransactionSender();
+  const sender = useTransactionSender();
   const [passPrice, setPassPrice] = useState<number>(0);
   const [failPrice, setFailPrice] = useState<number>(0);
   const [amount, setAmount] = useState<number>(0);
@@ -113,7 +113,7 @@ export function MarketCard({ proposal: fromProposal }: { proposal: ProposalAccou
 
     try {
       setIsBetting(true);
-      await sender([...mintTxs, ...placePassTxs, ...placeFailTxs].filter(Boolean));
+      await sender.send([...mintTxs, ...placePassTxs, ...placeFailTxs].filter(Boolean));
     } finally {
       setIsBetting(false);
     }
@@ -258,22 +258,23 @@ export function MarketCard({ proposal: fromProposal }: { proposal: ProposalAccou
                           {numeral(passPrice).format(NUMERAL_FORMAT)}$ and the proposal passes,
                           {' you will receive '}
                           {numeral(passPayoutAmount).format(NUMERAL_FORMAT)}
-                          {' $'}{payoutToken?.symbol}
+                          {' $'}
+                          {payoutToken?.symbol}
                         </Text>
                         <Text>
                           If FAIL market goes {usingBaseToken ? 'above' : 'below'}{' '}
                           {numeral(failPrice).format(NUMERAL_FORMAT)}$ and the proposal fails,
                           {' you will receive '}
                           {numeral(failPayoutAmount).format(NUMERAL_FORMAT)}
-                          {' $'}{payoutToken?.symbol}
+                          {' $'}
+                          {payoutToken?.symbol}
                         </Text>
                         <Text>
                           Otherwise you get back your {numeral(amount).format(NUMERAL_FORMAT)} $
                           {usedToken?.symbol}
                         </Text>
                         <Text size="sm" fw="lighter">
-                          Places two {usingBaseToken ? 'asks' : 'bids'} at the defined
-                          prices
+                          Places two {usingBaseToken ? 'asks' : 'bids'} at the defined prices
                         </Text>
                       </Stack>
                     </Container>
