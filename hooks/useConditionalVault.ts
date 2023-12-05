@@ -186,6 +186,18 @@ export function useConditionalVault() {
     async (vault: VaultAccountWithKey) => {
       if (!program || !program.provider.publicKey) return;
 
+      const userConditionalOnFinalizeTokenAccount = getAssociatedTokenAddressSync(
+        vault.account.conditionalOnFinalizeTokenMint,
+        program.provider.publicKey,
+      );
+      const userConditionalOnRevertTokenAccount = getAssociatedTokenAddressSync(
+        vault.account.conditionalOnRevertTokenMint,
+        program.provider.publicKey,
+      );
+      const userUnderlyingTokenAccount = getAssociatedTokenAddressSync(
+        vault.account.underlyingTokenMint,
+        program.provider.publicKey,
+      );
       return [
         await program.methods
           .redeemConditionalTokensForUnderlyingTokens()
@@ -194,19 +206,30 @@ export function useConditionalVault() {
             conditionalOnFinalizeTokenMint: vault.account.conditionalOnFinalizeTokenMint,
             conditionalOnRevertTokenMint: vault.account.conditionalOnRevertTokenMint,
             vaultUnderlyingTokenAccount: vault.account.underlyingTokenAccount,
-            userConditionalOnFinalizeTokenAccount: getAssociatedTokenAddressSync(
-              vault.account.conditionalOnFinalizeTokenMint,
-              program.provider.publicKey,
-            ),
-            userConditionalOnRevertTokenAccount: getAssociatedTokenAddressSync(
-              vault.account.conditionalOnRevertTokenMint,
-              program.provider.publicKey,
-            ),
-            userUnderlyingTokenAccount: getAssociatedTokenAddressSync(
-              vault.account.underlyingTokenMint,
-              program.provider.publicKey,
-            ),
+            userConditionalOnFinalizeTokenAccount,
+            userConditionalOnRevertTokenAccount,
+            userUnderlyingTokenAccount,
           })
+          .preInstructions([
+            createAssociatedTokenAccountIdempotentInstruction(
+              program.provider.publicKey,
+              userConditionalOnFinalizeTokenAccount,
+              program.provider.publicKey,
+              vault.account.conditionalOnFinalizeTokenMint,
+            ),
+            createAssociatedTokenAccountIdempotentInstruction(
+              program.provider.publicKey,
+              userConditionalOnRevertTokenAccount,
+              program.provider.publicKey,
+              vault.account.conditionalOnRevertTokenMint,
+            ),
+            createAssociatedTokenAccountIdempotentInstruction(
+              program.provider.publicKey,
+              userUnderlyingTokenAccount,
+              program.provider.publicKey,
+              vault.account.underlyingTokenMint,
+            ),
+          ])
           .transaction(),
       ];
     },
