@@ -20,15 +20,12 @@ import {
 } from '@tabler/icons-react';
 import { Transaction, PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { notifications } from '@mantine/notifications';
-import { NotificationLink } from '../Layout/NotificationLink';
 import { Markets, OpenOrdersAccountWithKey, ProposalAccountWithKey } from '@/lib/types';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { NUMERAL_FORMAT, BASE_FORMAT, QUOTE_LOTS, BN_0 } from '@/lib/constants';
 import { useProposal } from '@/hooks/useProposal';
-import { useWeb3 } from '@/hooks/useWeb3';
 
 export function ProposalOrdersTable({
   description,
@@ -60,8 +57,6 @@ export function ProposalOrdersTable({
   const wallet = useWallet();
 
   const { generateExplorerLink } = useExplorerConfiguration();
-  const { closeOrderAccount } = useWeb3();
-
   const { cancelOrderTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
   const { fetchOpenOrders } = useProposal({
     fromNumber: proposal.account.number,
@@ -94,14 +89,7 @@ export function ProposalOrdersTable({
       try {
         setIsCanceling(true);
         // Filtered undefined already
-        const txSignatures = await sender.send(txs as Transaction[]);
-        txSignatures.map((sig) =>
-          notifications.show({
-            title: 'Transaction Submitted',
-            message: <NotificationLink signature={sig} />,
-            autoClose: 5000,
-          }),
-        );
+        await sender.send(txs as Transaction[]);
         // We already return above if the wallet doesn't have a public key
         await fetchOpenOrders(proposal, wallet.publicKey!);
       } catch (err) {
@@ -134,19 +122,12 @@ export function ProposalOrdersTable({
       if (!wallet.publicKey || !txs) return;
 
       try {
-        const txSignatures = await sender.send(txs);
-        txSignatures.map((sig) =>
-          notifications.show({
-            title: 'Transaction Submitted',
-            message: <NotificationLink signature={sig} />,
-            autoClose: 5000,
-          }),
-        );
+        await sender.send(txs);
       } catch (err) {
         console.error(err);
       }
     },
-    [proposal, closeOrderAccount, sender],
+    [proposal, sender],
   );
 
   const isPass = (order: OpenOrdersAccountWithKey) => {

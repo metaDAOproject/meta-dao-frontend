@@ -4,13 +4,11 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { IconRefresh } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import { BN } from '@coral-xyz/anchor';
-import { notifications } from '@mantine/notifications';
 import numeral from 'numeral';
 import { OpenOrdersAccountWithKey, ProposalAccountWithKey, Markets } from '@/lib/types';
 import { NUMERAL_FORMAT, BASE_FORMAT } from '@/lib/constants';
 import { useProposal } from '@/hooks/useProposal';
 import { ProposalOrdersTable } from './ProposalOrdersTable';
-import { NotificationLink } from '../Layout/NotificationLink';
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 
@@ -100,14 +98,7 @@ export function ProposalOrdersCard({
 
       try {
         setIsSettling(true);
-        const txSignatures = await sender.send(txs as Transaction[], true);
-        txSignatures.map((sig) =>
-          notifications.show({
-            title: 'Transaction Submitted',
-            message: <NotificationLink signature={sig} />,
-            autoClose: 5000,
-          }),
-        );
+        await sender.send(txs.filter(Boolean) as Transaction[], true);
         await fetchOpenOrders(proposal, wallet.publicKey!);
       } catch (err) {
         console.error(err);

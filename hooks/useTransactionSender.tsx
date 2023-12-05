@@ -1,22 +1,27 @@
+import { Stack } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { Transaction } from '@solana/web3.js';
+import { Transaction, VersionedTransaction } from '@solana/web3.js';
 import { useCallback } from 'react';
+import { NotificationLink } from '../components/Layout/NotificationLink';
 
 export const useTransactionSender = () => {
   const { connection } = useConnection();
   const wallet = useWallet();
 
   const send = useCallback(
-    async (txs: Transaction[], asynchronous?: boolean) => {
+    async (txs: (Transaction | VersionedTransaction)[], asynchronous?: boolean) => {
       if (!connection || !wallet.publicKey || !wallet.signAllTransactions) {
         throw new Error('Bad wallet connection');
       }
 
       const blockhask = await connection.getLatestBlockhash();
-      const timedTxs = txs.map((e: Transaction) => {
+      const timedTxs = txs.map((e: Transaction | VersionedTransaction) => {
         const tx = e;
-        tx.recentBlockhash = blockhask.blockhash;
-        tx.feePayer = wallet.publicKey!;
+        if (!(tx instanceof VersionedTransaction)) {
+          tx.recentBlockhash = blockhask.blockhash;
+          tx.feePayer = wallet.publicKey!;
+        }
         return tx;
       });
       const signedTxs = await wallet.signAllTransactions(timedTxs);
@@ -49,6 +54,18 @@ export const useTransactionSender = () => {
           )),
         );
       }
+
+      notifications.show({
+        title: 'Transactions sent!',
+        message: (
+          <Stack>
+            {signatures.map((signature) => (
+              <NotificationLink key={signature} signature={signature} />
+            ))}
+          </Stack>
+        ),
+        autoClose: 5000,
+      });
       return signatures;
     },
     [wallet.publicKey, connection],
