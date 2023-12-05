@@ -10,6 +10,7 @@ import { ProposalAccountWithKey } from '@/lib/types';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { useConditionalVault } from '@/hooks/useConditionalVault';
 import { useOpenbookTwap } from './useOpenbookTwap';
+import { useTransactionSender } from './useTransactionSender';
 
 export function useProposal({
   fromNumber,
@@ -31,6 +32,7 @@ export function useProposal({
   } = useAutocrat();
   const { connection } = useConnection();
   const wallet = useWallet();
+  const sender = useTransactionSender();
   const { placeOrderTransactions } = useOpenbookTwap();
   const {
     program: vaultProgram,
@@ -85,7 +87,7 @@ export function useProposal({
   const createTokenAccounts = useCallback(
     async (fromBase?: boolean) => {
       const txs = await createTokenAccountsTransactions(fromBase);
-      if (!txs || !proposal || !wallet.publicKey || !wallet.signAllTransactions) {
+      if (!txs || !proposal || !wallet.publicKey) {
         return;
       }
       let error = false;
@@ -147,27 +149,7 @@ export function useProposal({
         setLoading(true);
 
         try {
-          const { blockhash } = await connection.getLatestBlockhash();
-          const signedTxs = await wallet.signAllTransactions(
-            txs.map((t) => {
-              const tx = t;
-              tx.recentBlockhash = blockhash;
-              tx.feePayer = wallet.publicKey!;
-              return tx;
-            }),
-          );
-          const results = await Promise.all(
-            signedTxs.map((t) =>
-              connection.sendRawTransaction(t.serialize(), { skipPreflight: true }),
-            ),
-          );
-          results.map((result) =>
-            notifications.show({
-              title: 'Transaction Submitted',
-              message: result,
-              autoClose: 5000,
-            }),
-          );
+          await sender.send(txs);
         } catch (err) {
           console.error(err);
         } finally {
@@ -175,7 +157,7 @@ export function useProposal({
         }
       }
     },
-    [wallet, connection, createTokenAccountsTransactions],
+    [wallet, connection, sender, createTokenAccountsTransactions],
   );
 
   const finalizeProposalTransactions = useCallback(async () => {
@@ -219,39 +201,15 @@ export function useProposal({
 
   const mintTokens = useCallback(
     async (amount: number, fromBase?: boolean) => {
-      if (!wallet.publicKey) {
-        return;
-      }
       const txs = await mintTokensTransactions(amount, fromBase);
-      if (!txs || !proposal || !wallet.publicKey || !wallet.signAllTransactions) {
+      if (!txs || !proposal) {
         return;
       }
 
       setLoading(true);
 
       try {
-        const { blockhash } = await connection.getLatestBlockhash();
-        const signedTxs = await wallet.signAllTransactions(
-          txs.map((t) => {
-            const tx = t;
-            tx.recentBlockhash = blockhash;
-            tx.feePayer = wallet.publicKey!;
-            return tx;
-          }),
-        );
-        const results = await Promise.all(
-          signedTxs.map((t) =>
-            connection.sendRawTransaction(t.serialize(), { skipPreflight: true }),
-          ),
-        );
-        results.map((result) =>
-          notifications.show({
-            title: 'Transaction Submitted',
-            message: result,
-            autoClose: 5000,
-          }),
-        );
-
+        await sender.send(txs);
         await fetchMarketsInfo(proposal);
       } catch (err) {
         console.error(err);
@@ -259,7 +217,7 @@ export function useProposal({
         setLoading(false);
       }
     },
-    [wallet, connection, mintTokensTransactions],
+    [connection, sender, mintTokensTransactions],
   );
 
   const placeOrder = useCallback(
@@ -270,40 +228,14 @@ export function useProposal({
         : { publicKey: proposal?.account.openbookFailMarket, account: markets?.fail };
       const placeTxs = await placeOrderTransactions(amount, price, market, limitOrder, ask, pass);
 
-      if (!placeTxs || !wallet.publicKey || !wallet.signAllTransactions) {
+      if (!placeTxs || !wallet.publicKey) {
         return;
       }
 
       try {
         setLoading(true);
 
-        const blockhask = await connection.getLatestBlockhash();
-        const txs = placeTxs.map((e: Transaction) => {
-          const tx = e;
-          tx.recentBlockhash = blockhask.blockhash;
-          tx.feePayer = wallet.publicKey!;
-          return tx;
-        });
-        const txSignatures = [];
-        const signedTxs = await wallet.signAllTransactions(txs);
-        // Using loops here to make sure transaction are executed in the correct order
-        // eslint-disable-next-line no-restricted-syntax
-        for (const tx of signedTxs) {
-          // eslint-disable-next-line no-await-in-loop
-          const txnSignature = await connection.sendRawTransaction(tx.serialize(), {
-            skipPreflight: true,
-          });
-          // eslint-disable-next-line no-await-in-loop
-          await connection.confirmTransaction(txnSignature);
-          txSignatures.push(txnSignature);
-        }
-        txSignatures?.map((result) =>
-          notifications.show({
-            title: 'Transaction Submitted',
-            message: result,
-            autoClose: 5000,
-          }),
-        );
+        await sender.send(placeTxs);
         await fetchMarketsInfo(proposal);
         await fetchOpenOrders(proposal, wallet.publicKey);
       } catch (err) {
@@ -317,6 +249,7 @@ export function useProposal({
       proposal,
       markets,
       connection,
+      sender,
       placeOrderTransactions,
       fetchMarketsInfo,
       fetchOpenOrders,

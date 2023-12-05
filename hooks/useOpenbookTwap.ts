@@ -24,6 +24,7 @@ import {
 } from '../lib/openbook';
 import { useConditionalVault } from './useConditionalVault';
 import { useOpenbook } from './useOpenbook';
+import { useTransactionSender } from './useTransactionSender';
 
 const OPENBOOK_TWAP_IDL: OpenbookTwap = require('@/lib/idl/openbook_twap.json');
 
@@ -32,6 +33,7 @@ const SYSTEM_PROGRAM: PublicKey = new PublicKey('1111111111111111111111111111111
 export function useOpenbookTwap() {
   const wallet = useWallet();
   const provider = useProvider();
+  const sender = useTransactionSender();
   const { getVaultMint } = useConditionalVault();
   const openbook = useOpenbook();
   const openbookTwap = useMemo(() => {
@@ -51,7 +53,7 @@ export function useOpenbookTwap() {
       pass?: boolean,
       indexOffset?: number,
     ) => {
-      if (!wallet.publicKey || !wallet.signAllTransactions || !openbook || !openbookTwap) {
+      if (!wallet.publicKey || !openbook || !openbookTwap) {
         return;
       }
 
@@ -133,9 +135,9 @@ export function useOpenbookTwap() {
     [wallet, openbookTwap],
   );
 
-  const crankMarketTransaction = useCallback(
+  const crankMarketTransactions = useCallback(
     async (market: MarketAccountWithKey, eventHeap: PublicKey, individualEvent?: PublicKey) => {
-      if (!wallet.publicKey || !wallet.signAllTransactions || !openbook || !openbookTwap) {
+      if (!wallet.publicKey || !openbook || !openbookTwap) {
         return;
       }
       let accounts: PublicKey[] = new Array<PublicKey>();
@@ -165,23 +167,23 @@ export function useOpenbookTwap() {
           }
         }
       } else if (_eventHeap != null) {
-          // eslint-disable-next-line no-restricted-syntax
-          for (const node of _eventHeap.nodes) {
-            if (node.event.eventType === 0) {
-              const fillEvent: FillEvent = openbook.program.coder.types.decode(
-                'FillEvent',
-                Buffer.from([0, ...node.event.padding]),
-              );
-              accounts = accounts.filter((a) => a !== fillEvent.maker).concat([fillEvent.maker]);
-            } else {
-              const outEvent: OutEvent = openbook.program.coder.types.decode(
-                'OutEvent',
-                Buffer.from([0, ...node.event.padding]),
-              );
-              accounts = accounts.filter((a) => a !== outEvent.owner).concat([outEvent.owner]);
-            }
+        // eslint-disable-next-line no-restricted-syntax
+        for (const node of _eventHeap.nodes) {
+          if (node.event.eventType === 0) {
+            const fillEvent: FillEvent = openbook.program.coder.types.decode(
+              'FillEvent',
+              Buffer.from([0, ...node.event.padding]),
+            );
+            accounts = accounts.filter((a) => a !== fillEvent.maker).concat([fillEvent.maker]);
+          } else {
+            const outEvent: OutEvent = openbook.program.coder.types.decode(
+              'OutEvent',
+              Buffer.from([0, ...node.event.padding]),
+            );
+            accounts = accounts.filter((a) => a !== outEvent.owner).concat([outEvent.owner]);
           }
         }
+      }
 
       const accountsMeta: AccountMeta[] = accounts.map((remaining) => ({
         pubkey: remaining,
@@ -190,8 +192,8 @@ export function useOpenbookTwap() {
       }));
       let filteredAccounts = accountsMeta;
       if (individualEvent) {
-        filteredAccounts = accountsMeta.filter((order) =>
-          (order.pubkey.toString() === individualEvent.toString())
+        filteredAccounts = accountsMeta.filter(
+          (order) => order.pubkey.toString() === individualEvent.toString(),
         );
       }
       const crankIx = await openbook.program.methods
@@ -213,16 +215,23 @@ export function useOpenbookTwap() {
         addressLookupTableAccounts: undefined,
       });
 
-      let vtx = new VersionedTransaction(message);
-      // We check above for status
-      // @ts-ignore
-      vtx = (await wallet.signTransaction(vtx as any)) as unknown as VersionedTransaction;
-      const signature = await provider.connection.sendRawTransaction(vtx.serialize(), {
-        skipPreflight: true,
-      });
-      return signature;
+      const vtx = new VersionedTransaction(message);
+
+      return [vtx];
     },
     [wallet, openbook, provider],
+  );
+
+  const crankMarket = useCallback(
+    async (market: MarketAccountWithKey, eventHeap: PublicKey, individualEvent?: PublicKey) => {
+      const txs = await crankMarketTransactions(market, eventHeap, individualEvent);
+      if (!txs) {
+        return;
+      }
+
+      return sender.send(txs);
+    },
+    [crankMarketTransactions, sender],
   );
 
   const settleFundsTransactions = useCallback(
@@ -232,7 +241,7 @@ export function useOpenbookTwap() {
       proposal: ProposalAccountWithKey,
       market: MarketAccountWithKey,
     ) => {
-      if (!wallet.publicKey || !wallet.signAllTransactions || !openbook || !openbookTwap) {
+      if (!wallet.publicKey || !openbook) {
         return;
       }
       const quoteVault = await getVaultMint(proposal.account.quoteVault);
@@ -281,12 +290,12 @@ export function useOpenbookTwap() {
         .transaction();
       return [placeTx];
     },
-    [wallet, openbook, openbookTwap],
+    [wallet, openbook],
   );
 
   const closeOpenOrdersAccountTransactions = useCallback(
     async (orderId: BN) => {
-      if (!wallet.publicKey || !wallet.signAllTransactions || !openbook || !openbookTwap) {
+      if (!wallet.publicKey || !openbook) {
         return;
       }
 
@@ -309,7 +318,7 @@ export function useOpenbookTwap() {
 
   const cancelOrderTransactions = useCallback(
     async (orderId: BN, market: MarketAccountWithKey) => {
-      if (!wallet.publicKey || !wallet.signAllTransactions || !openbook || !openbookTwap) {
+      if (!wallet.publicKey || !openbook || !openbookTwap) {
         return;
       }
 
@@ -339,7 +348,8 @@ export function useOpenbookTwap() {
     cancelOrderTransactions,
     closeOpenOrdersAccountTransactions,
     settleFundsTransactions,
-    crankMarketTransaction,
+    crankMarket,
+    crankMarketTransactions,
     program: openbookTwap,
   };
 }

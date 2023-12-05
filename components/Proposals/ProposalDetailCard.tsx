@@ -18,12 +18,10 @@ import Link from 'next/link';
 import { PublicKey } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { IconExternalLink, IconQuestionMark } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
 import { useProposal } from '@/hooks/useProposal';
 import { useTokens } from '@/hooks/useTokens';
 import { useTokenAmount } from '@/hooks/useTokenAmount';
 import { MarketAccountWithKey } from '@/lib/types';
-import { NotificationLink } from '../Layout/NotificationLink';
 import { ProposalOrdersCard } from './ProposalOrdersCard';
 import { ConditionalMarketCard } from '../Markets/ConditionalMarketCard';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
@@ -72,7 +70,7 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
   const { generateExplorerLink } = useExplorerConfiguration();
   const [lastSlot, setLastSlot] = useState<number>();
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
-  const { crankMarketTransaction } = useOpenbookTwap();
+  const { crankMarketTransactions } = useOpenbookTwap();
   const [isCranking, setIsCranking] = useState<boolean>(false);
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
@@ -176,22 +174,17 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
       }
       try {
         setIsCranking(true);
-        const signature = await crankMarketTransaction(marketAccounts, eventHeap, individualEvent);
-        if (signature) {
-          notifications.show({
-            title: 'Transaction Submitted',
-            message: <NotificationLink signature={signature} />,
-            autoClose: 5000,
-          });
-          fetchOpenOrders(proposal, wallet.publicKey);
-        }
+        const txs = await crankMarketTransactions(marketAccounts, eventHeap, individualEvent);
+        if (!txs) return;
+        await sender.send(txs);
+        fetchOpenOrders(proposal, wallet.publicKey);
       } catch (err) {
         console.error(err);
       } finally {
         setIsCranking(false);
       }
     },
-    [markets, proposal, wallet.publicKey, crankMarketTransaction, fetchOpenOrders],
+    [markets, proposal, wallet.publicKey, sender, crankMarketTransactions, fetchOpenOrders],
   );
 
   return !proposal || !markets ? (
