@@ -10,7 +10,7 @@ export const useTransactionSender = () => {
   const wallet = useWallet();
 
   const send = useCallback(
-    async (txs: (Transaction | VersionedTransaction)[], asynchronous?: boolean) => {
+    async (txs: (Transaction | VersionedTransaction)[], synchronous?: boolean) => {
       if (!connection || !wallet.publicKey || !wallet.signAllTransactions) {
         throw new Error('Bad wallet connection');
       }
@@ -27,7 +27,7 @@ export const useTransactionSender = () => {
       const signedTxs = await wallet.signAllTransactions(timedTxs);
       const signatures = [];
 
-      if (asynchronous) {
+      if (synchronous) {
         // Using loops here to make sure transaction are executed in the correct order
         // eslint-disable-next-line no-restricted-syntax
         for (const tx of signedTxs) {

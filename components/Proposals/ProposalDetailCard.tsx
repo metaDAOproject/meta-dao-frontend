@@ -176,7 +176,7 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
         setIsCranking(true);
         const txs = await crankMarketTransactions(marketAccounts, eventHeap, individualEvent);
         if (!txs) return;
-        await sender.send(txs, true);
+        await sender.send(txs);
         fetchOpenOrders(proposal, wallet.publicKey);
       } catch (err) {
         console.error(err);

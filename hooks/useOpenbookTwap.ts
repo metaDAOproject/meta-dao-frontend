@@ -229,7 +229,7 @@ export function useOpenbookTwap() {
         return;
       }
 
-      return sender.send(txs, true);
+      return sender.send(txs);
     },
     [crankMarketTransactions, sender],
   );

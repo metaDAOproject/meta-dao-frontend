@@ -113,7 +113,7 @@ export function MarketCard({ proposal: fromProposal }: { proposal: ProposalAccou
 
     try {
       setIsBetting(true);
-      await sender.send([...mintTxs, ...placePassTxs, ...placeFailTxs].filter(Boolean));
+      await sender.send([...mintTxs, ...placePassTxs, ...placeFailTxs].filter(Boolean), true);
     } finally {
       setIsBetting(false);
     }
