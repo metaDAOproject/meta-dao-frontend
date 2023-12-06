@@ -2,7 +2,7 @@
 
 ![License MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 
-The most popular frontend for the Meta-DAO. 
+The most popular frontend for the Meta-DAO.
 
 ## npm scripts
 
@@ -35,3 +35,7 @@ See Meta-DAO's repo for more details.
 - `storybook` – starts storybook dev server
 - `storybook:build` – build production storybook bundle to `storybook-static`
 - `prettier:write` – formats all files with Prettier
+
+## Contributing
+
+You can find instructions and guidelines on how to contribute in [CONTRIBUTING.md](/CONTRIBUTING.md)
