@@ -251,6 +251,7 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
       );
 
       setAllMarketsInfo({
+        ...allMarketsInfo,
         [proposal.publicKey.toString()]: {
           pass,
           passAsks,
@@ -265,7 +266,7 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
         },
       });
     }, 1000),
-    [vaultProgram, openbook, openbookTwap],
+    [allMarketsInfo, vaultProgram, openbook, openbookTwap],
   );
   const fetchOpenOrders = useCallback(
     debounce<[ProposalAccountWithKey, PublicKey]>(
@@ -281,7 +282,6 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
           { memcmp: { offset: 8, bytes: owner.toBase58() } },
           { memcmp: { offset: 40, bytes: proposal.account.openbookFailMarket.toBase58() } },
         ]);
-        console.log(passOrders, failOrders);
         setAllOrders({
           [proposal.publicKey.toString()]: passOrders
             .concat(failOrders)
@@ -293,12 +293,22 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
     [openbook],
   );
 
+  useEffect(() => {
+    if (!proposals) {
+      fetchProposals();
+    }
+  }, [proposals]);
+
+  useEffect(() => {
+    if (!daoState) {
+      fetchState();
+    }
+  }, [daoState]);
+
   // Reset on network change
   useEffect(() => {
     setProposals(undefined);
     setDaoState(undefined);
-    fetchProposals();
-    fetchState();
   }, [network]);
 
   return (
