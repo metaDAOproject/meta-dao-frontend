@@ -50,7 +50,7 @@ export function useProposal({
           t.account.number === fromNumber ||
           t.publicKey.toString() === fromProposal?.publicKey.toString(),
       )[0],
-    [proposals, fromProposal],
+    [proposals, fromProposal, fromNumber],
   );
   const markets = proposal ? allMarketsInfo[proposal.publicKey.toString()] : undefined;
   const orders = proposal ? allOrders[proposal.publicKey.toString()] : undefined;
