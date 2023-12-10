@@ -8,12 +8,22 @@ import {
   MessageV0,
 } from '@solana/web3.js';
 import { BN, Program } from '@coral-xyz/anchor';
-import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import {
+  TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountIdempotentInstruction,
+  getAssociatedTokenAddressSync,
+} from '@solana/spl-token';
 import { PlaceOrderArgs } from '@openbook-dex/openbook-v2/dist/types/client';
 import { SelfTradeBehavior, OrderType, Side } from '@openbook-dex/openbook-v2/dist/cjs/utils/utils';
 import { OpenbookTwap } from '@/lib/idl/openbook_twap';
 import { OPENBOOK_PROGRAM_ID, OPENBOOK_TWAP_PROGRAM_ID, QUOTE_LOTS } from '@/lib/constants';
-import { FillEvent, MarketAccountWithKey, OutEvent, ProposalAccountWithKey } from '@/lib/types';
+import {
+  FillEvent,
+  MarketAccountWithKey,
+  OpenOrdersAccountWithKey,
+  OutEvent,
+  ProposalAccountWithKey,
+} from '@/lib/types';
 import { shortKey } from '@/lib/utils';
 import { useProvider } from '@/hooks/useProvider';
 import {
@@ -392,11 +402,15 @@ export function useOpenbookTwap() {
       // This can only affect orders stored in the same open orders account (OOA)
       // We derive this OOA from the first passed ID
       const openOrdersAccount = findOpenOrders(orderId, wallet.publicKey);
-      const [accountIndex] = await findOpenOrdersIndex({
-        signer: wallet.publicKey,
-      });
-
-      const args = createPlaceOrderArgs({ amount, price, limitOrder, ask, accountIndex });
+      const userBaseAccount = getAssociatedTokenAddressSync(
+        market.account.baseMint,
+        wallet.publicKey,
+      );
+      const userQuoteAccount = getAssociatedTokenAddressSync(
+        market.account.quoteMint,
+        wallet.publicKey,
+      );
+      const args = createPlaceOrderArgs({ amount, price, limitOrder, ask, accountIndex: orderId });
       const editTx = await openbookTwap.methods
         .cancelAndPlaceOrders([orderId], [args])
         .accounts({
@@ -408,13 +422,94 @@ export function useOpenbookTwap() {
           marketQuoteVault: market.account.marketQuoteVault,
           twapMarket: getTwapMarketKey(market.publicKey),
           openOrdersAccount,
-          userBaseAccount: getAssociatedTokenAddressSync(market.account.baseMint, wallet.publicKey),
-          userQuoteAccount: getAssociatedTokenAddressSync(
-            market.account.quoteMint,
-            wallet.publicKey,
-          ),
+          userBaseAccount,
+          userQuoteAccount,
           openbookProgram: OPENBOOK_PROGRAM_ID,
         })
+        .preInstructions([
+          createAssociatedTokenAccountIdempotentInstruction(
+            wallet.publicKey,
+            userBaseAccount,
+            wallet.publicKey,
+            market.account.baseMint,
+          ),
+          createAssociatedTokenAccountIdempotentInstruction(
+            wallet.publicKey,
+            userQuoteAccount,
+            wallet.publicKey,
+            market.account.quoteMint,
+          ),
+        ])
+        .transaction();
+
+      return [editTx];
+    },
+    [wallet, openbookTwap],
+  );
+
+  const editOrderTransactions = useCallback(
+    async ({
+      order,
+      accountIndex,
+      amount,
+      price,
+      limitOrder,
+      ask,
+      market,
+    }: {
+      order: OpenOrdersAccountWithKey;
+      accountIndex: BN;
+      amount: number;
+      price: number;
+      limitOrder: boolean;
+      ask: boolean;
+      market: MarketAccountWithKey;
+    }) => {
+      if (!wallet.publicKey || !openbookTwap) {
+        return;
+      }
+
+      const openOrdersAccount = findOpenOrders(new BN(order.account.accountNum), wallet.publicKey);
+      const args = createPlaceOrderArgs({
+        amount,
+        price,
+        limitOrder,
+        ask,
+        accountIndex,
+      });
+
+      // Compute cancel size
+      const maxQuoteLotsIncludingFees = !ask
+        ? order.account.position.bidsBaseLots.mul(order.account.openOrders[0].lockedPrice)
+        : order.account.position.asksBaseLots.mul(order.account.openOrders[0].lockedPrice);
+      const expectedCancelSize = args.maxQuoteLotsIncludingFees.sub(maxQuoteLotsIncludingFees);
+      console.log(
+        `${args.maxQuoteLotsIncludingFees.toString()} - ${maxQuoteLotsIncludingFees.toString()} = ${expectedCancelSize.toString()}`,
+      );
+      const mint = ask ? market.account.quoteMint : market.account.baseMint;
+      const marketVault = ask ? market.account.marketQuoteVault : market.account.marketBaseVault;
+      const userTokenAccount = getAssociatedTokenAddressSync(mint, wallet.publicKey);
+      const editTx = await openbookTwap.methods
+        .editOrder(new BN(order.account.accountNum), maxQuoteLotsIncludingFees, args)
+        .accounts({
+          market: market.publicKey,
+          asks: market.account.asks,
+          bids: market.account.bids,
+          eventHeap: market.account.eventHeap,
+          marketVault,
+          twapMarket: getTwapMarketKey(market.publicKey),
+          openOrdersAccount,
+          userTokenAccount,
+          openbookProgram: OPENBOOK_PROGRAM_ID,
+        })
+        .preInstructions([
+          createAssociatedTokenAccountIdempotentInstruction(
+            wallet.publicKey,
+            userTokenAccount,
+            wallet.publicKey,
+            mint,
+          ),
+        ])
         .transaction();
 
       return [editTx];
@@ -427,6 +522,7 @@ export function useOpenbookTwap() {
     cancelOrderTransactions,
     closeOpenOrdersAccountTransactions,
     cancelAndPlaceOrdersTransactions,
+    editOrderTransactions,
     settleFundsTransactions,
     crankMarket,
     crankMarketTransactions,
