@@ -9,6 +9,7 @@ import {
   SolflareWalletAdapter,
   LedgerWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
+import { MoongateWalletAdapter } from '@moongate/moongate-adapter';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { Notifications } from '@mantine/notifications';
 import { theme } from '../../theme';
@@ -19,7 +20,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const { endpoint } = useNetworkConfiguration();
 
   const wallets = useMemo(
-    () => [new SolflareWalletAdapter(), new PhantomWalletAdapter(), new LedgerWalletAdapter()],
+    () => [
+      new MoongateWalletAdapter({ position: 'bottom-right' }),
+      new SolflareWalletAdapter(),
+      new PhantomWalletAdapter(),
+      new LedgerWalletAdapter(),
+    ],
     [],
   );
 
