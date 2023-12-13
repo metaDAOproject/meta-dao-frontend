@@ -8,6 +8,7 @@ import {
   Tooltip,
   useMantineTheme,
   Space,
+  Input,
 } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import numeral from 'numeral';
@@ -17,6 +18,9 @@ import {
   IconAssemblyOff,
   IconWriting,
   Icon12Hours,
+  IconEdit,
+  IconPencilCancel,
+  IconCheck,
 } from '@tabler/icons-react';
 import { Transaction, PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
@@ -26,6 +30,7 @@ import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { NUMERAL_FORMAT, BASE_FORMAT, QUOTE_LOTS, BN_0 } from '@/lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
+import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 
 export function ProposalOrdersTable({
   description,
@@ -55,10 +60,14 @@ export function ProposalOrdersTable({
   const wallet = useWallet();
 
   const { generateExplorerLink } = useExplorerConfiguration();
-  const { cancelOrderTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
   const { fetchOpenOrders, proposal } = useProposal();
+  const { cancelOrderTransactions, closeOpenOrdersAccountTransactions, editOrderTransactions } = useOpenbookTwap();
 
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [editingOrder, setEditingOrder] = useState<OpenOrdersAccountWithKey | undefined>();
+  const [editedSize, setEditedSize] = useState<number>();
+  const [editedPrice, setEditedPrice] = useState<number>();
   const [isSettling, setIsSettling] = useState<boolean>(false);
 
   const handleCancel = useCallback(
@@ -97,6 +106,58 @@ export function ProposalOrdersTable({
     [proposal, markets, wallet.publicKey, cancelOrderTransactions, fetchOpenOrders, sender],
   );
 
+  const handleEdit = useCallback(
+    async (order: OpenOrdersAccountWithKey) => {
+      if (!proposal || !markets || !editingOrder) return;
+
+      const price =
+        editedPrice ||
+        numeral(order.account.openOrders[0].lockedPrice.toString()).multiply(QUOTE_LOTS).value()!;
+      const size =
+        editedSize ||
+        (isBid(order)
+          ? order.account.position.bidsBaseLots
+          : order.account.position.asksBaseLots
+        ).toNumber();
+      console.log(editedPrice, editedSize, price, size, order.account);
+      console.log(order.account.openOrders.map((o) => o.clientId.toString()));
+      const txs = (
+        await editOrderTransactions({
+          order,
+          accountIndex: order.account.openOrders[0].clientId,
+          amount: size,
+          price,
+          limitOrder: true,
+          ask: !isBid(order),
+          market: isPass(order, proposal)
+            ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
+            : { publicKey: proposal.account.openbookFailMarket, account: markets.fail },
+        })
+      )
+        ?.flat()
+        .filter(Boolean);
+      if (!wallet.publicKey || !txs) return;
+      try {
+        setIsEditing(true);
+        await sender.send(txs);
+        await fetchOpenOrders(proposal, wallet.publicKey!);
+        setEditingOrder(undefined);
+      } finally {
+        setIsEditing(false);
+      }
+    },
+    [
+      proposal,
+      markets,
+      wallet.publicKey,
+      editedSize,
+      editedPrice,
+      editOrderTransactions,
+      fetchOpenOrders,
+      sender,
+    ],
+  );
+
   const handleSettleFunds = useCallback(
     async (order: OpenOrdersAccountWithKey, passMarket: boolean, dontClose?: boolean) => {
       setIsSettling(true);
@@ -126,31 +187,6 @@ export function ProposalOrdersTable({
     [proposal, sender],
   );
 
-  const isPass = (order: OpenOrdersAccountWithKey) => {
-    if (!proposal) return false;
-    const isPassMarket = order.account.market.equals(proposal.account.openbookPassMarket);
-    if (isPassMarket) {
-      return true;
-    }
-    return false;
-  };
-
-  const isBid = (order: OpenOrdersAccountWithKey) => {
-    const isBidSide = order.account.position.bidsBaseLots.gt(order.account.position.asksBaseLots);
-    if (isBidSide) {
-      return true;
-    }
-    return false;
-  };
-
-  const isPartiallyFilled = (order: OpenOrdersAccountWithKey): boolean => {
-    const orderPosition = order.account.position;
-    if (orderPosition.baseFreeNative > BN_0 || orderPosition.quoteFreeNative > BN_0) {
-      return true;
-    }
-    return false;
-  };
-
   return (
     <>
       <Group justify="flex-end">{description}</Group>
@@ -158,7 +194,7 @@ export function ProposalOrdersTable({
         <Table.Thead>
           <Table.Tr>
             {headers.map((header) => (
-              <Table.Th>{header}</Table.Th>
+              <Table.Th key={header}>{header}</Table.Th>
             ))}
           </Table.Tr>
         </Table.Thead>
@@ -178,11 +214,11 @@ export function ProposalOrdersTable({
                 <Table.Td>
                   <Group justify="flex-start" align="center" gap={10}>
                     <IconWriting
-                      color={isPass(order) ? theme.colors.green[9] : theme.colors.red[9]}
+                      color={isPass(order, proposal) ? theme.colors.green[9] : theme.colors.red[9]}
                       scale="xs"
                     />
                     <Stack gap={0} justify="flex-start" align="flex-start">
-                      <Text>{isPass(order) ? 'PASS' : 'FAIL'}</Text>
+                      <Text>{isPass(order, proposal) ? 'PASS' : 'FAIL'}</Text>
 
                       {orderStatus !== 'closed' ? (
                         <Text
@@ -205,29 +241,62 @@ export function ProposalOrdersTable({
                         : 'Open'}
                     </Table.Td>
                     <Table.Td>
-                      {numeral(
-                        isBid(order)
-                          ? order.account.position.bidsBaseLots
-                          : order.account.position.asksBaseLots,
-                      ).format(BASE_FORMAT)}
-                    </Table.Td>
-                    <Table.Td>
-                      $
-                      {numeral(order.account.openOrders[0].lockedPrice * QUOTE_LOTS).format(
-                        NUMERAL_FORMAT,
+                      {/* Size */}
+                      {editingOrder === order ? (
+                        <Input
+                          w="5rem"
+                          variant="filled"
+                          defaultValue={numeral(
+                            isBid(order)
+                              ? order.account.position.bidsBaseLots
+                              : order.account.position.asksBaseLots,
+                          ).format(BASE_FORMAT)}
+                          onChange={(e) => setEditedSize(Number(e.target.value))}
+                        />
+                      ) : (
+                        numeral(
+                          isBid(order)
+                            ? order.account.position.bidsBaseLots
+                            : order.account.position.asksBaseLots,
+                        ).format(BASE_FORMAT)
                       )}
                     </Table.Td>
                     <Table.Td>
-                      $
-                      {numeral(
-                        isBid(order)
-                          ? order.account.position.bidsBaseLots *
-                              order.account.openOrders[0].lockedPrice *
-                              QUOTE_LOTS
-                          : order.account.position.asksBaseLots *
-                              order.account.openOrders[0].lockedPrice *
-                              QUOTE_LOTS,
-                      ).format(NUMERAL_FORMAT)}
+                      {/* Price */}
+                      {editingOrder === order ? (
+                        <Input
+                          w="5rem"
+                          variant="filled"
+                          defaultValue={numeral(
+                            order.account.openOrders[0].lockedPrice * QUOTE_LOTS,
+                          ).format(NUMERAL_FORMAT)}
+                          onChange={(e) => setEditedPrice(Number(e.target.value))}
+                        />
+                      ) : (
+                        `$${numeral(order.account.openOrders[0].lockedPrice * QUOTE_LOTS).format(
+                          NUMERAL_FORMAT,
+                        )}`
+                      )}
+                    </Table.Td>
+                    <Table.Td>
+                      {/* Notional */}$
+                      {editingOrder === order
+                        ? numeral(
+                            (editedPrice || order.account.openOrders[0].lockedPrice * QUOTE_LOTS) *
+                              (editedSize ||
+                                (isBid(order)
+                                  ? order.account.position.bidsBaseLots
+                                  : order.account.position.asksBaseLots)),
+                          ).format(NUMERAL_FORMAT)
+                        : numeral(
+                            isBid(order)
+                              ? order.account.position.bidsBaseLots *
+                                  order.account.openOrders[0].lockedPrice *
+                                  QUOTE_LOTS
+                              : order.account.position.asksBaseLots *
+                                  order.account.openOrders[0].lockedPrice *
+                                  QUOTE_LOTS,
+                          ).format(NUMERAL_FORMAT)}
                     </Table.Td>
                     <Table.Td>
                       {isPartiallyFilled(order) ? (
@@ -235,7 +304,7 @@ export function ProposalOrdersTable({
                           <ActionIcon
                             variant="light"
                             loading={isSettling}
-                            onClick={() => handleSettleFunds(order, isPass(order), true)}
+                            onClick={() => handleSettleFunds(order, isPass(order, proposal), true)}
                           >
                             <Icon3dRotate />
                           </ActionIcon>
@@ -248,19 +317,44 @@ export function ProposalOrdersTable({
                           <ActionIcon
                             variant="light"
                             loading={isCranking}
-                            onClick={() => handleCrank(isPass(order), order.publicKey)}
+                            onClick={() => handleCrank(isPass(order, proposal), order.publicKey)}
                           >
                             <Icon12Hours />
                           </ActionIcon>
                         </Tooltip>
                       ) : null}
-                      <ActionIcon
-                        variant="light"
-                        loading={isCanceling}
-                        onClick={() => handleCancel([order])}
-                      >
-                        <IconTrash />
-                      </ActionIcon>
+                      <Group gap="sm">
+                        <ActionIcon
+                          variant="light"
+                          loading={isCanceling}
+                          onClick={() => handleCancel([order])}
+                        >
+                          <IconTrash />
+                        </ActionIcon>
+                        {editingOrder === order ? (
+                          <Group gap="0.1rem">
+                            <ActionIcon
+                              c="green"
+                              variant="light"
+                              loading={isEditing}
+                              onClick={() => handleEdit(order)}
+                            >
+                              <IconCheck />
+                            </ActionIcon>
+                            <ActionIcon
+                              c="red"
+                              variant="light"
+                              onClick={() => setEditingOrder(() => undefined)}
+                            >
+                              <IconPencilCancel />
+                            </ActionIcon>
+                          </Group>
+                        ) : (
+                          <ActionIcon variant="light" onClick={() => setEditingOrder(() => order)}>
+                            <IconEdit />
+                          </ActionIcon>
+                        )}
+                      </Group>
                     </Table.Td>
                   </>
                 ) : (
@@ -287,7 +381,7 @@ export function ProposalOrdersTable({
                             <ActionIcon
                               variant="light"
                               loading={isCranking}
-                              onClick={() => handleCrank(isPass(order), order.publicKey)}
+                              onClick={() => handleCrank(isPass(order, proposal), order.publicKey)}
                             >
                               <Icon12Hours />
                             </ActionIcon>
@@ -296,7 +390,7 @@ export function ProposalOrdersTable({
                         <ActionIcon
                           variant="light"
                           loading={isSettling}
-                          onClick={() => handleSettleFunds(order, isPass(order), true)}
+                          onClick={() => handleSettleFunds(order, isPass(order, proposal), true)}
                         >
                           <Icon3dRotate />
                         </ActionIcon>

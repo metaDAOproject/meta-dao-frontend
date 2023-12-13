@@ -41,7 +41,6 @@ export function ProposalDetailCard() {
   const {
     proposal,
     markets,
-    orders,
     fetchOpenOrders,
     mintTokens,
     placeOrder,

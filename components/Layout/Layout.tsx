@@ -126,7 +126,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               label="RPC URL"
               placeholder="Your custom RPC URL"
               onChange={(e) => setCustomEndpoint(e.target.value)}
-              value={endpoint}
+              defaultValue={endpoint}
             />
           ) : null}
           <NativeSelect
