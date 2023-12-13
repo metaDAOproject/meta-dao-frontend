@@ -29,7 +29,7 @@ import Link from 'next/link';
 import React, { ReactNode, useEffect } from 'react';
 import { Networks, useNetworkConfiguration } from '../../hooks/useNetworkConfiguration';
 import { shortKey } from '@/lib/utils';
-import icon from '@/public/meta.jpg';
+import icon from '@/public/meta.png';
 import _favicon from '@/public/favicon.ico';
 import { Explorers, useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 
