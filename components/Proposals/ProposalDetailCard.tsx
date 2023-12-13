@@ -35,13 +35,14 @@ import { useConditionalVault } from '../../hooks/useConditionalVault';
 
 export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number }) {
   const { connection } = useConnection();
-  const { fetchOpenOrders, fetchProposals, orderBookObject } = useAutocrat();
+  const { fetchOpenOrders, fetchProposals } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
   const wallet = useWallet();
   const {
     proposal,
     markets,
     orders,
+    orderBookObject,
     mintTokens,
     placeOrder,
     finalizeProposalTransactions,
