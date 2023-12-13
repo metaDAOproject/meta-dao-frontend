@@ -6,7 +6,7 @@ import {
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
 import { notifications } from '@mantine/notifications';
-import { ProposalAccountWithKey } from '@/lib/types';
+import { LeafNode, ProposalAccountWithKey } from '@/lib/types';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { useConditionalVault } from '@/hooks/useConditionalVault';
 import { useOpenbookTwap } from './useOpenbookTwap';
@@ -54,6 +54,93 @@ export function useProposal({
   );
   const markets = proposal ? allMarketsInfo[proposal.publicKey.toString()] : undefined;
   const orders = proposal ? allOrders[proposal.publicKey.toString()] : undefined;
+
+  const orderBookObject = useMemo(() => {
+    if (!markets) return;
+
+    const getSide = (side: LeafNode[], isBidSide?: boolean) => {
+      if (side.length === 0) {
+        return null;
+      }
+      const parsed = side
+        .map((e) => ({
+          price: e.key.shrn(64).toNumber(),
+          size: e.quantity.toNumber(),
+        }))
+        .sort((a, b) => a.price - b.price);
+
+      const sorted = isBidSide
+        ? parsed.sort((a, b) => b.price - a.price)
+        : parsed.sort((a, b) => a.price - b.price);
+
+      const deduped = new Map();
+      sorted.forEach((order) => {
+        if (deduped.get(order.price) === undefined) {
+          deduped.set(order.price, order.size);
+        } else {
+          deduped.set(order.price, deduped.get(order.price) + order.size);
+        }
+      });
+
+      const total = parsed.reduce((a, b) => ({
+        price: a.price + b.price,
+        size: a.size + b.size,
+      }));
+      return { parsed, total, deduped };
+    };
+
+    const orderBookSide = (orderBookForSide: LeafNode[], isBidSide?: boolean) => {
+      if (orderBookForSide) {
+        const _orderBookSide = getSide(orderBookForSide, isBidSide);
+        if (_orderBookSide) {
+          return Array.from(_orderBookSide.deduped?.entries()).map((side) => [
+            (side[0] / 10_000).toFixed(4),
+            side[1],
+          ]);
+        }
+      }
+      if (isBidSide) {
+        return [[0, 0]];
+      }
+      return [[Number.MAX_SAFE_INTEGER, 0]];
+    };
+
+    const getToB = (bids: LeafNode[], asks: LeafNode[]) => {
+      const _bids = orderBookSide(bids, true);
+      const _asks = orderBookSide(asks);
+      const tobAsk: number = Number(_asks[0][0]);
+      const tobBid: number = Number(_bids[0][0]);
+      return {
+        topAsk: tobAsk,
+        topBid: tobBid,
+      };
+    };
+
+    const getSpreadString = (bids: LeafNode[], asks: LeafNode[]) => {
+      const { topAsk, topBid } = getToB(bids, asks);
+      const spread: number = topAsk - topBid;
+      const spreadPercent: string = ((spread / topAsk) * 100).toFixed(2);
+
+      return spread === topAsk
+        ? '∞ (100.00%)'
+        : `${spread.toFixed(2).toString()} (${spreadPercent}%)`;
+    };
+
+    return {
+      passBidsProcessed: getSide(markets.passBids, true),
+      passAsksProcessed: getSide(markets.passAsks),
+      passBidsArray: orderBookSide(markets.passBids, true),
+      passAsksArray: orderBookSide(markets.passAsks),
+      failBidsProcessed: getSide(markets.failBids, true),
+      failAsksProcessed: getSide(markets.failAsks),
+      failBidsArray: orderBookSide(markets.failBids, true),
+      failAsksArray: orderBookSide(markets.failAsks),
+      passToB: getToB(markets.passBids, markets.passAsks),
+      failToB: getToB(markets.failBids, markets.failAsks),
+      passSpreadString: getSpreadString(markets.passBids, markets.passAsks),
+      failSpreadString: getSpreadString(markets.failBids, markets.failAsks),
+    };
+  }, [markets, proposal]);
 
   useEffect(() => {
     if (!orders && proposal && wallet.publicKey) {
@@ -260,6 +347,7 @@ export function useProposal({
     proposal,
     markets,
     orders,
+    orderBookObject,
     loading,
     metaDisabled,
     usdcDisabled,
