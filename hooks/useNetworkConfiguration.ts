@@ -35,5 +35,11 @@ export function useNetworkConfiguration() {
     }
   }, [network, customEndpoint]);
 
-  return { endpoint, network, setNetwork, setCustomEndpoint };
+  return {
+    endpoint,
+    network,
+    setNetwork,
+    setCustomEndpoint: (s: string) =>
+      setCustomEndpoint((old) => (/^(http|https):\/\//.test(s) ? s : old)),
+  };
 }
