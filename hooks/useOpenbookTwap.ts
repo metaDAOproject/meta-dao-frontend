@@ -477,20 +477,14 @@ export function useOpenbookTwap() {
         ask,
         accountIndex,
       });
-
-      // Compute cancel size
-      const maxQuoteLotsIncludingFees = !ask
-        ? order.account.position.bidsBaseLots.mul(order.account.openOrders[0].lockedPrice)
-        : order.account.position.asksBaseLots.mul(order.account.openOrders[0].lockedPrice);
-      const expectedCancelSize = args.maxQuoteLotsIncludingFees.sub(maxQuoteLotsIncludingFees);
-      console.log(
-        `${args.maxQuoteLotsIncludingFees.toString()} - ${maxQuoteLotsIncludingFees.toString()} = ${expectedCancelSize.toString()}`,
-      );
-      const mint = ask ? market.account.quoteMint : market.account.baseMint;
-      const marketVault = ask ? market.account.marketQuoteVault : market.account.marketBaseVault;
+      const expectedCancelSize = ask
+        ? order.account.position.asksBaseLots.sub(new BN(amount)).abs()
+        : new BN(amount).sub(order.account.position.bidsBaseLots).abs();
+      const mint = ask ? market.account.baseMint : market.account.quoteMint;
+      const marketVault = ask ? market.account.marketBaseVault : market.account.marketQuoteVault;
       const userTokenAccount = getAssociatedTokenAddressSync(mint, wallet.publicKey);
       const editTx = await openbookTwap.methods
-        .editOrder(new BN(order.account.accountNum), maxQuoteLotsIncludingFees, args)
+        .editOrder(new BN(order.account.accountNum), expectedCancelSize, args)
         .accounts({
           market: market.publicKey,
           asks: market.account.asks,
