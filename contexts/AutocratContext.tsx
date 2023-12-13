@@ -13,20 +13,13 @@ import { useConnection } from '@solana/wallet-adapter-react';
 import { AutocratV0 } from '../lib/idl/autocrat_v0';
 import { useProvider } from '@/hooks/useProvider';
 import { AUTOCRAT_PROGRAM_ID, OPENBOOK_PROGRAM_ID } from '@/lib/constants';
-import {
-  AllMarketsInfo,
-  AllOrders,
-  DaoState,
-  OrderBook,
-  ProposalAccountWithKey,
-} from '../lib/types';
+import { AllMarketsInfo, AllOrders, DaoState, ProposalAccountWithKey } from '../lib/types';
 import { useNetworkConfiguration } from '../hooks/useNetworkConfiguration';
 import { useConditionalVault } from '../hooks/useConditionalVault';
 import { useOpenbookTwap } from '../hooks/useOpenbookTwap';
 import { IDL as OPENBOOK_IDL, OpenbookV2 } from '@/lib/idl/openbook_v2';
 import { getLeafNodes } from '../lib/openbook';
 import { debounce } from '../lib/utils';
-import { LeafNode } from '@/lib/types';
 
 const AUTOCRAT_IDL: AutocratV0 = require('@/lib/idl/autocrat_v0.json');
 
@@ -36,7 +29,6 @@ export interface AutocratContext {
   daoState?: DaoState;
   proposals?: ProposalAccountWithKey[];
   allMarketsInfo: AllMarketsInfo;
-  orderBookObject?: OrderBook;
   allOrders: AllOrders;
   autocratProgram?: Program<AutocratV0>;
   fetchState: () => Promise<void>;
@@ -47,7 +39,6 @@ export interface AutocratContext {
 export const contextAutocrat = createContext<AutocratContext>({
   allMarketsInfo: {},
   allOrders: {},
-  orderBookObject: undefined,
   fetchState: () => new Promise(() => {}),
   fetchProposals: () => new Promise(() => {}),
   fetchMarketsInfo: () => new Promise(() => {}),
@@ -101,97 +92,6 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
     );
     setProposals(props);
   }, [autocratProgram]);
-
-  const orderBookObject = useMemo(() => {
-    const getSide = (side: LeafNode[], isBidSide?: boolean) => {
-      if (side.length === 0) {
-        return null;
-      }
-      const parsed = side
-        .map((e) => ({
-          price: e.key.shrn(64).toNumber(),
-          size: e.quantity.toNumber(),
-        }))
-        .sort((a, b) => a.price - b.price);
-
-      const sorted = isBidSide
-        ? parsed.sort((a, b) => b.price - a.price)
-        : parsed.sort((a, b) => a.price - b.price);
-
-      const deduped = new Map();
-      sorted.forEach((order) => {
-        if (deduped.get(order.price) === undefined) {
-          deduped.set(order.price, order.size);
-        } else {
-          deduped.set(order.price, deduped.get(order.price) + order.size);
-        }
-      });
-
-      const total = parsed.reduce((a, b) => ({
-        price: a.price + b.price,
-        size: a.size + b.size,
-      }));
-      return { parsed, total, deduped };
-    };
-
-    const orderBookSide = (orderBookForSide: LeafNode[], isBidSide?: boolean) => {
-      if (orderBookForSide) {
-        const _orderBookSide = getSide(orderBookForSide, isBidSide);
-        if (_orderBookSide) {
-          return Array.from(_orderBookSide.deduped?.entries()).map((side) => [
-            (side[0] / 10_000).toFixed(4),
-            side[1],
-          ]);
-        }
-      }
-      if (isBidSide) {
-        return [[0, 0]];
-      }
-      return [[Number.MAX_SAFE_INTEGER, 0]];
-    };
-
-    const getToB = (bids: LeafNode[], asks: LeafNode[]) => {
-      const _bids = orderBookSide(bids, true);
-      const _asks = orderBookSide(asks);
-      const tobAsk: number = Number(_asks[0][0]);
-      const tobBid: number = Number(_bids[0][0]);
-      return {
-        topAsk: tobAsk,
-        topBid: tobBid,
-      };
-    };
-
-    const getSpreadString = (bids: LeafNode[], asks: LeafNode[]) => {
-      const { topAsk, topBid } = getToB(bids, asks);
-      const spread: number = topAsk - topBid;
-      const spreadPercent: string = ((spread / topAsk) * 100).toFixed(2);
-
-      return spread === topAsk
-        ? '∞ (100.00%)'
-        : `${spread.toFixed(2).toString()} (${spreadPercent}%)`;
-    };
-    if (Object.keys(allMarketsInfo).length > 0) {
-      const proposalInfo = allMarketsInfo[Object.keys(allMarketsInfo)[0]];
-      if (proposalInfo) {
-        return {
-          passBidsProcessed: getSide(proposalInfo.passBids, true),
-          passAsksProcessed: getSide(proposalInfo.passAsks),
-          passBidsArray: orderBookSide(proposalInfo.passBids, true),
-          passAsksArray: orderBookSide(proposalInfo.passAsks),
-          failBidsProcessed: getSide(proposalInfo.failBids, true),
-          failAsksProcessed: getSide(proposalInfo.failAsks),
-          failBidsArray: orderBookSide(proposalInfo.failBids, true),
-          failAsksArray: orderBookSide(proposalInfo.failAsks),
-          passToB: getToB(proposalInfo.passBids, proposalInfo.passAsks),
-          failToB: getToB(proposalInfo.failBids, proposalInfo.failAsks),
-          passSpreadString: getSpreadString(proposalInfo.passBids, proposalInfo.passAsks),
-          failSpreadString: getSpreadString(proposalInfo.failBids, proposalInfo.failAsks),
-        };
-      }
-      return undefined;
-    }
-    return undefined;
-  }, [allMarketsInfo]);
 
   const fetchMarketsInfo = useCallback(
     debounce(async (proposal: ProposalAccountWithKey) => {
@@ -319,7 +219,6 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
         daoState,
         proposals,
         allMarketsInfo,
-        orderBookObject,
         allOrders,
         autocratProgram,
         fetchState,
