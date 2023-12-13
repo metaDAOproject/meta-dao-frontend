@@ -9,8 +9,15 @@ import {
   TransactionInstruction,
 } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
-import { AnyNode, BookSideAccount, LeafNode, OracleConfigParams } from './types';
-import { OPENBOOK_PROGRAM_ID } from './constants';
+import {
+  AnyNode,
+  BookSideAccount,
+  LeafNode,
+  OpenOrdersAccountWithKey,
+  OracleConfigParams,
+  ProposalAccountWithKey,
+} from './types';
+import { BN_0, OPENBOOK_PROGRAM_ID } from './constants';
 
 export type Order = {
   price: number;
@@ -211,3 +218,22 @@ export function getParsedOrders(side: LeafNode[], isBidSide: boolean): Order[] {
 
   return sorted;
 }
+
+export const isPass = (order: OpenOrdersAccountWithKey, proposal?: ProposalAccountWithKey) =>
+  proposal?.account.openbookPassMarket.equals(order.account.market)!!;
+
+export const isBid = (order: OpenOrdersAccountWithKey) => {
+  const isBidSide = order.account.position.bidsBaseLots.gt(order.account.position.asksBaseLots);
+  if (isBidSide) {
+    return true;
+  }
+  return false;
+};
+
+export const isPartiallyFilled = (order: OpenOrdersAccountWithKey): boolean => {
+  const orderPosition = order.account.position;
+  if (orderPosition.baseFreeNative > BN_0 || orderPosition.quoteFreeNative > BN_0) {
+    return true;
+  }
+  return false;
+};
