@@ -18,7 +18,6 @@ import Link from 'next/link';
 import { PublicKey } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { IconExternalLink, IconQuestionMark } from '@tabler/icons-react';
-import { useProposal } from '@/hooks/useProposal';
 import { useTokens } from '@/hooks/useTokens';
 import { useTokenAmount } from '@/hooks/useTokenAmount';
 import { MarketAccountWithKey } from '@/lib/types';
@@ -32,23 +31,23 @@ import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { SLOTS_PER_10_SECS, TEN_DAYS_IN_SLOTS } from '../../lib/constants';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useConditionalVault } from '../../hooks/useConditionalVault';
+import { useProposal } from '@/contexts/ProposalContext';
 
-export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number }) {
+export function ProposalDetailCard() {
   const { connection } = useConnection();
-  const { fetchOpenOrders, fetchProposals, orderBookObject } = useAutocrat();
+  const { fetchProposals } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
   const wallet = useWallet();
   const {
     proposal,
     markets,
     orders,
+    fetchOpenOrders,
     mintTokens,
     placeOrder,
     finalizeProposalTransactions,
     loading,
-  } = useProposal({
-    fromNumber: proposalNumber,
-  });
+  } = useProposal()
   const sender = useTransactionSender();
   const [mintBaseAmount, setMintBaseAmount] = useState<number>();
   const [mintQuoteAmount, setMintQuoteAmount] = useState<number>();
@@ -391,8 +390,6 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
           <Group gap="md" justify="space-around" p="sm">
             <ConditionalMarketCard
               isPassMarket
-              orderBookObject={orderBookObject}
-              markets={markets}
               placeOrder={placeOrder}
               handleCrank={handleCrank}
               quoteBalance={quotePassAmount?.uiAmountString}
@@ -401,8 +398,6 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
             />
             <ConditionalMarketCard
               isPassMarket={false}
-              orderBookObject={orderBookObject}
-              markets={markets}
               placeOrder={placeOrder}
               handleCrank={handleCrank}
               quoteBalance={quoteFailAmount?.uiAmountString}
@@ -412,15 +407,10 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
           </Group>
         ) : null}
 
-        {proposal && orders ? (
-          <ProposalOrdersCard
-            markets={markets}
-            proposal={proposal}
-            orders={orders}
-            handleCrank={handleCrank}
-            isCranking={isCranking}
-          />
-        ) : null}
+        <ProposalOrdersCard
+          handleCrank={handleCrank}
+          isCranking={isCranking}
+        />
       </Stack>
     </Stack>
   );

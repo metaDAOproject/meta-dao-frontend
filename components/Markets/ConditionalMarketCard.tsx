@@ -20,15 +20,13 @@ import numeral from 'numeral';
 import { PublicKey } from '@solana/web3.js';
 import { Icon12Hours, IconQuestionMark, IconWallet } from '@tabler/icons-react';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
-import { Markets, OrderBook } from '@/lib/types';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { calculateTWAP } from '../../lib/openbookTwap';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
+import { useProposal } from '@/contexts/ProposalContext';
 
 export function ConditionalMarketCard({
   isPassMarket,
-  orderBookObject,
-  markets,
   placeOrder,
   handleCrank,
   quoteBalance,
@@ -36,8 +34,6 @@ export function ConditionalMarketCard({
   isCranking,
 }: {
   isPassMarket: boolean;
-  orderBookObject: OrderBook;
-  markets: Markets;
   placeOrder: (
     amount: number,
     price: number,
@@ -51,6 +47,7 @@ export function ConditionalMarketCard({
   isCranking: boolean
 }) {
   const { daoState } = useAutocrat();
+  const {orderBookObject, markets} = useProposal()
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
@@ -58,6 +55,7 @@ export function ConditionalMarketCard({
   const [priceError, setPriceError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
 
+  if(!markets) return <></>
   const passTwap = calculateTWAP(markets.passTwap.twapOracle);
   const failTwap = calculateTWAP(markets.failTwap.twapOracle);
   const twap = isPassMarket ? passTwap : failTwap;

@@ -25,13 +25,12 @@ import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { NUMERAL_FORMAT, BASE_FORMAT, QUOTE_LOTS, BN_0 } from '@/lib/constants';
-import { useProposal } from '@/hooks/useProposal';
+import { useProposal } from '@/contexts/ProposalContext';
 
 export function ProposalOrdersTable({
   description,
   headers,
   orders,
-  proposal,
   orderStatus,
   markets,
   settleOrders,
@@ -41,7 +40,6 @@ export function ProposalOrdersTable({
   description: ReactNode;
   headers: string[];
   orders: OpenOrdersAccountWithKey[];
-  proposal: ProposalAccountWithKey;
   orderStatus: string;
   markets: Markets;
   settleOrders: (
@@ -58,9 +56,7 @@ export function ProposalOrdersTable({
 
   const { generateExplorerLink } = useExplorerConfiguration();
   const { cancelOrderTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
-  const { fetchOpenOrders } = useProposal({
-    fromNumber: proposal.account.number,
-  });
+  const { fetchOpenOrders, proposal } = useProposal();
 
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
   const [isSettling, setIsSettling] = useState<boolean>(false);

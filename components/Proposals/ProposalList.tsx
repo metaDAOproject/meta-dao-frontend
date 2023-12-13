@@ -8,6 +8,7 @@ import { shortKey } from '../../lib/utils';
 import { MarketCard } from './MarketCard';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { StateBadge } from './StateBadge';
+import { ProposalProvider } from '@/contexts/ProposalContext';
 
 export default function ProposalList() {
   const router = useRouter();
@@ -48,7 +49,9 @@ export default function ProposalList() {
               </Accordion.Control>
               <Accordion.Panel p="0" style={{ padding: '0' }}>
                 <Group justify="center" p="0">
-                  <MarketCard proposal={proposal} />
+                  <ProposalProvider fromProposal={proposal}>
+                    <MarketCard />
+                  </ProposalProvider>
                 </Group>
               </Accordion.Panel>
               <Group>

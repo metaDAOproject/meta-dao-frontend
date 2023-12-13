@@ -7,29 +7,21 @@ import { BN } from '@coral-xyz/anchor';
 import numeral from 'numeral';
 import { OpenOrdersAccountWithKey, ProposalAccountWithKey, Markets } from '@/lib/types';
 import { NUMERAL_FORMAT, BASE_FORMAT } from '@/lib/constants';
-import { useProposal } from '@/hooks/useProposal';
 import { ProposalOrdersTable } from './ProposalOrdersTable';
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
+import { useProposal } from '@/contexts/ProposalContext';
 
 export function ProposalOrdersCard({
-  markets,
-  orders,
-  proposal,
   handleCrank,
   isCranking,
 }: {
-  markets: Markets;
-  orders: OpenOrdersAccountWithKey[];
-  proposal: ProposalAccountWithKey;
   handleCrank: (isPassMarket: boolean, individualEvent?: PublicKey) => void;
   isCranking: boolean;
 }) {
   const wallet = useWallet();
   const sender = useTransactionSender();
-  const { metaDisabled, usdcDisabled, fetchOpenOrders, createTokenAccounts } = useProposal({
-    fromNumber: proposal.account.number,
-  });
+  const { metaDisabled, usdcDisabled, fetchOpenOrders, createTokenAccounts, proposal, orders, markets } = useProposal();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
   const [isSettling, setIsSettling] = useState<boolean>(false);
 
@@ -109,6 +101,8 @@ export function ProposalOrdersCard({
     [proposal, settleFundsTransactions, fetchOpenOrders, sender],
   );
 
+  if(!orders || !markets) return <></>
+
   const filterEmptyOrders = (): OpenOrdersAccountWithKey[] =>
     orders.filter((order) => {
       if (order.account.openOrders[0].isFree === 1) {
@@ -149,6 +143,7 @@ export function ProposalOrdersCard({
         <Button
           loading={isSettling}
           onClick={() =>
+            proposal && 
             handleSettleFunds(
               filterEmptyOrders(),
               proposal.account.openbookFailMarket.equals(markets.passTwap.market),
@@ -339,7 +334,6 @@ export function ProposalOrdersCard({
             when there is a balance available within the Open Orders Account."
             headers={genericOrdersHeaders}
             orders={filterOpenOrders()}
-            proposal={proposal}
             orderStatus="open"
             markets={markets}
             settleOrders={handleSettleFunds}
@@ -354,7 +348,6 @@ export function ProposalOrdersCard({
             Accounts below."
             headers={genericOrdersHeaders}
             orders={filterCompletedOrders()}
-            proposal={proposal}
             orderStatus="uncranked"
             markets={markets}
             settleOrders={handleSettleFunds}
@@ -367,7 +360,6 @@ export function ProposalOrdersCard({
             description={unsettledOrdersDescription()}
             headers={unsettledOrdersHeaders}
             orders={filterEmptyOrders()}
-            proposal={proposal}
             orderStatus="closed"
             markets={markets}
             settleOrders={handleSettleFunds}
