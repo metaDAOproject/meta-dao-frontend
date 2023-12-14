@@ -6,7 +6,7 @@ import {
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
 import { notifications } from '@mantine/notifications';
-import { AllMarketsInfo, AllOrders, MarketAccountWithKey, Markets, OpenOrdersAccountWithKey, OrderBook, ProposalAccountWithKey } from '@/lib/types';
+import { MarketAccountWithKey, Markets, OpenOrdersAccountWithKey, OrderBook, ProposalAccountWithKey } from '@/lib/types';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { useConditionalVault } from '@/hooks/useConditionalVault';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
@@ -16,16 +16,18 @@ import { getLeafNodes } from '../lib/openbook';
 import { debounce } from '../lib/utils';
 
 export interface ProposalInterface {
-  proposal?:ProposalAccountWithKey,
+  proposal?: ProposalAccountWithKey,
   proposalNumber?: number,
   markets?: Markets,
   orders?: OpenOrdersAccountWithKey[],
   orderBookObject?: OrderBook,
   loading: boolean,
+  isCranking: boolean,
   metaDisabled: boolean,
   usdcDisabled: boolean,
-  fetchOpenOrders: (proposal: ProposalAccountWithKey, owner: PublicKey) => Promise<void>,
-  fetchMarketsInfo: (proposal: ProposalAccountWithKey) => Promise<void>,
+  handleCrank:  (isPassMarket: boolean, individualEvent?: PublicKey) => Promise<void>,
+  fetchOpenOrders: (owner: PublicKey) => Promise<void>,
+  fetchMarketsInfo: () => Promise<void>,
   createTokenAccounts: (fromBase?: boolean) => Promise<void>,
   createTokenAccountsTransactions: (fromBase?: boolean) => Promise<Transaction[] | undefined>,
   finalizeProposalTransactions: () => Promise<Transaction[] | undefined>,
@@ -40,7 +42,7 @@ export const proposalContext = createContext<ProposalInterface | undefined>(unde
 export const useProposal = () => {
   const context = useContext(proposalContext);
   if (!context) {
-      throw new Error('useProposal must be used within a ProposalContextProvider');
+    throw new Error('useProposal must be used within a ProposalContextProvider');
   }
   return context;
 }
@@ -76,8 +78,10 @@ export function ProposalProvider({
   const [loading, setLoading] = useState(false);
   const [metaDisabled, setMetaDisabled] = useState(false);
   const [usdcDisabled, setUsdcDisabled] = useState(false);
-  const [allMarketsInfo, setAllMarketsInfo] = useState<AllMarketsInfo>({});
-  const [allOrders, setAllOrders] = useState<AllOrders>({});
+  const [markets, setMarkets] = useState<Markets>();
+  const [orders, setOrders] = useState<OpenOrdersAccountWithKey[]>([]);
+  const [isCranking, setIsCranking] = useState<boolean>(false);
+  const { crankMarketTransactions } = useOpenbookTwap();
 
   const proposal = useMemo<ProposalAccountWithKey | undefined>(
     () =>
@@ -88,14 +92,13 @@ export function ProposalProvider({
       )[0],
     [proposals, fromProposal, proposalNumber],
   );
-  const markets = proposal ? allMarketsInfo[proposal.publicKey.toString()] : undefined;
-  const orders = proposal ? allOrders[proposal.publicKey.toString()] : undefined;
 
   const fetchMarketsInfo = useCallback(
-    debounce(async (proposal: ProposalAccountWithKey) => {
+    debounce(async () => {
       if (!proposal || !openbook || !openbookTwap || !openbookTwap.views || !connection) {
         return;
       }
+      console.log("fetchMarketsInfo")
       const accountInfos = await connection.getMultipleAccountsInfo([
         proposal.account.openbookPassMarket,
         proposal.account.openbookFailMarket,
@@ -148,28 +151,26 @@ export function ProposalProvider({
         openbook,
       );
 
-      setAllMarketsInfo({
-        ...allMarketsInfo,
-        [proposal.publicKey.toString()]: {
-          pass,
-          passAsks,
-          passBids,
-          fail,
-          failAsks,
-          failBids,
-          passTwap,
-          failTwap,
-          baseVault,
-          quoteVault,
-        },
-      });
+      setMarkets({
+        pass,
+        passAsks,
+        passBids,
+        fail,
+        failAsks,
+        failBids,
+        passTwap,
+        failTwap,
+        baseVault,
+        quoteVault,
+      },
+      );
     }, 1000),
-    [allMarketsInfo, vaultProgram, openbook, openbookTwap],
+    [markets, vaultProgram, openbook, openbookTwap],
   );
   const fetchOpenOrders = useCallback(
-    debounce<[ProposalAccountWithKey, PublicKey]>(
-      async (proposal: ProposalAccountWithKey, owner: PublicKey) => {
-        if (!openbook) {
+    debounce<[ PublicKey]>(
+      async ( owner: PublicKey) => {
+        if (!openbook || !proposal) {
           return;
         }
         const passOrders = await openbook.account.openOrdersAccount.all([
@@ -180,11 +181,9 @@ export function ProposalProvider({
           { memcmp: { offset: 8, bytes: owner.toBase58() } },
           { memcmp: { offset: 40, bytes: proposal.account.openbookFailMarket.toBase58() } },
         ]);
-        setAllOrders({
-          [proposal.publicKey.toString()]: passOrders
-            .concat(failOrders)
-            .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1)),
-        });
+        setOrders(
+          passOrders.concat(failOrders).sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1)),
+        );
       },
       1000,
     ),
@@ -193,13 +192,13 @@ export function ProposalProvider({
 
   useEffect(() => {
     if (!orders && proposal && wallet.publicKey) {
-      fetchOpenOrders(proposal, wallet.publicKey);
+      fetchOpenOrders(wallet.publicKey);
     }
   }, [orders, markets, fetchOpenOrders]);
 
   useEffect(() => {
     if (!markets && proposal) {
-      fetchMarketsInfo(proposal);
+      fetchMarketsInfo();
     }
   }, [markets, fetchMarketsInfo]);
 
@@ -346,7 +345,7 @@ export function ProposalProvider({
 
       try {
         await sender.send(txs);
-        await fetchMarketsInfo(proposal);
+        await fetchMarketsInfo();
       } catch (err) {
         console.error(err);
       } finally {
@@ -355,8 +354,6 @@ export function ProposalProvider({
     },
     [connection, sender, mintTokensTransactions],
   );
-
-
 
   const orderBookObject = useMemo(() => {
     const getSide = (side: LeafNode[], isBidSide?: boolean) => {
@@ -427,28 +424,25 @@ export function ProposalProvider({
         : `${spread.toFixed(2).toString()} (${spreadPercent}%)`;
     };
 
-    if (Object.keys(allMarketsInfo).length > 0) {
-      const proposalInfo = allMarketsInfo[Object.keys(allMarketsInfo)[0]];
-      if (proposalInfo) {
-        return {
-          passBidsProcessed: getSide(proposalInfo.passBids, true),
-          passAsksProcessed: getSide(proposalInfo.passAsks),
-          passBidsArray: orderBookSide(proposalInfo.passBids, true),
-          passAsksArray: orderBookSide(proposalInfo.passAsks),
-          failBidsProcessed: getSide(proposalInfo.failBids, true),
-          failAsksProcessed: getSide(proposalInfo.failAsks),
-          failBidsArray: orderBookSide(proposalInfo.failBids, true),
-          failAsksArray: orderBookSide(proposalInfo.failAsks),
-          passToB: getToB(proposalInfo.passBids, proposalInfo.passAsks),
-          failToB: getToB(proposalInfo.failBids, proposalInfo.failAsks),
-          passSpreadString: getSpreadString(proposalInfo.passBids, proposalInfo.passAsks),
-          failSpreadString: getSpreadString(proposalInfo.failBids, proposalInfo.failAsks),
-        };
-      }
-      return undefined;
+
+    if (markets) {
+      return {
+        passBidsProcessed: getSide(markets.passBids, true),
+        passAsksProcessed: getSide(markets.passAsks),
+        passBidsArray: orderBookSide(markets.passBids, true),
+        passAsksArray: orderBookSide(markets.passAsks),
+        failBidsProcessed: getSide(markets.failBids, true),
+        failAsksProcessed: getSide(markets.failAsks),
+        failBidsArray: orderBookSide(markets.failBids, true),
+        failAsksArray: orderBookSide(markets.failAsks),
+        passToB: getToB(markets.passBids, markets.passAsks),
+        failToB: getToB(markets.failBids, markets.failAsks),
+        passSpreadString: getSpreadString(markets.passBids, markets.passAsks),
+        failSpreadString: getSpreadString(markets.failBids, markets.failAsks),
+      };
     }
     return undefined;
-  }, [allMarketsInfo]);
+  }, [markets]);
 
   const placeOrder = useCallback(
     async (amount: number, price: number, limitOrder?: boolean, ask?: boolean, pass?: boolean) => {
@@ -466,8 +460,8 @@ export function ProposalProvider({
         setLoading(true);
 
         await sender.send(placeTxs);
-        await fetchMarketsInfo(proposal);
-        await fetchOpenOrders(proposal, wallet.publicKey);
+        await fetchMarketsInfo();
+        await fetchOpenOrders(wallet.publicKey);
       } catch (err) {
         console.error(err);
       } finally {
@@ -486,6 +480,33 @@ export function ProposalProvider({
     ],
   );
 
+  const handleCrank = useCallback(
+    async (isPassMarket: boolean, individualEvent?: PublicKey) => {
+      if (!proposal || !markets || !wallet?.publicKey) return;
+      let marketAccounts: MarketAccountWithKey = {
+        publicKey: markets.passTwap.market,
+        account: markets.pass,
+      };
+      let { eventHeap } = markets.pass;
+      if (!isPassMarket) {
+        marketAccounts = { publicKey: markets.failTwap.market, account: markets.fail };
+        eventHeap = markets.fail.eventHeap;
+      }
+      try {
+        setIsCranking(true);
+        const txs = await crankMarketTransactions(marketAccounts, eventHeap, individualEvent);
+        if (!txs) return;
+        await sender.send(txs);
+        fetchOpenOrders(wallet.publicKey);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsCranking(false);
+      }
+    },
+    [markets, proposal, wallet.publicKey, sender, crankMarketTransactions, fetchOpenOrders],
+  );
+
   return (
     <proposalContext.Provider
       value={{
@@ -495,12 +516,14 @@ export function ProposalProvider({
         orders,
         orderBookObject,
         loading,
+        isCranking,
         metaDisabled,
         usdcDisabled,
         fetchOpenOrders,
         fetchMarketsInfo,
         createTokenAccounts,
         createTokenAccountsTransactions,
+        handleCrank,
         finalizeProposalTransactions,
         mintTokensTransactions,
         mintTokens,

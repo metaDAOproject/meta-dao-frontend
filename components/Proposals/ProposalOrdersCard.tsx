@@ -12,18 +12,12 @@ import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useProposal } from '@/contexts/ProposalContext';
 
-export function ProposalOrdersCard({
-  handleCrank,
-  isCranking,
-}: {
-  handleCrank: (isPassMarket: boolean, individualEvent?: PublicKey) => void;
-  isCranking: boolean;
-}) {
+export function ProposalOrdersCard() {
   const wallet = useWallet();
   const sender = useTransactionSender();
-  const { metaDisabled, usdcDisabled, fetchOpenOrders, createTokenAccounts, proposal, orders, markets } = useProposal();
+  const { metaDisabled, usdcDisabled, fetchOpenOrders, createTokenAccounts, proposal, orders, markets, isCranking, handleCrank } = useProposal();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
-  const [isSettling, setIsSettling] = useState<boolean>(false);
+  const [ isSettling, setIsSettling] = useState<boolean>(false);
 
   const genericOrdersHeaders = [
     'Order ID',
@@ -91,7 +85,7 @@ export function ProposalOrdersCard({
       try {
         setIsSettling(true);
         await sender.send(txs.filter(Boolean) as Transaction[], true);
-        await fetchOpenOrders(proposal, wallet.publicKey!);
+        await fetchOpenOrders(wallet.publicKey!);
       } catch (err) {
         console.error(err);
       } finally {
@@ -286,7 +280,7 @@ export function ProposalOrdersCard({
   };
 
   return !proposal || !markets || !orders ? (
-    <Group justify="center">
+    <Group justify="center" w="100%" h="100%">
       <Loader />
     </Group>
   ) : (
@@ -335,10 +329,7 @@ export function ProposalOrdersCard({
             headers={genericOrdersHeaders}
             orders={filterOpenOrders()}
             orderStatus="open"
-            markets={markets}
             settleOrders={handleSettleFunds}
-            handleCrank={handleCrank}
-            isCranking={isCranking}
           />
         </Tabs.Panel>
         <Tabs.Panel value="uncranked">
@@ -349,10 +340,7 @@ export function ProposalOrdersCard({
             headers={genericOrdersHeaders}
             orders={filterCompletedOrders()}
             orderStatus="uncranked"
-            markets={markets}
             settleOrders={handleSettleFunds}
-            handleCrank={handleCrank}
-            isCranking={isCranking}
           />
         </Tabs.Panel>
         <Tabs.Panel value="unsettled">
@@ -361,10 +349,7 @@ export function ProposalOrdersCard({
             headers={unsettledOrdersHeaders}
             orders={filterEmptyOrders()}
             orderStatus="closed"
-            markets={markets}
             settleOrders={handleSettleFunds}
-            handleCrank={handleCrank}
-            isCranking={isCranking}
           />
         </Tabs.Panel>
       </Tabs>

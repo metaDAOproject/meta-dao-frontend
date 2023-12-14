@@ -37,24 +37,19 @@ export function ProposalOrdersTable({
   headers,
   orders,
   orderStatus,
-  markets,
   settleOrders,
-  handleCrank,
-  isCranking,
 }: {
   description: ReactNode;
   headers: string[];
-  orders: OpenOrdersAccountWithKey[];
+  orders: OpenOrdersAccountWithKey[]
   orderStatus: string;
-  markets: Markets;
   settleOrders: (
     orders: OpenOrdersAccountWithKey[],
     passMarket: boolean,
     dontClose?: boolean,
   ) => Promise<void>;
-  handleCrank: (isPassMarket: boolean, individualEvent?: PublicKey) => void;
-  isCranking: boolean;
 }) {
+  const { markets, isCranking, handleCrank} = useProposal()
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
@@ -96,7 +91,7 @@ export function ProposalOrdersTable({
         // Filtered undefined already
         await sender.send(txs as Transaction[]);
         // We already return above if the wallet doesn't have a public key
-        await fetchOpenOrders(proposal, wallet.publicKey!);
+        await fetchOpenOrders(wallet.publicKey!);
       } catch (err) {
         console.error(err);
       } finally {
@@ -140,7 +135,7 @@ export function ProposalOrdersTable({
       try {
         setIsEditing(true);
         await sender.send(txs);
-        await fetchOpenOrders(proposal, wallet.publicKey!);
+        await fetchOpenOrders(wallet.publicKey!);
         setEditingOrder(undefined);
       } finally {
         setIsEditing(false);
@@ -199,7 +194,7 @@ export function ProposalOrdersTable({
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {orders.length > 0 ? (
+          {(orders && orders.length > 0) ? (
             orders.map((order) => (
               <Table.Tr key={order.publicKey.toString()}>
                 <Table.Td>

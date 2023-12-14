@@ -17,7 +17,6 @@ import {
   InputLabel,
 } from '@mantine/core';
 import numeral from 'numeral';
-import { PublicKey } from '@solana/web3.js';
 import { Icon12Hours, IconQuestionMark, IconWallet } from '@tabler/icons-react';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
 import { useAutocrat } from '../../contexts/AutocratContext';
@@ -28,10 +27,8 @@ import { useProposal } from '@/contexts/ProposalContext';
 export function ConditionalMarketCard({
   isPassMarket,
   placeOrder,
-  handleCrank,
   quoteBalance,
   baseBalance,
-  isCranking,
 }: {
   isPassMarket: boolean;
   placeOrder: (
@@ -41,13 +38,11 @@ export function ConditionalMarketCard({
     ask?: boolean,
     pass?: boolean,
   ) => void;
-  handleCrank: (isPassMarket: boolean, individualEvent?: PublicKey) => void;
   quoteBalance: string | undefined;
   baseBalance: string | undefined;
-  isCranking: boolean
 }) {
   const { daoState } = useAutocrat();
-  const {orderBookObject, markets} = useProposal()
+  const {orderBookObject, markets, isCranking, handleCrank} = useProposal()
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);

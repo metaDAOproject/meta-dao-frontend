@@ -115,7 +115,7 @@ export function MarketCard() {
       setIsBetting(false);
     }
 
-    setTimeout(() => fetchMarketsInfo(proposal), 1000);
+    setTimeout(() => fetchMarketsInfo(), 1000);
   }, [
     amount,
     passPrice,
@@ -131,7 +131,7 @@ export function MarketCard() {
       <Loader />
     </Group>
   ) : (
-    <Stack align="center" gap="xs">
+    <Stack align="center" gap="xs" p="lg">
       <Group wrap="wrap">
         <Container size="3xs" p="0">
           <Fieldset p="sm">
