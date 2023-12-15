@@ -1,11 +1,11 @@
 import { ActionIcon, Button, Flex, Group, Loader, Stack, Tabs, Text } from '@mantine/core';
-import { Transaction, PublicKey } from '@solana/web3.js';
+import { Transaction } from '@solana/web3.js';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { IconRefresh } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import { BN } from '@coral-xyz/anchor';
 import numeral from 'numeral';
-import { OpenOrdersAccountWithKey, ProposalAccountWithKey, Markets } from '@/lib/types';
+import { OpenOrdersAccountWithKey } from '@/lib/types';
 import { NUMERAL_FORMAT, BASE_FORMAT } from '@/lib/constants';
 import { ProposalOrdersTable } from './ProposalOrdersTable';
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
@@ -15,9 +15,17 @@ import { useProposal } from '@/contexts/ProposalContext';
 export function ProposalOrdersCard() {
   const wallet = useWallet();
   const sender = useTransactionSender();
-  const { metaDisabled, usdcDisabled, fetchOpenOrders, createTokenAccounts, proposal, orders, markets, isCranking, handleCrank } = useProposal();
+  const {
+    metaDisabled,
+    usdcDisabled,
+    fetchOpenOrders,
+    createTokenAccounts,
+    proposal,
+    orders,
+    markets,
+  } = useProposal();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
-  const [ isSettling, setIsSettling] = useState<boolean>(false);
+  const [isSettling, setIsSettling] = useState<boolean>(false);
 
   const genericOrdersHeaders = [
     'Order ID',
@@ -95,7 +103,7 @@ export function ProposalOrdersCard() {
     [proposal, settleFundsTransactions, fetchOpenOrders, sender],
   );
 
-  if(!orders || !markets) return <></>
+  if (!orders || !markets) return <></>;
 
   const filterEmptyOrders = (): OpenOrdersAccountWithKey[] =>
     orders.filter((order) => {
@@ -137,7 +145,7 @@ export function ProposalOrdersCard() {
         <Button
           loading={isSettling}
           onClick={() =>
-            proposal && 
+            proposal &&
             handleSettleFunds(
               filterEmptyOrders(),
               proposal.account.openbookFailMarket.equals(markets.passTwap.market),

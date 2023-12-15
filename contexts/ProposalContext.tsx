@@ -6,7 +6,13 @@ import {
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
 import { notifications } from '@mantine/notifications';
-import { MarketAccountWithKey, Markets, OpenOrdersAccountWithKey, OrderBook, ProposalAccountWithKey } from '@/lib/types';
+import {
+  MarketAccountWithKey,
+  Markets,
+  OpenOrdersAccountWithKey,
+  OrderBook,
+  ProposalAccountWithKey,
+} from '@/lib/types';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { useConditionalVault } from '@/hooks/useConditionalVault';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
@@ -16,28 +22,45 @@ import { getLeafNodes } from '../lib/openbook';
 import { debounce } from '../lib/utils';
 
 export interface ProposalInterface {
-  proposal?: ProposalAccountWithKey,
-  proposalNumber?: number,
-  markets?: Markets,
-  orders?: OpenOrdersAccountWithKey[],
-  orderBookObject?: OrderBook,
-  loading: boolean,
-  isCranking: boolean,
-  metaDisabled: boolean,
-  usdcDisabled: boolean,
-  handleCrank:  (isPassMarket: boolean, individualEvent?: PublicKey) => Promise<void>,
-  fetchOpenOrders: (owner: PublicKey) => Promise<void>,
-  fetchMarketsInfo: () => Promise<void>,
-  createTokenAccounts: (fromBase?: boolean) => Promise<void>,
-  createTokenAccountsTransactions: (fromBase?: boolean) => Promise<Transaction[] | undefined>,
-  finalizeProposalTransactions: () => Promise<Transaction[] | undefined>,
-  mintTokensTransactions: (amount: number, fromBase?: boolean) => Promise<Transaction[] | undefined>,
-  mintTokens: (amount: number, fromBase?: boolean) => Promise<void>,
-  placeOrderTransactions: (amount: number, price: number, market: MarketAccountWithKey, limitOrder?: boolean | undefined, ask?: boolean | undefined, pass?: boolean | undefined, indexOffset?: number | undefined) => Promise<any>,
-  placeOrder: (amount: number, price: number, limitOrder?: boolean, ask?: boolean, pass?: boolean) => Promise<void>,
+  proposal?: ProposalAccountWithKey;
+  proposalNumber?: number;
+  markets?: Markets;
+  orders?: OpenOrdersAccountWithKey[];
+  orderBookObject?: OrderBook;
+  loading: boolean;
+  isCranking: boolean;
+  metaDisabled: boolean;
+  usdcDisabled: boolean;
+  handleCrank: (isPassMarket: boolean, individualEvent?: PublicKey) => Promise<void>;
+  fetchOpenOrders: (owner: PublicKey) => Promise<void>;
+  fetchMarketsInfo: () => Promise<void>;
+  createTokenAccounts: (fromBase?: boolean) => Promise<void>;
+  createTokenAccountsTransactions: (fromBase?: boolean) => Promise<Transaction[] | undefined>;
+  finalizeProposalTransactions: () => Promise<Transaction[] | undefined>;
+  mintTokensTransactions: (
+    amount: number,
+    fromBase?: boolean,
+  ) => Promise<Transaction[] | undefined>;
+  mintTokens: (amount: number, fromBase?: boolean) => Promise<void>;
+  placeOrderTransactions: (
+    amount: number,
+    price: number,
+    market: MarketAccountWithKey,
+    limitOrder?: boolean | undefined,
+    ask?: boolean | undefined,
+    pass?: boolean | undefined,
+    indexOffset?: number | undefined,
+  ) => Promise<any>;
+  placeOrder: (
+    amount: number,
+    price: number,
+    limitOrder?: boolean,
+    ask?: boolean,
+    pass?: boolean,
+  ) => Promise<void>;
 }
 
-export const proposalContext = createContext<ProposalInterface | undefined>(undefined)
+export const proposalContext = createContext<ProposalInterface | undefined>(undefined);
 
 export const useProposal = () => {
   const context = useContext(proposalContext);
@@ -45,7 +68,7 @@ export const useProposal = () => {
     throw new Error('useProposal must be used within a ProposalContextProvider');
   }
   return context;
-}
+};
 
 export function ProposalProvider({
   children,
@@ -56,15 +79,8 @@ export function ProposalProvider({
   proposalNumber?: number | undefined;
   fromProposal?: ProposalAccountWithKey;
 }) {
-  const {
-    autocratProgram,
-    dao,
-    daoState,
-    daoTreasury,
-    openbook,
-    openbookTwap,
-    proposals,
-  } = useAutocrat();
+  const { autocratProgram, dao, daoState, daoTreasury, openbook, openbookTwap, proposals } =
+    useAutocrat();
   const { connection } = useConnection();
   const wallet = useWallet();
   const sender = useTransactionSender();
@@ -98,7 +114,7 @@ export function ProposalProvider({
       if (!proposal || !openbook || !openbookTwap || !openbookTwap.views || !connection) {
         return;
       }
-      console.log("fetchMarketsInfo")
+      console.log('fetchMarketsInfo');
       const accountInfos = await connection.getMultipleAccountsInfo([
         proposal.account.openbookPassMarket,
         proposal.account.openbookFailMarket,
@@ -162,31 +178,29 @@ export function ProposalProvider({
         failTwap,
         baseVault,
         quoteVault,
-      },
-      );
+      });
     }, 1000),
     [markets, vaultProgram, openbook, openbookTwap],
   );
   const fetchOpenOrders = useCallback(
-    debounce<[ PublicKey]>(
-      async ( owner: PublicKey) => {
-        if (!openbook || !proposal) {
-          return;
-        }
-        const passOrders = await openbook.account.openOrdersAccount.all([
-          { memcmp: { offset: 8, bytes: owner.toBase58() } },
-          { memcmp: { offset: 40, bytes: proposal.account.openbookPassMarket.toBase58() } },
-        ]);
-        const failOrders = await openbook.account.openOrdersAccount.all([
-          { memcmp: { offset: 8, bytes: owner.toBase58() } },
-          { memcmp: { offset: 40, bytes: proposal.account.openbookFailMarket.toBase58() } },
-        ]);
-        setOrders(
-          passOrders.concat(failOrders).sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1)),
-        );
-      },
-      1000,
-    ),
+    debounce<[PublicKey]>(async (owner: PublicKey) => {
+      if (!openbook || !proposal) {
+        return;
+      }
+      const passOrders = await openbook.account.openOrdersAccount.all([
+        { memcmp: { offset: 8, bytes: owner.toBase58() } },
+        { memcmp: { offset: 40, bytes: proposal.account.openbookPassMarket.toBase58() } },
+      ]);
+      const failOrders = await openbook.account.openOrdersAccount.all([
+        { memcmp: { offset: 8, bytes: owner.toBase58() } },
+        { memcmp: { offset: 40, bytes: proposal.account.openbookFailMarket.toBase58() } },
+      ]);
+      setOrders(
+        passOrders
+          .concat(failOrders)
+          .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1)),
+      );
+    }, 1000),
     [openbook],
   );
 
@@ -424,7 +438,6 @@ export function ProposalProvider({
         : `${spread.toFixed(2).toString()} (${spreadPercent}%)`;
     };
 
-
     if (markets) {
       return {
         passBidsProcessed: getSide(markets.passBids, true),
@@ -532,5 +545,6 @@ export function ProposalProvider({
       }}
     >
       {children}
-    </proposalContext.Provider>)
+    </proposalContext.Provider>
+  );
 }

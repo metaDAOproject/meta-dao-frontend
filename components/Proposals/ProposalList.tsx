@@ -23,37 +23,45 @@ export default function ProposalList() {
   return proposals.length > 0 ? (
     <Stack>
       {proposals.map((proposal) => (
-        <Card key={proposal.publicKey.toString()} shadow="sm" radius="md" withBorder m="0" px="24" py="12">
-                <Stack pr="sm">
-                  <Group justify="space-between">
-                    <Text size="xl" fw={500}>
-                      Proposal #{proposal.account.number + 1}
-                    </Text>
-                    <StateBadge proposal={proposal} />
-                  </Group>
-                  <Group justify="space-between">
-                    <Link href={proposal.account.descriptionUrl}>
-                      <Group gap="sm">
-                        <Text>Go to description</Text>
-                        <IconExternalLink />
-                      </Group>
-                    </Link>
-                    <Text>Proposed by {shortKey(proposal.account.proposer)}</Text>
-                  </Group>
-                </Stack>
+        <Card
+          key={proposal.publicKey.toString()}
+          shadow="sm"
+          radius="md"
+          withBorder
+          m="0"
+          px="24"
+          py="12"
+        >
+          <Stack pr="sm">
+            <Group justify="space-between">
+              <Text size="xl" fw={500}>
+                Proposal #{proposal.account.number + 1}
+              </Text>
+              <StateBadge proposal={proposal} />
+            </Group>
+            <Group justify="space-between">
+              <Link href={proposal.account.descriptionUrl}>
+                <Group gap="sm">
+                  <Text>Go to description</Text>
+                  <IconExternalLink />
+                </Group>
+              </Link>
+              <Text>Proposed by {shortKey(proposal.account.proposer)}</Text>
+            </Group>
+          </Stack>
+          <Group>
+            <Button
+              m="sm"
+              variant="default"
+              fullWidth
+              onClick={() => router.push(`/proposal?id=${proposal.account.number}`)}
+            >
               <Group>
-                <Button
-                  m="sm"
-                  variant="default"
-                  fullWidth
-                  onClick={() => router.push(`/proposal?id=${proposal.account.number}`)}
-                >
-                  <Group>
-                    <Text>Trade</Text>
-                    <IconCoin />
-                  </Group>
-                </Button>
+                <Text>Trade</Text>
+                <IconCoin />
               </Group>
+            </Button>
+          </Group>
         </Card>
       ))}
     </Stack>

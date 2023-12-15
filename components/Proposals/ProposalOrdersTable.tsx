@@ -22,9 +22,9 @@ import {
   IconPencilCancel,
   IconCheck,
 } from '@tabler/icons-react';
-import { Transaction, PublicKey } from '@solana/web3.js';
+import { Transaction } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { Markets, OpenOrdersAccountWithKey, ProposalAccountWithKey } from '@/lib/types';
+import { OpenOrdersAccountWithKey } from '@/lib/types';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
@@ -41,7 +41,7 @@ export function ProposalOrdersTable({
 }: {
   description: ReactNode;
   headers: string[];
-  orders: OpenOrdersAccountWithKey[]
+  orders: OpenOrdersAccountWithKey[];
   orderStatus: string;
   settleOrders: (
     orders: OpenOrdersAccountWithKey[],
@@ -49,14 +49,15 @@ export function ProposalOrdersTable({
     dontClose?: boolean,
   ) => Promise<void>;
 }) {
-  const { markets, isCranking, handleCrank} = useProposal()
+  const { markets, isCranking, handleCrank } = useProposal();
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
 
   const { generateExplorerLink } = useExplorerConfiguration();
   const { fetchOpenOrders, proposal } = useProposal();
-  const { cancelOrderTransactions, closeOpenOrdersAccountTransactions, editOrderTransactions } = useOpenbookTwap();
+  const { cancelOrderTransactions, closeOpenOrdersAccountTransactions, editOrderTransactions } =
+    useOpenbookTwap();
 
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -114,8 +115,8 @@ export function ProposalOrdersTable({
           ? order.account.position.bidsBaseLots
           : order.account.position.asksBaseLots
         ).toNumber();
-      console.log(editedPrice, editedSize, price, size, order.account);
-      console.log(order.account.openOrders.map((o) => o.clientId.toString()));
+      // console.log(editedPrice, editedSize, price, size, order.account);
+      // console.log(order.account.openOrders.map((o) => o.clientId.toString()));
       const txs = (
         await editOrderTransactions({
           order,
@@ -194,7 +195,7 @@ export function ProposalOrdersTable({
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {(orders && orders.length > 0) ? (
+          {orders && orders.length > 0 ? (
             orders.map((order) => (
               <Table.Tr key={order.publicKey.toString()}>
                 <Table.Td>

@@ -36,7 +36,8 @@ export function ProposalDetailCard() {
   const { connection } = useConnection();
   const { fetchProposals } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
-  const { proposal, markets, mintTokens, placeOrder, finalizeProposalTransactions, loading } = useProposal()
+  const { proposal, markets, mintTokens, placeOrder, finalizeProposalTransactions, loading } =
+    useProposal();
   const sender = useTransactionSender();
   const [mintBaseAmount, setMintBaseAmount] = useState<number>();
   const [mintQuoteAmount, setMintQuoteAmount] = useState<number>();
@@ -60,7 +61,7 @@ export function ProposalDetailCard() {
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
-  
+
   const remainingSlots = useMemo(() => {
     if (!proposal) return;
 
@@ -353,9 +354,9 @@ export function ProposalDetailCard() {
             <Tabs.Tab value="order-book">Order Book</Tabs.Tab>
             <Tabs.Tab value="bet">Bet</Tabs.Tab>
           </Tabs.List>
-          <Tabs.Panel value='order-book'>
+          <Tabs.Panel value="order-book">
             {markets ? (
-              <Group gap="md" justify="space-around" p="sm">
+              <Group gap="md" justify="space-around" p="sm" pt="xl">
                 <ConditionalMarketCard
                   isPassMarket
                   placeOrder={placeOrder}
@@ -371,7 +372,7 @@ export function ProposalDetailCard() {
               </Group>
             ) : null}
           </Tabs.Panel>
-          <Tabs.Panel value='bet'>
+          <Tabs.Panel value="bet">
             <MarketCard />
           </Tabs.Panel>
         </Tabs>

@@ -32,9 +32,8 @@ export interface AutocratContext {
   fetchProposals: () => Promise<void>;
 }
 export const contextAutocrat = createContext<AutocratContext>({
-  fetchState: () => new Promise(() => { }),
-  fetchProposals: () => new Promise(() => { }),
-
+  fetchState: () => new Promise(() => {}),
+  fetchProposals: () => new Promise(() => {}),
 });
 export const useAutocrat = () => {
   const context = useContext<AutocratContext>(contextAutocrat);
@@ -73,7 +72,6 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
   const [daoState, setDaoState] = useState<DaoState>();
   const [proposals, setProposals] = useState<ProposalAccountWithKey[]>();
 
-
   const fetchState = useCallback(async () => {
     setDaoState(await autocratProgram.account.dao.fetch(dao));
   }, [autocratProgram, dao]);
@@ -86,8 +84,8 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
   }, [autocratProgram]);
 
   useEffect(() => {
-    fetchProposals()
-    fetchState()
+    fetchProposals();
+    fetchState();
   }, [network]);
 
   return (

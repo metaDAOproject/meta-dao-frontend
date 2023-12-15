@@ -27,7 +27,8 @@ import { useProposal } from '@/contexts/ProposalContext';
 
 export function MarketCard() {
   const { daoTreasury } = useAutocrat();
-  const { proposal, markets, mintTokensTransactions, placeOrderTransactions, fetchMarketsInfo } = useProposal();
+  const { proposal, markets, mintTokensTransactions, placeOrderTransactions, fetchMarketsInfo } =
+    useProposal();
   const { amount: baseBalance } = useTokenAmount(markets?.baseVault.underlyingTokenMint);
   const { amount: quoteBalance } = useTokenAmount(markets?.quoteVault.underlyingTokenMint);
   const { tokens } = useTokens();
@@ -131,7 +132,7 @@ export function MarketCard() {
       <Loader />
     </Group>
   ) : (
-    <Stack align="center" gap="xs" p="lg">
+    <Stack align="center" gap="xs" p="lg" pt="xl">
       <Group wrap="wrap">
         <Container size="3xs" p="0">
           <Fieldset p="sm">
