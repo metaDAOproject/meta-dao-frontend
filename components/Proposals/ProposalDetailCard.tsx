@@ -76,10 +76,15 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
   const remainingSlots = useMemo(() => {
-    if (!proposal) return;
+    if (!proposal || !markets) return;
 
+    // Proposal need to be old enough
     const endSlot = proposal.account.slotEnqueued.toNumber() + TEN_DAYS_IN_SLOTS;
-    return Math.max(endSlot - (lastSlot || endSlot), 0);
+
+    // TWAPs need to be old enough as well
+    const passEndSlot = endSlot - markets.passTwap.twapOracle.lastUpdatedSlot.toNumber();
+    const failEndSlot = endSlot - markets.failTwap.twapOracle.lastUpdatedSlot.toNumber();
+    return Math.max(endSlot - (lastSlot || endSlot), passEndSlot, failEndSlot, 0);
   }, [proposal, lastSlot]);
 
   useEffect(() => {
