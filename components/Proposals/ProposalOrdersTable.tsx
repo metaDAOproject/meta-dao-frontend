@@ -22,51 +22,42 @@ import {
   IconPencilCancel,
   IconCheck,
 } from '@tabler/icons-react';
-import { Transaction, PublicKey } from '@solana/web3.js';
+import { Transaction } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { Markets, OpenOrdersAccountWithKey, ProposalAccountWithKey } from '@/lib/types';
+import { OpenOrdersAccountWithKey } from '@/lib/types';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { NUMERAL_FORMAT, BASE_FORMAT, QUOTE_LOTS, BN_0 } from '@/lib/constants';
-import { useProposal } from '@/hooks/useProposal';
+import { useProposal } from '@/contexts/ProposalContext';
 import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 
 export function ProposalOrdersTable({
   description,
   headers,
   orders,
-  proposal,
   orderStatus,
-  markets,
   settleOrders,
-  handleCrank,
-  isCranking,
 }: {
   description: ReactNode;
   headers: string[];
   orders: OpenOrdersAccountWithKey[];
-  proposal: ProposalAccountWithKey;
   orderStatus: string;
-  markets: Markets;
   settleOrders: (
     orders: OpenOrdersAccountWithKey[],
     passMarket: boolean,
     dontClose?: boolean,
   ) => Promise<void>;
-  handleCrank: (isPassMarket: boolean, individualEvent?: PublicKey) => void;
-  isCranking: boolean;
 }) {
+  const { markets, isCranking, handleCrank } = useProposal();
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
 
   const { generateExplorerLink } = useExplorerConfiguration();
+  const { fetchOpenOrders, proposal } = useProposal();
   const { cancelOrderTransactions, closeOpenOrdersAccountTransactions, editOrderTransactions } =
     useOpenbookTwap();
-  const { fetchOpenOrders } = useProposal({
-    fromNumber: proposal.account.number,
-  });
 
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -101,7 +92,7 @@ export function ProposalOrdersTable({
         // Filtered undefined already
         await sender.send(txs as Transaction[]);
         // We already return above if the wallet doesn't have a public key
-        await fetchOpenOrders(proposal, wallet.publicKey!);
+        await fetchOpenOrders(wallet.publicKey!);
       } catch (err) {
         console.error(err);
       } finally {
@@ -124,8 +115,8 @@ export function ProposalOrdersTable({
           ? order.account.position.bidsBaseLots
           : order.account.position.asksBaseLots
         ).toNumber();
-      console.log(editedPrice, editedSize, price, size, order.account);
-      console.log(order.account.openOrders.map((o) => o.clientId.toString()));
+      // console.log(editedPrice, editedSize, price, size, order.account);
+      // console.log(order.account.openOrders.map((o) => o.clientId.toString()));
       const txs = (
         await editOrderTransactions({
           order,
@@ -145,7 +136,7 @@ export function ProposalOrdersTable({
       try {
         setIsEditing(true);
         await sender.send(txs);
-        await fetchOpenOrders(proposal, wallet.publicKey!);
+        await fetchOpenOrders(wallet.publicKey!);
         setEditingOrder(undefined);
       } finally {
         setIsEditing(false);
@@ -204,7 +195,7 @@ export function ProposalOrdersTable({
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {orders.length > 0 ? (
+          {orders && orders.length > 0 ? (
             orders.map((order) => (
               <Table.Tr key={order.publicKey.toString()}>
                 <Table.Td>

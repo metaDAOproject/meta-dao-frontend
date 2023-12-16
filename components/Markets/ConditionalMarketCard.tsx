@@ -17,27 +17,20 @@ import {
   InputLabel,
 } from '@mantine/core';
 import numeral from 'numeral';
-import { PublicKey } from '@solana/web3.js';
 import { Icon12Hours, IconQuestionMark, IconWallet } from '@tabler/icons-react';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
-import { Markets, OrderBook } from '@/lib/types';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { calculateTWAP } from '../../lib/openbookTwap';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
+import { useProposal } from '@/contexts/ProposalContext';
 
 export function ConditionalMarketCard({
   isPassMarket,
-  orderBookObject,
-  markets,
   placeOrder,
-  handleCrank,
   quoteBalance,
   baseBalance,
-  isCranking,
 }: {
   isPassMarket: boolean;
-  orderBookObject: OrderBook;
-  markets: Markets;
   placeOrder: (
     amount: number,
     price: number,
@@ -45,12 +38,11 @@ export function ConditionalMarketCard({
     ask?: boolean,
     pass?: boolean,
   ) => void;
-  handleCrank: (isPassMarket: boolean, individualEvent?: PublicKey) => void;
   quoteBalance: string | undefined;
   baseBalance: string | undefined;
-  isCranking: boolean
 }) {
   const { daoState } = useAutocrat();
+  const { orderBookObject, markets, isCranking, handleCrank } = useProposal();
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
@@ -58,6 +50,7 @@ export function ConditionalMarketCard({
   const [priceError, setPriceError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
 
+  if (!markets) return <></>;
   const passTwap = calculateTWAP(markets.passTwap.twapOracle);
   const failTwap = calculateTWAP(markets.failTwap.twapOracle);
   const twap = isPassMarket ? passTwap : failTwap;
@@ -121,12 +114,10 @@ export function ConditionalMarketCard({
     }
   };
 
-  const failMidPrice = (
-    Number(orderBookObject?.failToB.topAsk) + Number(orderBookObject?.failToB.topBid)
-  ) / 2;
-  const passMidPrice = (
-    Number(orderBookObject?.passToB.topAsk) + Number(orderBookObject?.passToB.topBid)
-  ) / 2;
+  const failMidPrice =
+    (Number(orderBookObject?.failToB.topAsk) + Number(orderBookObject?.failToB.topBid)) / 2;
+  const passMidPrice =
+    (Number(orderBookObject?.passToB.topAsk) + Number(orderBookObject?.passToB.topBid)) / 2;
 
   const setPriceFromOrderBook = (value: string) => {
     priceValidator(value);
@@ -139,8 +130,9 @@ export function ConditionalMarketCard({
         return Number(baseBalance);
       }
       return 0;
-    } if (quoteBalance && price) {
-      const _maxAmountRatio = Math.floor((Number(quoteBalance) / Number(price)));
+    }
+    if (quoteBalance && price) {
+      const _maxAmountRatio = Math.floor(Number(quoteBalance) / Number(price));
       return _maxAmountRatio;
     }
     return 0;
@@ -175,12 +167,12 @@ export function ConditionalMarketCard({
       // We can safely reset our price to nothing
       setPrice('');
     } else if (side === 'Buy') {
-        // Sets up the market order for the largest value
-        setPrice(maxMarketPrice.toString());
-      } else {
-        // Sets up the market order for the smallest value
-        setPrice(minMarketPrice.toString());
-      }
+      // Sets up the market order for the largest value
+      setPrice(maxMarketPrice.toString());
+    } else {
+      // Sets up the market order for the smallest value
+      setPrice(minMarketPrice.toString());
+    }
   };
 
   const isOrderAmountNan = () => {
@@ -205,14 +197,12 @@ export function ConditionalMarketCard({
                         <Text fw="bold" size="md">
                           ${numeral(twap).format(NUMERAL_FORMAT)}
                         </Text>
-                        <Text size="sm">
-                          TWAP
-                        </Text>
+                        <Text size="sm">TWAP</Text>
                       </Group>
                       <Text size="xs">
-                        ${numeral(
-                          isPassMarket ? passMidPrice : failMidPrice
-                          ).format(NUMERAL_FORMAT)} (mid)
+                        $
+                        {numeral(isPassMarket ? passMidPrice : failMidPrice).format(NUMERAL_FORMAT)}{' '}
+                        (mid)
                       </Text>
                     </Stack>
                     <ActionIcon variant="transparent">
@@ -240,7 +230,11 @@ export function ConditionalMarketCard({
             ) : null}
           </Group>
           <Tooltip label="Crank the market 🐷">
-            <ActionIcon variant="subtle" loading={isCranking} onClick={() => handleCrank(isPassMarket)}>
+            <ActionIcon
+              variant="subtle"
+              loading={isCranking}
+              onClick={() => handleCrank(isPassMarket)}
+            >
               <Icon12Hours />
             </ActionIcon>
           </Tooltip>
@@ -254,7 +248,9 @@ export function ConditionalMarketCard({
           />
         </Card>
         <Stack>
-          <style dangerouslySetInnerHTML={{ __html: '.label {&[data-active] {color: #FFFFFF;}}' }} />
+          <style
+            dangerouslySetInnerHTML={{ __html: '.label {&[data-active] {color: #FFFFFF;}}' }}
+          />
           <SegmentedControl
             style={{ marginTop: '10px' }}
             styles={{
@@ -307,25 +303,29 @@ export function ConditionalMarketCard({
           <TextInput
             label={
               <>
-              <Flex justify="space-between" align="center" direction="row" wrap="wrap">
-                <InputLabel pr={50} mr="sm">
-                  Amount of META
-                </InputLabel>
-                <Group justify="flex-start" align="center" ml="auto" gap={0}>
-                  {baseBalance || quoteBalance ? (
-                    <>
-                    <IconWallet height={12} />
-                    <Text size="xs">
-                      {
-                        isAskSide ?
-                          (`${isPassMarket ? 'p' : 'f'}META ${numeral(baseBalance).format(BASE_FORMAT) || ''}`)
-                        :
-                          (`${isPassMarket ? 'p' : 'f'}USDC $${numeral(quoteBalance).format(NUMERAL_FORMAT) || ''}`)
-                      }
-                    </Text>
-                    </>) : (<Text>{' '}</Text>)}
-                </Group>
-              </Flex>
+                <Flex justify="space-between" align="center" direction="row" wrap="wrap">
+                  <InputLabel pr={50} mr="sm">
+                    Amount of META
+                  </InputLabel>
+                  <Group justify="flex-start" align="center" ml="auto" gap={0}>
+                    {baseBalance || quoteBalance ? (
+                      <>
+                        <IconWallet height={12} />
+                        <Text size="xs">
+                          {isAskSide
+                            ? `${isPassMarket ? 'p' : 'f'}META ${
+                                numeral(baseBalance).format(BASE_FORMAT) || ''
+                              }`
+                            : `${isPassMarket ? 'p' : 'f'}USDC $${
+                                numeral(quoteBalance).format(NUMERAL_FORMAT) || ''
+                              }`}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text> </Text>
+                    )}
+                  </Group>
+                </Flex>
               </>
             }
             placeholder="Enter amount..."
@@ -342,16 +342,15 @@ export function ConditionalMarketCard({
                   setAmount(maxOrderAmount()! ? maxOrderAmount()! : 0);
                   amountValidator(maxOrderAmount()! ? maxOrderAmount()! : 0);
                 }}
-                disabled={!isLimitOrder ? (!!isOrderAmountNan()) : !price}
+                disabled={!isLimitOrder ? !!isOrderAmountNan() : !price}
               >
                 <Text size="xs">
-                  Max{' '}{
-                    maxOrderAmount()
-                    ? (!isOrderAmountNan()
+                  Max{' '}
+                  {maxOrderAmount()
+                    ? !isOrderAmountNan()
                       ? numeral(maxOrderAmount()).format(BASE_FORMAT)
-                      : '')
-                    : ''
-                  }
+                      : ''
+                    : ''}
                 </Text>
               </ActionIcon>
             }
@@ -367,13 +366,7 @@ export function ConditionalMarketCard({
                 fullWidth
                 color={isAskSide ? 'red' : 'green'}
                 onClick={() =>
-                  placeOrder(
-                    amount,
-                    _orderPrice(),
-                    isLimitOrder,
-                    isAskSide,
-                    isPassMarket,
-                  )
+                  placeOrder(amount, _orderPrice(), isLimitOrder, isAskSide, isPassMarket)
                 }
                 variant="light"
                 disabled={!amount || (isLimitOrder ? !price : false)}

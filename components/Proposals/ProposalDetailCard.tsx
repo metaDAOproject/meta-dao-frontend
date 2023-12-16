@@ -11,45 +11,33 @@ import {
   Loader,
   Space,
   Stack,
+  Tabs,
   Text,
   TextInput,
 } from '@mantine/core';
 import Link from 'next/link';
-import { PublicKey } from '@solana/web3.js';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useConnection } from '@solana/wallet-adapter-react';
 import { IconExternalLink, IconQuestionMark } from '@tabler/icons-react';
-import { useProposal } from '@/hooks/useProposal';
 import { useTokens } from '@/hooks/useTokens';
 import { useTokenAmount } from '@/hooks/useTokenAmount';
-import { MarketAccountWithKey } from '@/lib/types';
 import { ProposalOrdersCard } from './ProposalOrdersCard';
 import { ConditionalMarketCard } from '../Markets/ConditionalMarketCard';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { shortKey } from '@/lib/utils';
 import { StateBadge } from './StateBadge';
-import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { SLOTS_PER_10_SECS, TEN_DAYS_IN_SLOTS } from '../../lib/constants';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useConditionalVault } from '../../hooks/useConditionalVault';
+import { useProposal } from '@/contexts/ProposalContext';
+import { MarketCard } from './MarketCard';
 
-export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number }) {
+export function ProposalDetailCard() {
   const { connection } = useConnection();
-  const { fetchOpenOrders, fetchProposals } = useAutocrat();
+  const { fetchProposals } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
-  const wallet = useWallet();
-  const {
-    proposal,
-    markets,
-    orders,
-    orderBookObject,
-    mintTokens,
-    placeOrder,
-    finalizeProposalTransactions,
-    loading,
-  } = useProposal({
-    fromNumber: proposalNumber,
-  });
+  const { proposal, markets, mintTokens, placeOrder, finalizeProposalTransactions, loading } =
+    useProposal();
   const sender = useTransactionSender();
   const [mintBaseAmount, setMintBaseAmount] = useState<number>();
   const [mintQuoteAmount, setMintQuoteAmount] = useState<number>();
@@ -71,10 +59,9 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
   const { generateExplorerLink } = useExplorerConfiguration();
   const [lastSlot, setLastSlot] = useState<number>();
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
-  const { crankMarketTransactions } = useOpenbookTwap();
-  const [isCranking, setIsCranking] = useState<boolean>(false);
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
+
   const remainingSlots = useMemo(() => {
     if (!proposal || !markets) return;
 
@@ -98,6 +85,7 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
 
     return () => clearInterval(interval);
   });
+
   const timeLeft = useMemo(() => {
     const seconds = secondsLeft;
     const days = Math.floor(seconds / (60 * 60 * 24));
@@ -165,33 +153,6 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
 
     fetchSlot();
   }, [connection, lastSlot]);
-
-  const handleCrank = useCallback(
-    async (isPassMarket: boolean, individualEvent?: PublicKey) => {
-      if (!proposal || !markets || !wallet?.publicKey) return;
-      let marketAccounts: MarketAccountWithKey = {
-        publicKey: markets.passTwap.market,
-        account: markets.pass,
-      };
-      let { eventHeap } = markets.pass;
-      if (!isPassMarket) {
-        marketAccounts = { publicKey: markets.failTwap.market, account: markets.fail };
-        eventHeap = markets.fail.eventHeap;
-      }
-      try {
-        setIsCranking(true);
-        const txs = await crankMarketTransactions(marketAccounts, eventHeap, individualEvent);
-        if (!txs) return;
-        await sender.send(txs);
-        fetchOpenOrders(proposal, wallet.publicKey);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsCranking(false);
-      }
-    },
-    [markets, proposal, wallet.publicKey, sender, crankMarketTransactions, fetchOpenOrders],
-  );
 
   return !proposal || !markets ? (
     <Group justify="center">
@@ -393,40 +354,34 @@ export function ProposalDetailCard({ proposalNumber }: { proposalNumber: number 
       </Flex>
       <Divider m={20} />
       <Stack>
-        {markets ? (
-          <Group gap="md" justify="space-around" p="sm">
-            <ConditionalMarketCard
-              isPassMarket
-              orderBookObject={orderBookObject}
-              markets={markets}
-              placeOrder={placeOrder}
-              handleCrank={handleCrank}
-              quoteBalance={quotePassAmount?.uiAmountString}
-              baseBalance={basePassAmount?.uiAmountString}
-              isCranking={isCranking}
-            />
-            <ConditionalMarketCard
-              isPassMarket={false}
-              orderBookObject={orderBookObject}
-              markets={markets}
-              placeOrder={placeOrder}
-              handleCrank={handleCrank}
-              quoteBalance={quoteFailAmount?.uiAmountString}
-              baseBalance={baseFailAmount?.uiAmountString}
-              isCranking={isCranking}
-            />
-          </Group>
-        ) : null}
-
-        {proposal && orders ? (
-          <ProposalOrdersCard
-            markets={markets}
-            proposal={proposal}
-            orders={orders}
-            handleCrank={handleCrank}
-            isCranking={isCranking}
-          />
-        ) : null}
+        <Tabs defaultValue="order-book">
+          <Tabs.List>
+            <Tabs.Tab value="order-book">Order Book</Tabs.Tab>
+            <Tabs.Tab value="bet">Bet</Tabs.Tab>
+          </Tabs.List>
+          <Tabs.Panel value="order-book">
+            {markets ? (
+              <Group gap="md" justify="space-around" p="sm" pt="xl">
+                <ConditionalMarketCard
+                  isPassMarket
+                  placeOrder={placeOrder}
+                  quoteBalance={quotePassAmount?.uiAmountString}
+                  baseBalance={basePassAmount?.uiAmountString}
+                />
+                <ConditionalMarketCard
+                  isPassMarket={false}
+                  placeOrder={placeOrder}
+                  quoteBalance={quoteFailAmount?.uiAmountString}
+                  baseBalance={baseFailAmount?.uiAmountString}
+                />
+              </Group>
+            ) : null}
+          </Tabs.Panel>
+          <Tabs.Panel value="bet">
+            <MarketCard />
+          </Tabs.Panel>
+        </Tabs>
+        <ProposalOrdersCard />
       </Stack>
     </Stack>
   );

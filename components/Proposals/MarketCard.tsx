@@ -17,20 +17,18 @@ import {
 import numeral from 'numeral';
 import { IconQuestionMark } from '@tabler/icons-react';
 import { NUMERAL_FORMAT } from '@/lib/constants';
-import { useProposal } from '../../hooks/useProposal';
 import { Token, useTokens } from '../../hooks/useTokens';
 import { useTokenAmount } from '../../hooks/useTokenAmount';
-import { ProposalAccountWithKey } from '../../lib/types';
 import { useTokenMint } from '../../hooks/useTokenMint';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { getParsedOrders } from '@/lib/openbook';
+import { useProposal } from '@/contexts/ProposalContext';
 
-export function MarketCard({ proposal: fromProposal }: { proposal: ProposalAccountWithKey }) {
-  const { daoTreasury, fetchMarketsInfo } = useAutocrat();
-  const { proposal, markets, mintTokensTransactions, placeOrderTransactions } = useProposal({
-    fromProposal,
-  });
+export function MarketCard() {
+  const { daoTreasury } = useAutocrat();
+  const { proposal, markets, mintTokensTransactions, placeOrderTransactions, fetchMarketsInfo } =
+    useProposal();
   const { amount: baseBalance } = useTokenAmount(markets?.baseVault.underlyingTokenMint);
   const { amount: quoteBalance } = useTokenAmount(markets?.quoteVault.underlyingTokenMint);
   const { tokens } = useTokens();
@@ -118,7 +116,7 @@ export function MarketCard({ proposal: fromProposal }: { proposal: ProposalAccou
       setIsBetting(false);
     }
 
-    setTimeout(() => fetchMarketsInfo(proposal), 1000);
+    setTimeout(() => fetchMarketsInfo(), 1000);
   }, [
     amount,
     passPrice,
@@ -134,7 +132,7 @@ export function MarketCard({ proposal: fromProposal }: { proposal: ProposalAccou
       <Loader />
     </Group>
   ) : (
-    <Stack align="center" gap="xs">
+    <Stack align="center" gap="xs" p="lg" pt="xl">
       <Group wrap="wrap">
         <Container size="3xs" p="0">
           <Fieldset p="sm">

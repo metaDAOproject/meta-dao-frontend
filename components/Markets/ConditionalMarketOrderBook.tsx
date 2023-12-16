@@ -30,6 +30,15 @@ export function ConditionalMarketOrderBook({
           font-variant-numeric: tabular-nums;
           display: inline-block;
         }
+        .MakeItNice__side--bids, .MakeItNice__side--asks {
+          min-height:130px;
+          width: 100%;
+          display: flex;
+        }
+
+        .MakeItNice__side--bids ol, .MakeItNice__side--asks ol {
+          width: 100%;
+        }
 
         .MakeItNice__list {
           list-style-type: none;
