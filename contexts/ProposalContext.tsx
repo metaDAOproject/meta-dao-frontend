@@ -114,7 +114,6 @@ export function ProposalProvider({
       if (!proposal || !openbook || !openbookTwap || !openbookTwap.views || !connection) {
         return;
       }
-      console.log('fetchMarketsInfo');
       const accountInfos = await connection.getMultipleAccountsInfo([
         proposal.account.openbookPassMarket,
         proposal.account.openbookFailMarket,
@@ -180,7 +179,7 @@ export function ProposalProvider({
         quoteVault,
       });
     }, 1000),
-    [markets, vaultProgram, openbook, openbookTwap],
+    [markets, vaultProgram, openbook, openbookTwap, proposal, connection],
   );
   const fetchOpenOrders = useCallback(
     debounce<[PublicKey]>(async (owner: PublicKey) => {
@@ -201,14 +200,14 @@ export function ProposalProvider({
           .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1)),
       );
     }, 1000),
-    [openbook],
+    [openbook, proposal],
   );
 
   useEffect(() => {
-    if (!orders && proposal && wallet.publicKey) {
+    if (proposal && wallet.publicKey) {
       fetchOpenOrders(wallet.publicKey);
     }
-  }, [orders, markets, fetchOpenOrders]);
+  }, [markets, fetchOpenOrders]);
 
   useEffect(() => {
     if (!markets && proposal) {
@@ -306,7 +305,7 @@ export function ProposalProvider({
         }
       }
     },
-    [wallet, connection, sender, createTokenAccountsTransactions],
+    [wallet, connection, sender, createTokenAccountsTransactions, proposal],
   );
 
   const finalizeProposalTransactions = useCallback(async () => {
@@ -366,7 +365,7 @@ export function ProposalProvider({
         setLoading(false);
       }
     },
-    [connection, sender, mintTokensTransactions],
+    [connection, sender, mintTokensTransactions, proposal],
   );
 
   const orderBookObject = useMemo(() => {
