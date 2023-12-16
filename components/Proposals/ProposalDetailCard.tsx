@@ -26,7 +26,7 @@ import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { shortKey } from '@/lib/utils';
 import { StateBadge } from './StateBadge';
-import { SLOTS_PER_10_SECS, TEN_DAYS_IN_SLOTS } from '../../lib/constants';
+import { SLOTS_PER_10_SECS } from '../../lib/constants';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useConditionalVault } from '../../hooks/useConditionalVault';
 import { useProposal } from '@/contexts/ProposalContext';
@@ -34,7 +34,7 @@ import { MarketCard } from './MarketCard';
 
 export function ProposalDetailCard() {
   const { connection } = useConnection();
-  const { fetchProposals } = useAutocrat();
+  const { fetchProposals, daoState } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
   const { proposal, markets, mintTokens, placeOrder, finalizeProposalTransactions, loading } =
     useProposal();
@@ -63,16 +63,17 @@ export function ProposalDetailCard() {
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
 
   const remainingSlots = useMemo(() => {
-    if (!proposal || !markets) return;
+    if (!proposal || !markets || !daoState) return;
 
     // Proposal need to be old enough
-    const endSlot = proposal.account.slotEnqueued.toNumber() + TEN_DAYS_IN_SLOTS;
+    const endSlot =
+      proposal.account.slotEnqueued.toNumber() + daoState.slotsPerProposal.toNumber();
 
     // TWAPs need to be old enough as well
     const passEndSlot = endSlot - markets.passTwap.twapOracle.lastUpdatedSlot.toNumber();
     const failEndSlot = endSlot - markets.failTwap.twapOracle.lastUpdatedSlot.toNumber();
     return Math.max(endSlot - (lastSlot || endSlot), passEndSlot, failEndSlot, 0);
-  }, [proposal, lastSlot]);
+  }, [proposal, lastSlot, daoState]);
 
   useEffect(() => {
     setSecondsLeft(((remainingSlots || 0) / SLOTS_PER_10_SECS) * 10);
