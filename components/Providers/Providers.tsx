@@ -20,7 +20,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const { endpoint } = useNetworkConfiguration();
 
   const wallets = useMemo(
-    () => [new MoongateWalletAdapter({ position: 'bottom-right' }), new SolflareWalletAdapter(), new PhantomWalletAdapter(), new LedgerWalletAdapter()],
+    () => [
+      new MoongateWalletAdapter({ position: 'bottom-right' }),
+      new SolflareWalletAdapter(),
+      new PhantomWalletAdapter(),
+      new LedgerWalletAdapter(),
+    ],
     [],
   );
 
