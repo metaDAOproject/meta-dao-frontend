@@ -5,7 +5,7 @@ export const OPENBOOK_PROGRAM_ID = new PublicKey('opnb2LAfJYbRMAHHvqjCwQxanZn7Re
 export const OPENBOOK_TWAP_PROGRAM_ID = new PublicKey(
   'TWAPrdhADy2aTKN5iFZtNnkQYXERD9NvKjPFVPMSCNN',
 );
-export const AUTOCRAT_PROGRAM_ID = new PublicKey('meta3cxKzFBmWYgCVozmvCQAS3y9b3fGxrG9HkHL7Wi');
+export const AUTOCRAT_PROGRAM_ID = new PublicKey('metaX99LHn3A7Gr7VAcCfXhpfocvpMpqQ3eyp3PGUUq');
 
 export const NUMERAL_FORMAT = '0,0.00';
 export const BASE_FORMAT = '0,0';
