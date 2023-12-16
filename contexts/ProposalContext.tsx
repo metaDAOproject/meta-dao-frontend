@@ -207,7 +207,7 @@ export function ProposalProvider({
     if (proposal && wallet.publicKey) {
       fetchOpenOrders(wallet.publicKey);
     }
-  }, [orders, markets, fetchOpenOrders]);
+  }, [markets, fetchOpenOrders]);
 
   useEffect(() => {
     if (!markets && proposal) {
