@@ -1,18 +1,16 @@
 import { BorshInstructionCoder, utils } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
-import { AutocratV0 } from '@/lib/idl/autocrat_v0.1';
-import { AUTOCRAT_PROGRAM_ID } from '@/lib/constants';
+import { AUTOCRAT_VERSIONS } from '@/lib/constants';
 import { InstructionFieldTypes, InstructionSet } from '../types';
 
-const AUTOCRAT_IDL: AutocratV0 = require('@/lib/idl/autocrat_v0.json');
-
-const coder = new BorshInstructionCoder(AUTOCRAT_IDL);
+const defaultVersion = AUTOCRAT_VERSIONS[0];
+const coder = new BorshInstructionCoder(defaultVersion.idl);
 // const program = new Program<AutocratV0>(AUTOCRAT_IDL, AUTOCRAT_PROGRAM_ID);
 const dao = PublicKey.findProgramAddressSync(
   [utils.bytes.utf8.encode('WWCACOTMICMIBMHAFTTWYGHMB')],
-  AUTOCRAT_PROGRAM_ID,
+  defaultVersion.programId,
 )[0];
-const daoTreasury = PublicKey.findProgramAddressSync([dao.toBuffer()], AUTOCRAT_PROGRAM_ID)[0];
+const daoTreasury = PublicKey.findProgramAddressSync([dao.toBuffer()], defaultVersion.programId)[0];
 export const instructions: InstructionSet = {
   name: 'Autocrat',
   actions: [
@@ -28,7 +26,7 @@ export const instructions: InstructionSet = {
         },
       ],
       instruction: (params: any[]) => ({
-        programId: AUTOCRAT_PROGRAM_ID,
+        programId: defaultVersion.programId,
         accounts: [
           {
             pubkey: dao,
