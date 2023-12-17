@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActionIcon,
   Card,
@@ -26,29 +26,22 @@ import { useProposal } from '@/contexts/ProposalContext';
 
 export function ConditionalMarketCard({
   isPassMarket,
-  placeOrder,
   quoteBalance,
   baseBalance,
 }: {
   isPassMarket: boolean;
-  placeOrder: (
-    amount: number,
-    price: number,
-    limitOrder?: boolean,
-    ask?: boolean,
-    pass?: boolean,
-  ) => void;
   quoteBalance: string | undefined;
   baseBalance: string | undefined;
 }) {
   const { daoState } = useAutocrat();
-  const { orderBookObject, markets, isCranking, crankMarkets } = useProposal();
+  const { orderBookObject, markets, isCranking, crankMarkets, placeOrder } = useProposal();
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
   const [price, setPrice] = useState<string>('');
   const [priceError, setPriceError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   if (!markets) return <></>;
   const passTwap = calculateTWAP(markets.passTwap.twapOracle);
@@ -179,6 +172,15 @@ export function ConditionalMarketCard({
     const _orderAmount = numeral(maxOrderAmount()).format(isAskSide ? BASE_FORMAT : NUMERAL_FORMAT);
     return Number.isNaN(Number(_orderAmount));
   };
+
+  const handlePlaceOrder = useCallback(async () => {
+    try {
+      setIsPlacingOrder(true);
+      await placeOrder(amount, _orderPrice(), isLimitOrder, isAskSide, isPassMarket);
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  }, [placeOrder]);
 
   return (
     <Stack p={0} m={0} gap={0}>
@@ -361,11 +363,10 @@ export function ConditionalMarketCard({
               <Button
                 fullWidth
                 color={isAskSide ? 'red' : 'green'}
-                onClick={() =>
-                  placeOrder(amount, _orderPrice(), isLimitOrder, isAskSide, isPassMarket)
-                }
+                onClick={handlePlaceOrder}
                 variant="light"
                 disabled={!amount || (isLimitOrder ? !price : false)}
+                loading={isPlacingOrder}
               >
                 {orderSide} {isPassMarket ? 'p' : 'f'}META
               </Button>
