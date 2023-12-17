@@ -1,6 +1,6 @@
 import { BorshInstructionCoder, utils } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
-import { AutocratV0 } from '@/lib/idl/autocrat_v0';
+import { AutocratV0 } from '@/lib/idl/autocrat_v0.1';
 import { AUTOCRAT_PROGRAM_ID } from '@/lib/constants';
 import { InstructionFieldTypes, InstructionSet } from '../types';
 

@@ -66,8 +66,7 @@ export function ProposalDetailCard() {
     if (!proposal || !markets || !daoState) return;
 
     // Proposal need to be old enough
-    const endSlot =
-      proposal.account.slotEnqueued.toNumber() + daoState.slotsPerProposal.toNumber();
+    const endSlot = proposal.account.slotEnqueued.toNumber() + daoState.slotsPerProposal.toNumber();
 
     // TWAPs need to be old enough as well
     const passEndSlot = endSlot - markets.passTwap.twapOracle.lastUpdatedSlot.toNumber();
