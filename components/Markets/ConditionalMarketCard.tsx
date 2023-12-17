@@ -42,7 +42,7 @@ export function ConditionalMarketCard({
   baseBalance: string | undefined;
 }) {
   const { daoState } = useAutocrat();
-  const { orderBookObject, markets, isCranking, handleCrank } = useProposal();
+  const { orderBookObject, markets, isCranking, crankMarkets } = useProposal();
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
@@ -230,11 +230,7 @@ export function ConditionalMarketCard({
             ) : null}
           </Group>
           <Tooltip label="Crank the market 🐷">
-            <ActionIcon
-              variant="subtle"
-              loading={isCranking}
-              onClick={() => handleCrank(isPassMarket)}
-            >
+            <ActionIcon variant="subtle" loading={isCranking} onClick={() => crankMarkets()}>
               <Icon12Hours />
             </ActionIcon>
           </Tooltip>

@@ -77,6 +77,7 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
   const { program: openbookTwap } = useOpenbookTwap();
   const [daoState, setDaoState] = useState<DaoState>();
   const [proposals, setProposals] = useState<ProposalAccountWithKey[]>();
+  console.log(programVersion, proposals);
 
   const fetchState = useCallback(async () => {
     setDaoState(await autocratProgram.account.dao.fetch(dao));
