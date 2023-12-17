@@ -152,7 +152,7 @@ export type AutocratV0 = {
       args: [];
     },
     {
-      name: 'setPassThresholdBps';
+      name: 'updateDao';
       accounts: [
         {
           name: 'dao';
@@ -167,50 +167,10 @@ export type AutocratV0 = {
       ];
       args: [
         {
-          name: 'passThresholdBps';
-          type: 'u16';
-        },
-      ];
-    },
-    {
-      name: 'setLastProposalSlot';
-      accounts: [
-        {
-          name: 'dao';
-          isMut: true;
-          isSigner: false;
-        },
-        {
-          name: 'daoTreasury';
-          isMut: false;
-          isSigner: true;
-        },
-      ];
-      args: [
-        {
-          name: 'lastProposalSlot';
-          type: 'u64';
-        },
-      ];
-    },
-    {
-      name: 'setBaseBurnLamports';
-      accounts: [
-        {
-          name: 'dao';
-          isMut: true;
-          isSigner: false;
-        },
-        {
-          name: 'daoTreasury';
-          isMut: false;
-          isSigner: true;
-        },
-      ];
-      args: [
-        {
-          name: 'baseBurnLamports';
-          type: 'u64';
+          name: 'daoParams';
+          type: {
+            defined: 'UpdateDaoParams';
+          };
         },
       ];
     },
@@ -222,16 +182,20 @@ export type AutocratV0 = {
         kind: 'struct';
         fields: [
           {
+            name: 'treasuryPdaBump';
+            type: 'u8';
+          },
+          {
+            name: 'treasury';
+            type: 'publicKey';
+          },
+          {
             name: 'metaMint';
             type: 'publicKey';
           },
           {
             name: 'usdcMint';
             type: 'publicKey';
-          },
-          {
-            name: 'passThresholdBps';
-            type: 'u16';
           },
           {
             name: 'proposalCount';
@@ -242,6 +206,10 @@ export type AutocratV0 = {
             type: 'u64';
           },
           {
+            name: 'passThresholdBps';
+            type: 'u16';
+          },
+          {
             name: 'baseBurnLamports';
             type: 'u64';
           },
@@ -250,12 +218,16 @@ export type AutocratV0 = {
             type: 'u64';
           },
           {
-            name: 'treasuryPdaBump';
-            type: 'u8';
+            name: 'slotsPerProposal';
+            type: 'u64';
           },
           {
-            name: 'treasury';
-            type: 'publicKey';
+            name: 'marketTakerFee';
+            type: 'i64';
+          },
+          {
+            name: 'twapExpectedValue';
+            type: 'u64';
           },
         ];
       };
@@ -367,6 +339,50 @@ export type AutocratV0 = {
       };
     },
     {
+      name: 'UpdateDaoParams';
+      type: {
+        kind: 'struct';
+        fields: [
+          {
+            name: 'passThresholdBps';
+            type: {
+              option: 'u16';
+            };
+          },
+          {
+            name: 'baseBurnLamports';
+            type: {
+              option: 'u64';
+            };
+          },
+          {
+            name: 'burnDecayPerSlotLamports';
+            type: {
+              option: 'u64';
+            };
+          },
+          {
+            name: 'slotsPerProposal';
+            type: {
+              option: 'u64';
+            };
+          },
+          {
+            name: 'marketTakerFee';
+            type: {
+              option: 'i64';
+            };
+          },
+          {
+            name: 'twapExpectedValue';
+            type: {
+              option: 'u64';
+            };
+          },
+        ];
+      };
+    },
+    {
       name: 'ProposalState';
       type: {
         kind: 'enum';
@@ -398,7 +414,7 @@ export type AutocratV0 = {
     {
       code: 6002;
       name: 'TWAPMarketInvalidExpectedValue';
-      msg: '`TWAPMarket` must have an expected value of 1000, or 0.1 USDC per META';
+      msg: '`TWAPMarket` has the wrong `expected_value`';
     },
     {
       code: 6003;
@@ -587,7 +603,7 @@ export const IDL: AutocratV0 = {
       args: [],
     },
     {
-      name: 'setPassThresholdBps',
+      name: 'updateDao',
       accounts: [
         {
           name: 'dao',
@@ -602,50 +618,10 @@ export const IDL: AutocratV0 = {
       ],
       args: [
         {
-          name: 'passThresholdBps',
-          type: 'u16',
-        },
-      ],
-    },
-    {
-      name: 'setLastProposalSlot',
-      accounts: [
-        {
-          name: 'dao',
-          isMut: true,
-          isSigner: false,
-        },
-        {
-          name: 'daoTreasury',
-          isMut: false,
-          isSigner: true,
-        },
-      ],
-      args: [
-        {
-          name: 'lastProposalSlot',
-          type: 'u64',
-        },
-      ],
-    },
-    {
-      name: 'setBaseBurnLamports',
-      accounts: [
-        {
-          name: 'dao',
-          isMut: true,
-          isSigner: false,
-        },
-        {
-          name: 'daoTreasury',
-          isMut: false,
-          isSigner: true,
-        },
-      ],
-      args: [
-        {
-          name: 'baseBurnLamports',
-          type: 'u64',
+          name: 'daoParams',
+          type: {
+            defined: 'UpdateDaoParams',
+          },
         },
       ],
     },
@@ -657,16 +633,20 @@ export const IDL: AutocratV0 = {
         kind: 'struct',
         fields: [
           {
+            name: 'treasuryPdaBump',
+            type: 'u8',
+          },
+          {
+            name: 'treasury',
+            type: 'publicKey',
+          },
+          {
             name: 'metaMint',
             type: 'publicKey',
           },
           {
             name: 'usdcMint',
             type: 'publicKey',
-          },
-          {
-            name: 'passThresholdBps',
-            type: 'u16',
           },
           {
             name: 'proposalCount',
@@ -677,6 +657,10 @@ export const IDL: AutocratV0 = {
             type: 'u64',
           },
           {
+            name: 'passThresholdBps',
+            type: 'u16',
+          },
+          {
             name: 'baseBurnLamports',
             type: 'u64',
           },
@@ -685,12 +669,16 @@ export const IDL: AutocratV0 = {
             type: 'u64',
           },
           {
-            name: 'treasuryPdaBump',
-            type: 'u8',
+            name: 'slotsPerProposal',
+            type: 'u64',
           },
           {
-            name: 'treasury',
-            type: 'publicKey',
+            name: 'marketTakerFee',
+            type: 'i64',
+          },
+          {
+            name: 'twapExpectedValue',
+            type: 'u64',
           },
         ],
       },
@@ -802,6 +790,50 @@ export const IDL: AutocratV0 = {
       },
     },
     {
+      name: 'UpdateDaoParams',
+      type: {
+        kind: 'struct',
+        fields: [
+          {
+            name: 'passThresholdBps',
+            type: {
+              option: 'u16',
+            },
+          },
+          {
+            name: 'baseBurnLamports',
+            type: {
+              option: 'u64',
+            },
+          },
+          {
+            name: 'burnDecayPerSlotLamports',
+            type: {
+              option: 'u64',
+            },
+          },
+          {
+            name: 'slotsPerProposal',
+            type: {
+              option: 'u64',
+            },
+          },
+          {
+            name: 'marketTakerFee',
+            type: {
+              option: 'i64',
+            },
+          },
+          {
+            name: 'twapExpectedValue',
+            type: {
+              option: 'u64',
+            },
+          },
+        ],
+      },
+    },
+    {
       name: 'ProposalState',
       type: {
         kind: 'enum',
@@ -833,7 +865,7 @@ export const IDL: AutocratV0 = {
     {
       code: 6002,
       name: 'TWAPMarketInvalidExpectedValue',
-      msg: '`TWAPMarket` must have an expected value of 1000, or 0.1 USDC per META',
+      msg: '`TWAPMarket` has the wrong `expected_value`',
     },
     {
       code: 6003,
