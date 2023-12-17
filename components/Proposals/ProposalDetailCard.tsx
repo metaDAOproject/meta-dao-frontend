@@ -4,7 +4,6 @@ import {
   ActionIcon,
   Button,
   Divider,
-  Fieldset,
   Flex,
   Group,
   HoverCard,
@@ -13,7 +12,6 @@ import {
   Stack,
   Tabs,
   Text,
-  TextInput,
 } from '@mantine/core';
 import Link from 'next/link';
 import { useConnection } from '@solana/wallet-adapter-react';
@@ -31,24 +29,20 @@ import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useConditionalVault } from '../../hooks/useConditionalVault';
 import { useProposal } from '@/contexts/ProposalContext';
 import { MarketCard } from './MarketCard';
+import { MintConditionalTokenCard } from './MintConditionalTokenCard';
 
 export function ProposalDetailCard() {
   const { connection } = useConnection();
   const { fetchProposals, daoState } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
-  const { proposal, markets, mintTokens, placeOrder, finalizeProposalTransactions, loading } =
-    useProposal();
+  const { proposal, markets, placeOrder, finalizeProposalTransactions } = useProposal();
   const sender = useTransactionSender();
-  const [mintBaseAmount, setMintBaseAmount] = useState<number>();
-  const [mintQuoteAmount, setMintQuoteAmount] = useState<number>();
-  const { amount: baseAmount } = useTokenAmount(markets?.baseVault.underlyingTokenMint);
   const { amount: basePassAmount } = useTokenAmount(
     markets?.baseVault.conditionalOnFinalizeTokenMint,
   );
   const { amount: baseFailAmount } = useTokenAmount(
     markets?.baseVault.conditionalOnRevertTokenMint,
   );
-  const { amount: quoteAmount } = useTokenAmount(markets?.quoteVault.underlyingTokenMint);
   const { amount: quotePassAmount } = useTokenAmount(
     markets?.quoteVault.conditionalOnFinalizeTokenMint,
   );
@@ -97,19 +91,6 @@ export function ProposalDetailCard() {
       minutes,
     ).padStart(2, '0')}:${String(secLeft).padStart(2, '0')}`;
   }, [secondsLeft]);
-
-  const handleMint = useCallback(
-    async (fromBase?: boolean) => {
-      if ((!mintBaseAmount && fromBase) || (!mintQuoteAmount && !fromBase)) return;
-
-      if (fromBase) {
-        await mintTokens(mintBaseAmount!, true);
-      } else {
-        await mintTokens(mintQuoteAmount!, false);
-      }
-    },
-    [mintTokens, mintBaseAmount, mintQuoteAmount],
-  );
 
   const handleFinalize = useCallback(async () => {
     setIsFinalizing(true);
@@ -302,54 +283,8 @@ export function ProposalDetailCard() {
               </Text>
             </HoverCard.Dropdown>
           </HoverCard>
-          <Fieldset legend={`Mint conditional $${tokens?.meta?.symbol}`}>
-            <TextInput
-              label="Amount"
-              description={`Balance: ${baseAmount?.uiAmountString || 0} $${tokens?.meta?.symbol}`}
-              placeholder="Amount to mint"
-              type="number"
-              onChange={(e) => setMintBaseAmount(Number(e.target.value))}
-            />
-            <Text fw="lighter" size="sm" c="green">
-              Balance: {basePassAmount?.uiAmountString || 0} $p{tokens?.meta?.symbol}
-            </Text>
-            <Text fw="lighter" size="sm" c="red">
-              Balance: {baseFailAmount?.uiAmountString || 0} $f{tokens?.meta?.symbol}
-            </Text>
-            <Button
-              mt="md"
-              disabled={(mintBaseAmount || 0) <= 0}
-              onClick={() => handleMint(true)}
-              loading={loading}
-              fullWidth
-            >
-              Mint
-            </Button>
-          </Fieldset>
-          <Fieldset legend={`Mint conditional $${tokens?.usdc?.symbol}`}>
-            <TextInput
-              label="Amount"
-              description={`Balance: ${quoteAmount?.uiAmountString || 0} $${tokens?.usdc?.symbol}`}
-              placeholder="Amount to mint"
-              type="number"
-              onChange={(e) => setMintQuoteAmount(Number(e.target.value))}
-            />
-            <Text fw="lighter" size="sm" c="green">
-              Balance: {quotePassAmount?.uiAmountString || 0} $p{tokens?.usdc?.symbol}
-            </Text>
-            <Text fw="lighter" size="sm" c="red">
-              Balance: {quoteFailAmount?.uiAmountString || 0} $f{tokens?.usdc?.symbol}
-            </Text>
-            <Button
-              mt="md"
-              disabled={(mintQuoteAmount || 0) <= 0}
-              loading={loading}
-              onClick={() => handleMint(false)}
-              fullWidth
-            >
-              Mint
-            </Button>
-          </Fieldset>
+          {tokens?.meta ? <MintConditionalTokenCard token={tokens.meta} /> : null}
+          {tokens?.usdc ? <MintConditionalTokenCard token={tokens.usdc} /> : null}
         </Group>
       </Flex>
       <Divider m={20} />
