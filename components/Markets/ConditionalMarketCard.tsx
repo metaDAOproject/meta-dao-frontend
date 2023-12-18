@@ -180,7 +180,7 @@ export function ConditionalMarketCard({
     } finally {
       setIsPlacingOrder(false);
     }
-  }, [placeOrder]);
+  }, [placeOrder, amount, isLimitOrder, isPassMarket, isAskSide]);
 
   return (
     <Stack p={0} m={0} gap={0}>
