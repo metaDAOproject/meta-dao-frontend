@@ -59,6 +59,11 @@ export function ProposalDetailCard() {
   const remainingSlots = useMemo(() => {
     if (!proposal || !daoState || !lastSlot) return;
 
+    // v0 doesn't have slots per proposal, so if it's v0 we say it's already done
+    if (!daoState.slotsPerProposal) {
+      return 0;
+    }
+
     const endSlot = proposal.account.slotEnqueued.toNumber() + daoState.slotsPerProposal.toNumber();
 
     return Math.max(endSlot - lastSlot, 0);
