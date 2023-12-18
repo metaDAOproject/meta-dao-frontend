@@ -35,7 +35,7 @@ export function ProposalDetailCard() {
   const { connection } = useConnection();
   const { fetchProposals, daoState } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
-  const { proposal, markets, placeOrder, finalizeProposalTransactions } = useProposal();
+  const { proposal, markets, finalizeProposalTransactions } = useProposal();
   const sender = useTransactionSender();
   const { amount: basePassAmount } = useTokenAmount(
     markets?.baseVault.conditionalOnFinalizeTokenMint,
@@ -299,13 +299,11 @@ export function ProposalDetailCard() {
               <Group gap="md" justify="space-around" p="sm" pt="xl">
                 <ConditionalMarketCard
                   isPassMarket
-                  placeOrder={placeOrder}
                   quoteBalance={quotePassAmount?.uiAmountString}
                   baseBalance={basePassAmount?.uiAmountString}
                 />
                 <ConditionalMarketCard
                   isPassMarket={false}
-                  placeOrder={placeOrder}
                   quoteBalance={quoteFailAmount?.uiAmountString}
                   baseBalance={baseFailAmount?.uiAmountString}
                 />
