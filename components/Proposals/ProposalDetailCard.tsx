@@ -57,15 +57,11 @@ export function ProposalDetailCard() {
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
 
   const remainingSlots = useMemo(() => {
-    if (!proposal || !markets || !daoState) return;
+    if (!proposal || !daoState || !lastSlot) return;
 
-    // Proposal need to be old enough
     const endSlot = proposal.account.slotEnqueued.toNumber() + daoState.slotsPerProposal.toNumber();
 
-    // TWAPs need to be old enough as well
-    const passEndSlot = endSlot - markets.passTwap.twapOracle.lastUpdatedSlot.toNumber();
-    const failEndSlot = endSlot - markets.failTwap.twapOracle.lastUpdatedSlot.toNumber();
-    return Math.max(endSlot - (lastSlot || endSlot), passEndSlot, failEndSlot, 0);
+    return Math.max(endSlot - lastSlot, 0);
   }, [proposal, lastSlot, daoState]);
 
   useEffect(() => {
@@ -81,6 +77,7 @@ export function ProposalDetailCard() {
   });
 
   const timeLeft = useMemo(() => {
+    if (!secondsLeft) return;
     const seconds = secondsLeft;
     const days = Math.floor(seconds / (60 * 60 * 24));
     const hours = Math.floor((seconds % (60 * 60 * 24)) / (60 * 60));
@@ -145,15 +142,13 @@ export function ProposalDetailCard() {
         <Accordion w="100%" pb="md">
           <Accordion.Item value={proposal.publicKey.toString()}>
             <Accordion.Control>
-              <Stack>
-                <Group justify="space-between">
-                  <Text size="xl" fw={500}>
-                    Proposal #{proposal.account.number + 1}
-                  </Text>
-                  <Text fw="bold">Ends in {timeLeft}</Text>
-                  <StateBadge proposal={proposal} />
-                </Group>
-              </Stack>
+              <Group justify="space-between">
+                <Text size="xl" fw={500}>
+                  Proposal #{proposal.account.number + 1}
+                </Text>
+                {timeLeft ? <Text fw="bold">Ends in {timeLeft}</Text> : null}
+                <StateBadge proposal={proposal} />
+              </Group>
             </Accordion.Control>
             <Accordion.Panel p="0" style={{ padding: '0' }}>
               <Stack gap="sm">
