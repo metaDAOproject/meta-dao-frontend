@@ -8,16 +8,18 @@ import {
   Transaction,
   TransactionInstruction,
 } from '@solana/web3.js';
+import numeral from 'numeral';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import {
   AnyNode,
   BookSideAccount,
   LeafNode,
+  Markets,
   OpenOrdersAccountWithKey,
   OracleConfigParams,
   ProposalAccountWithKey,
 } from './types';
-import { BN_0, OPENBOOK_PROGRAM_ID } from './constants';
+import { BASE_FORMAT, BN_0, NUMERAL_FORMAT, OPENBOOK_PROGRAM_ID } from './constants';
 
 export type Order = {
   price: number;
@@ -236,4 +238,106 @@ export const isPartiallyFilled = (order: OpenOrdersAccountWithKey): boolean => {
     return true;
   }
   return false;
+};
+
+export const isEmptyOrder = (order: OpenOrdersAccountWithKey): boolean =>
+  order.account.openOrders[0].isFree === 1;
+
+export const isOpenOrder = (order: OpenOrdersAccountWithKey, markets: Markets): boolean => {
+  if (order.account.openOrders[0].isFree === 0) {
+    const passAsksFilter = markets.passAsks.filter(
+      (_order) => _order.owner.toString() === order.publicKey.toString(),
+    );
+    const passBidsFilter = markets.passBids.filter(
+      (_order) => _order.owner.toString() === order.publicKey.toString(),
+    );
+    const failAsksFilter = markets.failAsks.filter(
+      (_order) => _order.owner.toString() === order.publicKey.toString(),
+    );
+    const failBidsFilter = markets.failBids.filter(
+      (_order) => _order.owner.toString() === order.publicKey.toString(),
+    );
+    let _order = null;
+    if (failAsksFilter.length > 0) {
+      // eslint-disable-next-line prefer-destructuring
+      _order = failAsksFilter[0];
+    }
+    if (failBidsFilter.length > 0) {
+      // eslint-disable-next-line prefer-destructuring
+      _order = failBidsFilter[0];
+    }
+    if (passAsksFilter.length > 0) {
+      // eslint-disable-next-line prefer-destructuring
+      _order = passAsksFilter[0];
+    }
+    if (passBidsFilter.length > 0) {
+      // eslint-disable-next-line prefer-destructuring
+      _order = passBidsFilter[0];
+    }
+    if (_order !== null) {
+      return true;
+    }
+    return false;
+  }
+  return false;
+};
+
+export const isCompletedOrder = (order: OpenOrdersAccountWithKey, markets: Markets): boolean => {
+  const isOpen = isOpenOrder(order, markets);
+  const isEmpty =
+    isEmptyOrder(order) &&
+    (order.account.position.asksBaseLots.gt(BN_0) || order.account.position.bidsBaseLots.gt(BN_0));
+  return isEmpty && !isOpen;
+};
+
+export const isBidOrAsk = (order: OpenOrdersAccountWithKey) => {
+  const isBidSide = order.account.position.bidsBaseLots.gt(order.account.position.asksBaseLots);
+  if (isBidSide) {
+    return true;
+  }
+  return false;
+};
+
+export const totalInOrder = (orders: OpenOrdersAccountWithKey[]) => {
+  let sumOrders = [];
+  sumOrders = orders?.map(
+    (order) =>
+      (order.account.position.bidsBaseLots.toNumber() / 10_000 +
+        order.account.position.asksBaseLots.toNumber() / 10_000) *
+      order.account.openOrders[0].lockedPrice.toNumber(),
+  );
+  const totalValueLocked = sumOrders.reduce((partialSum, amount) => partialSum + amount, 0);
+  return numeral(totalValueLocked).format(NUMERAL_FORMAT);
+};
+
+export const totalUsdcInOrder = (orders: OpenOrdersAccountWithKey[]) => {
+  let sumOrders = [];
+  sumOrders = orders.map((order) => {
+    if (isBidOrAsk(order)) {
+      return (
+        order.account.position.bidsBaseLots.toNumber() +
+        order.account.position.asksBaseLots.toNumber()
+      );
+    }
+    return 0;
+  });
+
+  const totalValueLocked = sumOrders.reduce((partialSum, amount) => partialSum + amount, 0);
+  return numeral(totalValueLocked).format(NUMERAL_FORMAT);
+};
+
+export const totalMetaInOrder = (orders: OpenOrdersAccountWithKey[]) => {
+  let sumOrders = [];
+  sumOrders = orders.map((order) => {
+    if (!isBidOrAsk(order)) {
+      return (
+        order.account.position.bidsBaseLots.toNumber() +
+        order.account.position.asksBaseLots.toNumber()
+      );
+    }
+    return 0;
+  });
+
+  const totalValueLocked = sumOrders.reduce((partialSum, amount) => partialSum + amount, 0);
+  return numeral(totalValueLocked).format(BASE_FORMAT);
 };

@@ -1,0 +1,145 @@
+import { useCallback, useState } from 'react';
+import {
+  ActionIcon,
+  Group,
+  Stack,
+  Table,
+  Text,
+  useMantineTheme,
+  Tooltip,
+  Space,
+} from '@mantine/core';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { Icon3dRotate, IconWriting, Icon12Hours, IconAssemblyOff } from '@tabler/icons-react';
+import { BN } from '@coral-xyz/anchor';
+import { OpenOrdersAccountWithKey } from '@/lib/types';
+import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
+import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
+import { useTransactionSender } from '@/hooks/useTransactionSender';
+import { BN_0 } from '@/lib/constants';
+import { useProposal } from '@/contexts/ProposalContext';
+import { isBid, isPass } from '@/lib/openbook';
+
+export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
+  const { markets } = useProposal();
+  const theme = useMantineTheme();
+  const sender = useTransactionSender();
+  const wallet = useWallet();
+  const { generateExplorerLink } = useExplorerConfiguration();
+  const { proposal, fetchOpenOrders, crankMarkets, isCranking } = useProposal();
+  const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
+
+  const [isSettling, setIsSettling] = useState<boolean>(false);
+
+  const handleSettleFunds = useCallback(async () => {
+    if (!proposal || !markets || !wallet?.publicKey) return;
+
+    setIsSettling(true);
+    try {
+      const pass = order.account.market.equals(proposal.account.openbookPassMarket);
+      const txs = await settleFundsTransactions(
+        order.account.accountNum,
+        pass,
+        proposal,
+        pass
+          ? { account: markets.pass, publicKey: proposal.account.openbookPassMarket }
+          : { account: markets.fail, publicKey: proposal.account.openbookFailMarket },
+      );
+
+      if (!txs) return;
+      sender.send(txs);
+      fetchOpenOrders(wallet.publicKey);
+    } finally {
+      setIsSettling(false);
+    }
+  }, [order, proposal, settleFundsTransactions]);
+
+  const handleCloseAccount = useCallback(async () => {
+    if (!proposal || !markets) return;
+
+    const txs = await closeOpenOrdersAccountTransactions(new BN(order.account.accountNum));
+
+    if (!wallet.publicKey || !txs) return;
+
+    try {
+      await sender.send(txs);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [proposal, sender, order]);
+
+  return (
+    <Table.Tr key={order.publicKey.toString()}>
+      <Table.Td>
+        <a
+          href={generateExplorerLink(order.publicKey.toString(), 'account')}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {order.account.accountNum}
+        </a>
+      </Table.Td>
+      <Table.Td>
+        <Group justify="flex-start" align="center" gap={10}>
+          <IconWriting
+            color={isPass(order, proposal) ? theme.colors.green[9] : theme.colors.red[9]}
+            scale="xs"
+          />
+          <Stack gap={0} justify="flex-start" align="flex-start">
+            <Text>{isPass(order, proposal) ? 'PASS' : 'FAIL'}</Text>
+            <Text size="xs" c={isBid(order) ? theme.colors.green[9] : theme.colors.red[9]}>
+              {isBid(order) ? 'Bid' : 'Ask'}
+            </Text>
+          </Stack>
+        </Group>
+      </Table.Td>
+      <Table.Td>
+        <Stack gap={0}>
+          <Text>
+            {`${order.account.position.baseFreeNative.toNumber() / 1_000_000_000} ${
+              isPass(order) ? 'pMETA' : 'fMETA'
+            }`}
+          </Text>
+          <Text>
+            {`${order.account.position.quoteFreeNative / 1_000_000} ${
+              isPass(order) ? 'pUSDC' : 'fUSDC'
+            }`}
+          </Text>
+        </Stack>
+      </Table.Td>
+      <Table.Td>
+        <Group>
+          {order.account.position.asksBaseLots.gt(BN_0) ||
+          order.account.position.bidsBaseLots.gt(BN_0) ? (
+            <Tooltip label="Crank the market 🐷">
+              <ActionIcon
+                variant="light"
+                loading={isCranking}
+                onClick={() => crankMarkets(order.publicKey)}
+              >
+                <Icon12Hours />
+              </ActionIcon>
+            </Tooltip>
+          ) : null}
+          <ActionIcon variant="light" loading={isSettling} onClick={() => handleSettleFunds()}>
+            <Icon3dRotate />
+          </ActionIcon>
+          <Space />
+          <ActionIcon
+            disabled={
+              order.account.position.asksBaseLots > BN_0 ||
+              order.account.position.bidsBaseLots > BN_0 ||
+              order.account.position.baseFreeNative > BN_0 ||
+              order.account.position.quoteFreeNative > BN_0
+            }
+            variant="light"
+            loading={isSettling}
+            onClick={handleCloseAccount}
+          >
+            <IconAssemblyOff />
+          </ActionIcon>
+        </Group>
+      </Table.Td>
+    </Table.Tr>
+  );
+}
