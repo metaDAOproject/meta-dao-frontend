@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActionIcon,
   Card,
@@ -16,33 +16,20 @@ import {
   useMantineColorScheme,
 } from '@mantine/core';
 import numeral from 'numeral';
-import { Icon12Hours, IconWallet, IconTrendingUp, IconInfoCircle } from '@tabler/icons-react';
+import { Icon12Hours, IconWallet, IconInfoCircle } from '@tabler/icons-react';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { calculateTWAP } from '../../lib/openbookTwap';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
+import { useTokenAmount } from '@/hooks/useTokenAmount';
+import MarketTitle from './MarketTitle';
 
-export function ConditionalMarketCard({
-  isPassMarket,
-  placeOrder,
-  quoteBalance,
-  baseBalance,
-}: {
-  isPassMarket: boolean;
-  placeOrder: (
-    amount: number,
-    price: number,
-    limitOrder?: boolean,
-    ask?: boolean,
-    pass?: boolean,
-  ) => void;
-  quoteBalance: string | undefined;
-  baseBalance: string | undefined;
-}) {
+export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?: boolean }) {
   const { daoState } = useAutocrat();
-  const { proposal, orderBookObject, markets, isCranking, handleCrank } = useProposal();
+  const { proposal, orderBookObject, markets, isCranking, crankMarkets, placeOrder } =
+    useProposal();
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
@@ -51,6 +38,18 @@ export function ConditionalMarketCard({
   const [amountError, setAmountError] = useState<string | null>(null);
   const { generateExplorerLink } = useExplorerConfiguration();
   const { colorScheme } = useMantineColorScheme();
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const baseBalance = useTokenAmount(
+    isPassMarket
+      ? markets?.baseVault.conditionalOnFinalizeTokenMint
+      : markets?.baseVault.conditionalOnRevertTokenMint,
+  ).amount?.uiAmountString;
+
+  const quoteBalance = useTokenAmount(
+    isPassMarket
+      ? markets?.quoteVault.conditionalOnFinalizeTokenMint
+      : markets?.baseVault.conditionalOnRevertTokenMint,
+  ).amount?.uiAmountString;
 
   if (!markets) return <></>;
   const passTwap = calculateTWAP(markets.passTwap.twapOracle);
@@ -191,6 +190,14 @@ export function ConditionalMarketCard({
     }
     return 'inherit';
   };
+  const handlePlaceOrder = useCallback(async () => {
+    try {
+      setIsPlacingOrder(true);
+      await placeOrder(amount, _orderPrice(), isLimitOrder, isAskSide, isPassMarket);
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  }, [placeOrder, amount, isLimitOrder, isPassMarket, isAskSide]);
 
   return (
     <Card
@@ -201,47 +208,9 @@ export function ConditionalMarketCard({
     >
       <Stack gap="xs">
         <Group justify="space-between" align="flex-start">
-          <Stack>
-            {isPassMarket ? (
-              <Group align="center" justify="center">
-                <IconTrendingUp color="green" />
-                <Text size="lg" c="green">
-                  <a
-                    style={{ textDecoration: 'none', color: 'inherit' }}
-                    href={generateExplorerLink(
-                      proposal?.account.openbookPassMarket.toString()!,
-                      'account',
-                    )}
-                    target="blank"
-                  >
-                    Pass market
-                  </a>
-                </Text>
-              </Group>
-            ) : (
-              <Group align="center" justify="center">
-                <IconTrendingUp color="red" />
-                <Text size="lg" c="red">
-                  <a
-                    style={{ textDecoration: 'none', color: 'inherit' }}
-                    href={generateExplorerLink(
-                      proposal?.account.openbookFailMarket.toString()!,
-                      'account',
-                    )}
-                    target="blank"
-                  >
-                    Fail market
-                  </a>
-                </Text>
-              </Group>
-            )}
-          </Stack>
+          <MarketTitle isPassMarket={isPassMarket} />
           <Tooltip label="Crank the market 🐷" events={{ hover: true, focus: true, touch: false }}>
-            <ActionIcon
-              variant="subtle"
-              loading={isCranking}
-              onClick={() => handleCrank(isPassMarket)}
-            >
+            <ActionIcon variant="subtle" loading={isCranking} onClick={() => crankMarkets()}>
               <Icon12Hours />
             </ActionIcon>
           </Tooltip>
@@ -284,7 +253,7 @@ export function ConditionalMarketCard({
                     {passTwap! > (failTwap! * (10000 + daoState!.passThresholdBps)) / 10000
                       ? 'Pass'
                       : 'Fail'}{' '}
-                    Market wins
+                    Market wins.
                   </Text>
                   <Text size="xs">
                     <a
@@ -416,10 +385,10 @@ export function ConditionalMarketCard({
               <Button
                 fullWidth
                 color={isAskSide ? 'red' : 'green'}
-                onClick={() =>
-                  placeOrder(amount, _orderPrice(), isLimitOrder, isAskSide, isPassMarket)
-                }
+                onClick={handlePlaceOrder}
+                variant="light"
                 disabled={!amount || (isLimitOrder ? !price : false)}
+                loading={isPlacingOrder}
               >
                 {orderSide} {isPassMarket ? 'p' : 'f'}META
               </Button>

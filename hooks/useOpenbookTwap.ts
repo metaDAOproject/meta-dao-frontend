@@ -272,7 +272,7 @@ export function useOpenbookTwap() {
 
   const settleFundsTransactions = useCallback(
     async (
-      orderId: BN,
+      orderId: BN | number,
       passMarket: boolean,
       proposal: ProposalAccountWithKey,
       market: MarketAccountWithKey,
@@ -282,7 +282,7 @@ export function useOpenbookTwap() {
       }
       const quoteVault = await getVaultMint(proposal.account.quoteVault);
       const baseVault = await getVaultMint(proposal.account.baseVault);
-      const openOrdersAccount = findOpenOrders(orderId, wallet.publicKey);
+      const openOrdersAccount = findOpenOrders(new BN(orderId), wallet.publicKey);
       // TODO: Determine if order is on pass or fail market?
       const userBasePass = getAssociatedTokenAddressSync(
         baseVault.conditionalOnFinalizeTokenMint,

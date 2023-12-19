@@ -1,20 +1,38 @@
-import { IdlAccounts, IdlTypes } from '@coral-xyz/anchor';
+import { Idl, IdlAccounts, IdlTypes } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { AutocratV0 } from './idl/autocrat_v0';
+import { AutocratV0 as AutocratV0_1 } from './idl/autocrat_v0.1';
 import { OpenbookTwap } from './idl/openbook_twap';
 import { OpenbookV2 } from './idl/openbook_v2';
 import { ConditionalVault } from './idl/conditional_vault';
 
+type MergeWithOptionalFields<T, U> = {
+  [K in keyof (T | U)]: U[K];
+} & {
+  [K in keyof Omit<U, keyof T>]?: NonNullable<U[K]>;
+} & {
+  [K in keyof Omit<T, keyof U>]?: NonNullable<T[K]>;
+};
 export type AccountWithKey<T> = { publicKey: PublicKey; account: T };
-
-export type ProposalAccount = IdlAccounts<AutocratV0>['proposal'];
+export type ProgramVersion = { label: string; programId: PublicKey; idl: Idl };
+export type AutocratProgram = AutocratV0 | AutocratV0_1;
+export type DaoState = MergeWithOptionalFields<
+  IdlAccounts<AutocratV0>['dao'],
+  IdlAccounts<AutocratV0_1>['dao']
+>;
+export type ProposalAccount = MergeWithOptionalFields<
+  IdlAccounts<AutocratV0>['proposal'],
+  IdlAccounts<AutocratV0_1>['proposal']
+>;
+export type ProposalInstruction = MergeWithOptionalFields<
+  IdlTypes<AutocratV0>['ProposalInstruction'],
+  IdlTypes<AutocratV0_1>['ProposalInstruction']
+>;
 export type ProposalAccountWithKey = AccountWithKey<ProposalAccount>;
 export type VaultAccount = IdlAccounts<ConditionalVault>['conditionalVault'];
 export type VaultAccountWithKey = AccountWithKey<VaultAccount>;
-export type DaoState = IdlAccounts<AutocratV0>['dao'];
 export type TwapMarketAccount = IdlAccounts<OpenbookTwap>['twapMarket'];
 export type TWAPOracle = IdlTypes<OpenbookTwap>['TWAPOracle'];
-export type ProposalInstruction = IdlTypes<AutocratV0>['ProposalInstruction'];
 export type OrderBookSide = {
   parsed: {
     price: any;

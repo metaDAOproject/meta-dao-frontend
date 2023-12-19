@@ -15,11 +15,10 @@ import {
   em,
   useMantineColorScheme,
 } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
 import Markdown from 'react-markdown';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { IconChevronLeft } from '@tabler/icons-react';
-import { useTokenAmount } from '@/hooks/useTokenAmount';
+import { useMediaQuery } from '@mantine/hooks';
 import { ProposalOrdersCard } from './ProposalOrdersCard';
 import { ConditionalMarketCard } from '../Markets/ConditionalMarketCard';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
@@ -39,23 +38,10 @@ export function ProposalDetailCard() {
   const { connection } = useConnection();
   const { fetchProposals } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
-  const { proposal, markets, placeOrder, finalizeProposalTransactions } = useProposal();
+  const { proposal, markets, finalizeProposalTransactions } = useProposal();
   const sender = useTransactionSender();
   const { colorScheme } = useMantineColorScheme();
 
-  const { amount: basePassAmount } = useTokenAmount(
-    markets?.baseVault.conditionalOnFinalizeTokenMint,
-  );
-  const { amount: baseFailAmount } = useTokenAmount(
-    markets?.baseVault.conditionalOnRevertTokenMint,
-  );
-  // const { amount: quoteAmount } = useTokenAmount(markets?.quoteVault.underlyingTokenMint);
-  const { amount: quotePassAmount } = useTokenAmount(
-    markets?.quoteVault.conditionalOnFinalizeTokenMint,
-  );
-  const { amount: quoteFailAmount } = useTokenAmount(
-    markets?.quoteVault.conditionalOnRevertTokenMint,
-  );
   const { generateExplorerLink } = useExplorerConfiguration();
   const [lastSlot, setLastSlot] = useState<number>();
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
@@ -73,12 +59,12 @@ export function ProposalDetailCard() {
   useEffect(() => {
     setSecondsLeft(((remainingSlots || 0) / SLOTS_PER_10_SECS) * 10);
   }, [remainingSlots]);
+
   useEffect(() => {
     const interval = setInterval(
       () => (secondsLeft && secondsLeft > 0 ? setSecondsLeft((old) => old - 1) : 0),
       1000,
     );
-
     return () => clearInterval(interval);
   });
 
@@ -176,7 +162,18 @@ export function ProposalDetailCard() {
             </Title>
             <StateBadge proposal={proposal} />
           </Group>
-          <Text opacity={0.6}>
+          {secondsLeft !== 0 && <Text fw="bold">Ends in {timeLeft}</Text>}
+          <Card bg={colorScheme === 'dark' ? 'dark' : '#f9f9f9'} w="fit-content">
+            <Stack justify="end" align="end" w="fit-content">
+              {proposal.description && (
+                <ScrollArea.Autosize mah={isMobile ? '340px' : '240px'} mx="auto">
+                  <Markdown className="markdown">{proposal.description}</Markdown>
+                </ScrollArea.Autosize>
+              )}
+              <ExternalLink href={proposal.account.descriptionUrl} />
+            </Stack>
+          </Card>
+          <Text opacity={0.6} style={{ textAlign: 'right' }}>
             Proposed by{' '}
             <a
               href={generateExplorerLink(proposal.account.proposer.toString(), 'account')}
@@ -185,24 +182,9 @@ export function ProposalDetailCard() {
               {shortKey(proposal.account.proposer)}
             </a>
           </Text>
-          <Card bg={colorScheme === 'dark' ? 'dark' : '#f9f9f9'} w="fit-content">
-            <Stack justify="end" align="end" w="fit-content">
-              {proposal.description && (
-                <ScrollArea.Autosize mah="180px" mx="auto">
-                  <Markdown className="markdown">{proposal.description}</Markdown>
-                </ScrollArea.Autosize>
-              )}
-              <ExternalLink href={proposal.account.descriptionUrl} />
-            </Stack>
-          </Card>
-          {secondsLeft !== 0 && (
-            <Text fw="bold" w="100%" style={{ textAlign: 'center' }}>
-              Ends in {timeLeft}
-            </Text>
-          )}
         </Stack>
         <MarketsBalances />
-        {proposal.account.state.pending ? (
+        {proposal.account.state.pending && (
           <Button
             disabled={(remainingSlots || 0) > 0}
             loading={isFinalizing}
@@ -210,46 +192,34 @@ export function ProposalDetailCard() {
           >
             Finalize
           </Button>
-        ) : null}
-        {proposal.account.state.passed ? (
+        )}
+        {proposal.account.state.passed && (
           <Button color="green" loading={isRedeeming} onClick={handleRedeem}>
             Redeem
           </Button>
-        ) : null}
+        )}
       </Stack>
       <Divider orientation={isMobile ? 'horizontal' : 'vertical'} />
       <Container>
         <Stack style={{ flex: 1 }}>
-          <Stack>
-            <Tabs defaultValue="order-book">
-              <Tabs.List>
-                <Tabs.Tab value="order-book">Order Book</Tabs.Tab>
-                <Tabs.Tab value="bet">Bet</Tabs.Tab>
-              </Tabs.List>
-              <Tabs.Panel value="order-book">
-                {markets ? (
-                  <Group gap="md" justify="space-around" p="sm" pt="xl">
-                    <ConditionalMarketCard
-                      isPassMarket
-                      placeOrder={placeOrder}
-                      quoteBalance={quotePassAmount?.uiAmountString}
-                      baseBalance={basePassAmount?.uiAmountString}
-                    />
-                    <ConditionalMarketCard
-                      isPassMarket={false}
-                      placeOrder={placeOrder}
-                      quoteBalance={quoteFailAmount?.uiAmountString}
-                      baseBalance={baseFailAmount?.uiAmountString}
-                    />
-                  </Group>
-                ) : null}
-              </Tabs.Panel>
-              <Tabs.Panel value="bet">
-                <MarketCard />
-              </Tabs.Panel>
-            </Tabs>
-            <ProposalOrdersCard />
-          </Stack>
+          <Tabs defaultValue="order-book">
+            <Tabs.List>
+              <Tabs.Tab value="order-book">Order Book</Tabs.Tab>
+              <Tabs.Tab value="bet">Bet</Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel value="order-book">
+              {markets ? (
+                <Group gap="md" justify="space-around" p="sm" pt="xl">
+                  <ConditionalMarketCard isPassMarket />
+                  <ConditionalMarketCard />
+                </Group>
+              ) : null}
+            </Tabs.Panel>
+            <Tabs.Panel value="bet">
+              <MarketCard />
+            </Tabs.Panel>
+          </Tabs>
+          <ProposalOrdersCard />
         </Stack>
       </Container>
     </Flex>

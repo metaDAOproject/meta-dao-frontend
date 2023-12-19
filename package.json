@@ -24,6 +24,7 @@
     "@mantine/hooks": "7.1.3",
     "@mantine/modals": "^7.1.5",
     "@mantine/notifications": "^7.1.5",
+    "@moongate/moongate-adapter": "^0.0.99",
     "@next/bundle-analyzer": "^13.5.3",
     "@openbook-dex/openbook-v2": "^0.0.15",
     "@solana/spl-token": "^0.3.8",

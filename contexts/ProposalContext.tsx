@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { PublicKey, Transaction } from '@solana/web3.js';
+import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 import {
   getAssociatedTokenAddressSync,
   createAssociatedTokenAccountInstruction,
@@ -13,12 +13,12 @@ import {
   OrderBook,
   Proposal,
   ProposalAccountWithKey,
+  LeafNode,
 } from '@/lib/types';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { useConditionalVault } from '@/hooks/useConditionalVault';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
-import { LeafNode } from '@/lib/types';
 import { getLeafNodes } from '../lib/openbook';
 import { debounce } from '../lib/utils';
 
@@ -32,7 +32,7 @@ export interface ProposalInterface {
   isCranking: boolean;
   metaDisabled: boolean;
   usdcDisabled: boolean;
-  handleCrank: (isPassMarket: boolean, individualEvent?: PublicKey) => Promise<void>;
+  crankMarkets: (individualEvent?: PublicKey) => Promise<void>;
   fetchOpenOrders: (owner: PublicKey) => Promise<void>;
   fetchMarketsInfo: () => Promise<void>;
   createTokenAccounts: (fromBase?: boolean) => Promise<void>;
@@ -180,7 +180,7 @@ export function ProposalProvider({
         quoteVault,
       });
     }, 1000),
-    [markets, vaultProgram, openbook, openbookTwap, proposal],
+    [markets, vaultProgram, openbook, openbookTwap, proposal, connection],
   );
   const fetchOpenOrders = useCallback(
     debounce<[PublicKey]>(async (owner: PublicKey) => {
@@ -205,10 +205,10 @@ export function ProposalProvider({
   );
 
   useEffect(() => {
-    if (!orders && proposal && wallet.publicKey) {
+    if (proposal && wallet.publicKey) {
       fetchOpenOrders(wallet.publicKey);
     }
-  }, [orders, markets, fetchOpenOrders]);
+  }, [markets, fetchOpenOrders]);
 
   useEffect(() => {
     if (!markets && proposal) {
@@ -257,7 +257,7 @@ export function ProposalProvider({
       try {
         metaBalance = await connection.getTokenAccountBalance(metaTokenAccount);
       } catch (err) {
-        console.log('unable to fetch balance for META token account');
+        console.error('unable to fetch balance for META token account');
       }
       try {
         if (fromBase) {
@@ -267,7 +267,7 @@ export function ProposalProvider({
         }
       } catch (err) {
         error = true;
-        console.log("turns out the account doesn't exist we can create it");
+        console.error("turns out the account doesn't exist we can create it");
       }
       if (!error) {
         notifications.show({
@@ -493,23 +493,27 @@ export function ProposalProvider({
     ],
   );
 
-  const handleCrank = useCallback(
-    async (isPassMarket: boolean, individualEvent?: PublicKey) => {
+  const crankMarkets = useCallback(
+    async (individualEvent?: PublicKey) => {
       if (!proposal || !markets || !wallet?.publicKey) return;
-      let marketAccounts: MarketAccountWithKey = {
-        publicKey: markets.passTwap.market,
-        account: markets.pass,
-      };
-      let { eventHeap } = markets.pass;
-      if (!isPassMarket) {
-        marketAccounts = { publicKey: markets.failTwap.market, account: markets.fail };
-        eventHeap = markets.fail.eventHeap;
-      }
       try {
         setIsCranking(true);
-        const txs = await crankMarketTransactions(marketAccounts, eventHeap, individualEvent);
-        if (!txs) return;
-        await sender.send(txs);
+        const passTxs = await crankMarketTransactions(
+          {
+            publicKey: markets.passTwap.market,
+            account: markets.pass,
+          },
+          markets.pass.eventHeap,
+          individualEvent,
+        );
+        const failTxs = await crankMarketTransactions(
+          { publicKey: markets.failTwap.market, account: markets.fail },
+          markets.fail.eventHeap,
+          individualEvent,
+        );
+        if (!passTxs || !failTxs) return;
+        const txs = [...passTxs, ...failTxs].filter(Boolean);
+        await sender.send(txs as VersionedTransaction[]);
         fetchOpenOrders(wallet.publicKey);
       } catch (err) {
         console.error(err);
@@ -536,7 +540,7 @@ export function ProposalProvider({
         fetchMarketsInfo,
         createTokenAccounts,
         createTokenAccountsTransactions,
-        handleCrank,
+        crankMarkets,
         finalizeProposalTransactions,
         mintTokensTransactions,
         mintTokens,

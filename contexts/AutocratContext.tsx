@@ -9,16 +9,13 @@ import React, {
 } from 'react';
 import { Program, utils } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
-import { AutocratV0 } from '../lib/idl/autocrat_v0';
+import { useLocalStorage } from '@mantine/hooks';
 import { useProvider } from '@/hooks/useProvider';
-import { AUTOCRAT_PROGRAM_ID, OPENBOOK_PROGRAM_ID } from '@/lib/constants';
-import { DaoState, Proposal, ProposalAccountWithKey } from '../lib/types';
+import { AUTOCRAT_VERSIONS, OPENBOOK_PROGRAM_ID } from '@/lib/constants';
+import { AutocratProgram, DaoState, ProgramVersion, Proposal } from '../lib/types';
 import { useNetworkConfiguration } from '../hooks/useNetworkConfiguration';
-import { useConditionalVault } from '../hooks/useConditionalVault';
 import { useOpenbookTwap } from '../hooks/useOpenbookTwap';
 import { IDL as OPENBOOK_IDL, OpenbookV2 } from '@/lib/idl/openbook_v2';
-
-const AUTOCRAT_IDL: AutocratV0 = require('@/lib/idl/autocrat_v0.json');
 
 export interface AutocratContext {
   dao?: PublicKey;
@@ -27,13 +24,16 @@ export interface AutocratContext {
   openbook?: Program<OpenbookV2>;
   openbookTwap?: Program<any>;
   proposals?: Proposal[];
-  autocratProgram?: Program<AutocratV0>;
+  autocratProgram?: Program<AutocratProgram>;
+  programVersion?: ProgramVersion;
   fetchState: () => Promise<void>;
   fetchProposals: () => Promise<void>;
+  setProgramVersion: (e: number) => void;
 }
 export const contextAutocrat = createContext<AutocratContext>({
   fetchState: () => new Promise(() => {}),
   fetchProposals: () => new Promise(() => {}),
+  setProgramVersion: () => {},
 });
 export const useAutocrat = () => {
   const context = useContext<AutocratContext>(contextAutocrat);
@@ -43,7 +43,14 @@ export const useAutocrat = () => {
 export function AutocratProvider({ children }: { children: ReactNode }) {
   const { network } = useNetworkConfiguration();
   const provider = useProvider();
-  const programId = AUTOCRAT_PROGRAM_ID;
+  const [programVersion, setProgramVersion] = useLocalStorage<ProgramVersion>({
+    key: 'program_version',
+    defaultValue: AUTOCRAT_VERSIONS[0],
+    getInitialValueInEffect: false,
+    serialize: (value) => String(AUTOCRAT_VERSIONS.indexOf(value)),
+    deserialize: (value) => AUTOCRAT_VERSIONS[Number(value)],
+  });
+  const { programId, idl } = programVersion!;
   const dao = useMemo(
     () =>
       PublicKey.findProgramAddressSync(
@@ -57,8 +64,8 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
     [programId],
   );
   const autocratProgram = useMemo(
-    () => new Program<AutocratV0>(AUTOCRAT_IDL, programId, provider),
-    [provider, programId, network],
+    () => new Program<AutocratProgram>(idl as AutocratProgram, programId, provider),
+    [provider, programId, idl],
   );
   const openbook = useMemo(() => {
     if (!provider) {
@@ -68,7 +75,6 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
   }, [provider]);
 
   const { program: openbookTwap } = useOpenbookTwap();
-  const { program: vaultProgram } = useConditionalVault();
   const [daoState, setDaoState] = useState<DaoState>();
   const [proposals, setProposals] = useState<Proposal[]>();
 
@@ -94,7 +100,7 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
         if (prop.account.descriptionUrl.includes('hackmd.io'))
           resp = await fetch(`/api/hackmd?url=${prop.account.descriptionUrl}`, { method: 'GET' })
             .then(async (r) => await r.json())
-            .catch((e) => console.log(e));
+            .catch((e) => console.error(e));
         return {
           title: resp?.title || `Proposal ${prop.account.number}`,
           description: resp?.description || '',
@@ -108,7 +114,7 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     fetchProposals();
     fetchState();
-  }, [network]);
+  }, [network, programVersion]);
 
   return (
     <contextAutocrat.Provider
@@ -120,8 +126,13 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
         openbookTwap,
         proposals,
         autocratProgram,
+        programVersion,
         fetchState,
         fetchProposals,
+        setProgramVersion: (n) =>
+          setProgramVersion(
+            n < AUTOCRAT_VERSIONS.length ? AUTOCRAT_VERSIONS[n] : AUTOCRAT_VERSIONS[0],
+          ),
       }}
     >
       {children}
