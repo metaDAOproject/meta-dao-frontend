@@ -25,7 +25,7 @@ import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { shortKey } from '@/lib/utils';
 import { StateBadge } from './StateBadge';
-import { SLOTS_PER_10_SECS, TEN_DAYS_IN_SLOTS } from '../../lib/constants';
+import { SLOTS_PER_10_SECS } from '../../lib/constants';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useConditionalVault } from '../../hooks/useConditionalVault';
 import { useProposal } from '@/contexts/ProposalContext';
@@ -74,7 +74,6 @@ export function ProposalDetailCard() {
 
     return () => clearInterval(interval);
   });
-
 
   const timeLeft = useMemo(() => {
     if (!secondsLeft) return;
