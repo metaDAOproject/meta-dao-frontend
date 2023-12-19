@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Card,
@@ -123,8 +123,6 @@ export function ProposalDetailCard() {
     fetchSlot();
   }, [connection, lastSlot]);
 
-  const stackRef = useRef<HTMLDivElement>(null);
-
   return !proposal || !markets ? (
     <Group justify="center">
       <Loader />
@@ -134,7 +132,6 @@ export function ProposalDetailCard() {
       direction={isMobile ? 'column' : 'row'}
       align="start"
       justify="start"
-      ref={stackRef}
       gap={isMobile ? 'xl' : 'md'}
     >
       <Button
