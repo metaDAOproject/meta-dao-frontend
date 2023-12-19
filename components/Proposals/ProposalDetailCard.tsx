@@ -36,7 +36,7 @@ import classes from '../../app/globals.module.css';
 
 export function ProposalDetailCard() {
   const { connection } = useConnection();
-  const { fetchProposals } = useAutocrat();
+  const { fetchProposals, daoState } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
   const { proposal, markets, finalizeProposalTransactions } = useProposal();
   const sender = useTransactionSender();
@@ -50,11 +50,17 @@ export function ProposalDetailCard() {
   const isMobile = useMediaQuery(`(max-width: ${em(1546)})`);
 
   const remainingSlots = useMemo(() => {
-    if (!proposal) return;
+    if (!proposal || !daoState || !lastSlot) return;
 
-    const endSlot = proposal.account.slotEnqueued.toNumber() + TEN_DAYS_IN_SLOTS;
-    return Math.max(endSlot - (lastSlot || endSlot), 0);
-  }, [proposal, lastSlot]);
+    // v0 doesn't have slots per proposal, so if it's v0 we say it's already done
+    if (!daoState.slotsPerProposal) {
+      return 0;
+    }
+
+    const endSlot = proposal.account.slotEnqueued.toNumber() + daoState.slotsPerProposal.toNumber();
+
+    return Math.max(endSlot - lastSlot, 0);
+  }, [proposal, lastSlot, daoState]);
 
   useEffect(() => {
     setSecondsLeft(((remainingSlots || 0) / SLOTS_PER_10_SECS) * 10);
@@ -65,10 +71,13 @@ export function ProposalDetailCard() {
       () => (secondsLeft && secondsLeft > 0 ? setSecondsLeft((old) => old - 1) : 0),
       1000,
     );
+
     return () => clearInterval(interval);
   });
 
+
   const timeLeft = useMemo(() => {
+    if (!secondsLeft) return;
     const seconds = secondsLeft;
     const days = Math.floor(seconds / (60 * 60 * 24));
     const hours = Math.floor((seconds % (60 * 60 * 24)) / (60 * 60));
