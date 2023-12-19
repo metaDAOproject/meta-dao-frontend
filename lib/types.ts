@@ -62,6 +62,11 @@ export type Markets = {
 };
 export type AllMarketsInfo = { [proposalKey: string]: Markets | undefined };
 
+export type Proposal = ProposalAccountWithKey & {
+  title: string;
+  description: string;
+};
+
 /// Avoid importing Openbook because it uses a NodeWallet
 export type PlaceOrderArgs = IdlTypes<OpenbookV2>['PlaceOrderArgs'];
 export type PlaceOrderPeggedArgs = IdlTypes<OpenbookV2>['PlaceOrderPeggedArgs'];
