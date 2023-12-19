@@ -8,21 +8,21 @@ import {
   TextInput,
   Grid,
   GridCol,
-  Flex,
   Button,
   Tooltip,
   NativeSelect,
   HoverCard,
   Group,
-  InputLabel,
+  useMantineColorScheme,
 } from '@mantine/core';
 import numeral from 'numeral';
-import { Icon12Hours, IconQuestionMark, IconWallet } from '@tabler/icons-react';
+import { Icon12Hours, IconWallet, IconTrendingUp, IconInfoCircle } from '@tabler/icons-react';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { calculateTWAP } from '../../lib/openbookTwap';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
+import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 
 export function ConditionalMarketCard({
   isPassMarket,
@@ -42,13 +42,15 @@ export function ConditionalMarketCard({
   baseBalance: string | undefined;
 }) {
   const { daoState } = useAutocrat();
-  const { orderBookObject, markets, isCranking, handleCrank } = useProposal();
+  const { proposal, orderBookObject, markets, isCranking, handleCrank } = useProposal();
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
   const [price, setPrice] = useState<string>('');
   const [priceError, setPriceError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
+  const { generateExplorerLink } = useExplorerConfiguration();
+  const { colorScheme } = useMantineColorScheme();
 
   if (!markets) return <></>;
   const passTwap = calculateTWAP(markets.passTwap.twapOracle);
@@ -180,40 +182,92 @@ export function ConditionalMarketCard({
     return Number.isNaN(Number(_orderAmount));
   };
 
+  const isWinning = () => {
+    if (passTwap && failTwap && daoState) {
+      const fail = (failTwap * (10000 + daoState.passThresholdBps)) / 10000;
+      const passWin = passTwap > fail;
+      if (isPassMarket) return passWin || proposal?.account.state.passed ? '#67BD63' : 'inherit';
+      return !passWin || proposal?.account.state.failed ? 'red' : 'inherit';
+    }
+    return 'inherit';
+  };
+
   return (
-    <Stack p={0} m={0} gap={0}>
-      <Card withBorder radius="md" style={{ width: '22rem' }}>
-        <Flex justify="space-between" align="flex-start" direction="row" wrap="wrap">
-          <Group align="center">
-            <Text fw="bolder" size="lg" pb="1rem">
-              {isPassMarket ? 'Pass' : 'Fail'} market{' '}
-            </Text>
-            {twap ? (
-              <HoverCard>
-                <HoverCard.Target>
-                  <Group justify="center" align="flex-start">
-                    <Stack gap={0} pb="1rem">
-                      <Group gap={3} justify="center" align="center">
-                        <Text fw="bold" size="md">
-                          ${numeral(twap).format(NUMERAL_FORMAT)}
-                        </Text>
-                        <Text size="sm">TWAP</Text>
-                      </Group>
-                      <Text size="xs">
-                        $
-                        {numeral(isPassMarket ? passMidPrice : failMidPrice).format(NUMERAL_FORMAT)}{' '}
-                        (mid)
-                      </Text>
-                    </Stack>
-                    <ActionIcon variant="transparent">
-                      <IconQuestionMark />
-                    </ActionIcon>
-                  </Group>
-                </HoverCard.Target>
-                <HoverCard.Dropdown w="22rem">
+    <Card
+      withBorder
+      radius="md"
+      style={{ width: '26rem', border: `1px solid ${isWinning()}` }}
+      bg="transparent"
+    >
+      <Stack gap="xs">
+        <Group justify="space-between" align="flex-start">
+          <Stack>
+            {isPassMarket ? (
+              <Group align="center" justify="center">
+                <IconTrendingUp color="green" />
+                <Text size="lg" c="green">
+                  <a
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                    href={generateExplorerLink(
+                      proposal?.account.openbookPassMarket.toString()!,
+                      'account',
+                    )}
+                    target="blank"
+                  >
+                    Pass market
+                  </a>
+                </Text>
+              </Group>
+            ) : (
+              <Group align="center" justify="center">
+                <IconTrendingUp color="red" />
+                <Text size="lg" c="red">
+                  <a
+                    style={{ textDecoration: 'none', color: 'inherit' }}
+                    href={generateExplorerLink(
+                      proposal?.account.openbookFailMarket.toString()!,
+                      'account',
+                    )}
+                    target="blank"
+                  >
+                    Fail market
+                  </a>
+                </Text>
+              </Group>
+            )}
+          </Stack>
+          <Tooltip label="Crank the market 🐷" events={{ hover: true, focus: true, touch: false }}>
+            <ActionIcon
+              variant="subtle"
+              loading={isCranking}
+              onClick={() => handleCrank(isPassMarket)}
+            >
+              <Icon12Hours />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+        {twap ? (
+          <Group justify="center" align="center">
+            <Stack gap={0} pb="1rem" align="center">
+              <Group gap={3} justify="center" align="center">
+                <Text fw="bold" size="md">
+                  ${numeral(twap).format(NUMERAL_FORMAT)}
+                </Text>
+                <Text size="sm">TWAP</Text>
+              </Group>
+              <Text size="xs">
+                ${numeral(isPassMarket ? passMidPrice : failMidPrice).format(NUMERAL_FORMAT)} (mid)
+              </Text>
+            </Stack>
+            <HoverCard position="top">
+              <HoverCard.Target>
+                <IconInfoCircle strokeWidth={1.3} />
+              </HoverCard.Target>
+              <HoverCard.Dropdown w="22rem">
+                <Stack>
                   <Text>
                     The Time Weighted Average Price (TWAP) is the measure used to decide if the
-                    proposal passses: if the TWAP of the pass market is{' '}
+                    proposal passes: if the TWAP of the pass market is{' '}
                     {daoState
                       ? `${numeral(daoState.passThresholdBps / 100).format(NUMERAL_FORMAT)}%`
                       : '???'}{' '}
@@ -225,22 +279,30 @@ export function ConditionalMarketCard({
                       : null}
                     , the proposal will pass once the countdown ends.
                   </Text>
-                </HoverCard.Dropdown>
-              </HoverCard>
-            ) : null}
+                  <Text c={isWinning()}>
+                    Currently the{' '}
+                    {passTwap! > (failTwap! * (10000 + daoState!.passThresholdBps)) / 10000
+                      ? 'Pass'
+                      : 'Fail'}{' '}
+                    Market wins
+                  </Text>
+                  <Text size="xs">
+                    <a
+                      href={generateExplorerLink(
+                        proposal?.account.openbookTwapPassMarket.toString()!,
+                        'account',
+                      )}
+                      target="blank"
+                    >
+                      {`See ${isPassMarket ? 'Pass' : 'Fail'} TWAP Market in explorer.`}
+                    </a>
+                  </Text>
+                </Stack>
+              </HoverCard.Dropdown>
+            </HoverCard>
           </Group>
-          <Tooltip label="Crank the market 🐷">
-            <ActionIcon
-              variant="subtle"
-              loading={isCranking}
-              onClick={() => handleCrank(isPassMarket)}
-            >
-              <Icon12Hours />
-            </ActionIcon>
-          </Tooltip>
-        </Flex>
-        {/* <Text fw="bold">Book</Text> */}
-        <Card withBorder style={{ backgroundColor: 'rgb(250, 250, 250)' }}>
+        ) : null}
+        <Card withBorder bg={colorScheme === 'dark' ? '' : '#F9F9F9'}>
           <ConditionalMarketOrderBook
             orderBookObject={orderBookObject}
             isPassMarket={isPassMarket}
@@ -248,16 +310,9 @@ export function ConditionalMarketCard({
           />
         </Card>
         <Stack>
-          <style
-            dangerouslySetInnerHTML={{ __html: '.label {&[data-active] {color: #FFFFFF;}}' }}
-          />
           <SegmentedControl
             style={{ marginTop: '10px' }}
-            styles={{
-              indicator: {
-                backgroundColor: isAskSide ? 'red' : 'green',
-              },
-            }}
+            color={isAskSide ? 'red' : 'green'}
             classNames={{
               label: 'label',
             }}
@@ -302,31 +357,27 @@ export function ConditionalMarketCard({
           />
           <TextInput
             label={
-              <>
-                <Flex justify="space-between" align="center" direction="row" wrap="wrap">
-                  <InputLabel pr={50} mr="sm">
-                    Amount of META
-                  </InputLabel>
-                  <Group justify="flex-start" align="center" ml="auto" gap={0}>
-                    {baseBalance || quoteBalance ? (
-                      <>
-                        <IconWallet height={12} />
-                        <Text size="xs">
-                          {isAskSide
-                            ? `${isPassMarket ? 'p' : 'f'}META ${
-                                numeral(baseBalance).format(BASE_FORMAT) || ''
-                              }`
-                            : `${isPassMarket ? 'p' : 'f'}USDC $${
-                                numeral(quoteBalance).format(NUMERAL_FORMAT) || ''
-                              }`}
-                        </Text>
-                      </>
-                    ) : (
-                      <Text> </Text>
-                    )}
-                  </Group>
-                </Flex>
-              </>
+              <Group justify="space-between" align="center">
+                <Text>Amount of META </Text>
+                <Group align="center" gap={0}>
+                  {baseBalance || quoteBalance ? (
+                    <>
+                      <IconWallet height={12} />
+                      <Text size="xs">
+                        {isAskSide
+                          ? `${isPassMarket ? 'p' : 'f'}META ${
+                              numeral(baseBalance).format(BASE_FORMAT) || ''
+                            }`
+                          : `${isPassMarket ? 'p' : 'f'}USDC $${
+                              numeral(quoteBalance).format(NUMERAL_FORMAT) || ''
+                            }`}
+                      </Text>
+                    </>
+                  ) : (
+                    <Text> </Text>
+                  )}
+                </Group>
+              </Group>
             }
             placeholder="Enter amount..."
             type="number"
@@ -368,7 +419,6 @@ export function ConditionalMarketCard({
                 onClick={() =>
                   placeOrder(amount, _orderPrice(), isLimitOrder, isAskSide, isPassMarket)
                 }
-                variant="light"
                 disabled={!amount || (isLimitOrder ? !price : false)}
               >
                 {orderSide} {isPassMarket ? 'p' : 'f'}META
@@ -376,7 +426,7 @@ export function ConditionalMarketCard({
             </GridCol>
           </Grid>
         </Stack>
-      </Card>
-    </Stack>
+      </Stack>
+    </Card>
   );
 }

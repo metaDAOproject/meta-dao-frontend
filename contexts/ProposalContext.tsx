@@ -11,6 +11,7 @@ import {
   Markets,
   OpenOrdersAccountWithKey,
   OrderBook,
+  Proposal,
   ProposalAccountWithKey,
 } from '@/lib/types';
 import { useAutocrat } from '@/contexts/AutocratContext';
@@ -22,7 +23,7 @@ import { getLeafNodes } from '../lib/openbook';
 import { debounce } from '../lib/utils';
 
 export interface ProposalInterface {
-  proposal?: ProposalAccountWithKey;
+  proposal?: Proposal;
   proposalNumber?: number;
   markets?: Markets;
   orders?: OpenOrdersAccountWithKey[];
@@ -99,7 +100,7 @@ export function ProposalProvider({
   const [isCranking, setIsCranking] = useState<boolean>(false);
   const { crankMarketTransactions } = useOpenbookTwap();
 
-  const proposal = useMemo<ProposalAccountWithKey | undefined>(
+  const proposal = useMemo<Proposal | undefined>(
     () =>
       proposals?.filter(
         (t) =>
@@ -114,7 +115,6 @@ export function ProposalProvider({
       if (!proposal || !openbook || !openbookTwap || !openbookTwap.views || !connection) {
         return;
       }
-      console.log('fetchMarketsInfo');
       const accountInfos = await connection.getMultipleAccountsInfo([
         proposal.account.openbookPassMarket,
         proposal.account.openbookFailMarket,
@@ -180,7 +180,7 @@ export function ProposalProvider({
         quoteVault,
       });
     }, 1000),
-    [markets, vaultProgram, openbook, openbookTwap],
+    [markets, vaultProgram, openbook, openbookTwap, proposal],
   );
   const fetchOpenOrders = useCallback(
     debounce<[PublicKey]>(async (owner: PublicKey) => {
@@ -201,7 +201,7 @@ export function ProposalProvider({
           .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1)),
       );
     }, 1000),
-    [openbook],
+    [openbook, proposal],
   );
 
   useEffect(() => {
@@ -306,7 +306,7 @@ export function ProposalProvider({
         }
       }
     },
-    [wallet, connection, sender, createTokenAccountsTransactions],
+    [wallet, connection, sender, createTokenAccountsTransactions, proposal],
   );
 
   const finalizeProposalTransactions = useCallback(async () => {
@@ -366,7 +366,7 @@ export function ProposalProvider({
         setLoading(false);
       }
     },
-    [connection, sender, mintTokensTransactions],
+    [connection, sender, mintTokensTransactions, proposal],
   );
 
   const orderBookObject = useMemo(() => {

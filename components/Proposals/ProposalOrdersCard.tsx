@@ -1,12 +1,10 @@
-import { ActionIcon, Button, Flex, Group, Loader, Stack, Tabs, Text } from '@mantine/core';
+import { ActionIcon, Button, Group, Loader, Stack, Tabs, Text } from '@mantine/core';
 import { Transaction } from '@solana/web3.js';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { IconRefresh } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import { BN } from '@coral-xyz/anchor';
-import numeral from 'numeral';
 import { OpenOrdersAccountWithKey } from '@/lib/types';
-import { NUMERAL_FORMAT, BASE_FORMAT } from '@/lib/constants';
 import { ProposalOrdersTable } from './ProposalOrdersTable';
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
@@ -235,58 +233,6 @@ export function ProposalOrdersCard() {
     return [];
   };
 
-  const isBidOrAsk = (order: OpenOrdersAccountWithKey) => {
-    const isBidSide = order.account.position.bidsBaseLots.gt(order.account.position.asksBaseLots);
-    if (isBidSide) {
-      return true;
-    }
-    return false;
-  };
-
-  const totalInOrder = () => {
-    let sumOrders = [];
-    sumOrders = orders?.map(
-      (order) =>
-        (order.account.position.bidsBaseLots.toNumber() / 10_000 +
-          order.account.position.asksBaseLots.toNumber() / 10_000) *
-        order.account.openOrders[0].lockedPrice.toNumber(),
-    );
-    const totalValueLocked = sumOrders.reduce((partialSum, amount) => partialSum + amount, 0);
-    return numeral(totalValueLocked).format(NUMERAL_FORMAT);
-  };
-
-  const totalUsdcInOrder = () => {
-    let sumOrders = [];
-    sumOrders = orders?.map((order) => {
-      if (isBidOrAsk(order)) {
-        return (
-          order.account.position.bidsBaseLots.toNumber() +
-          order.account.position.asksBaseLots.toNumber()
-        );
-      }
-      return 0;
-    });
-
-    const totalValueLocked = sumOrders.reduce((partialSum, amount) => partialSum + amount, 0);
-    return numeral(totalValueLocked).format(NUMERAL_FORMAT);
-  };
-
-  const totalMetaInOrder = () => {
-    let sumOrders = [];
-    sumOrders = orders?.map((order) => {
-      if (!isBidOrAsk(order)) {
-        return (
-          order.account.position.bidsBaseLots.toNumber() +
-          order.account.position.asksBaseLots.toNumber()
-        );
-      }
-      return 0;
-    });
-
-    const totalValueLocked = sumOrders.reduce((partialSum, amount) => partialSum + amount, 0);
-    return numeral(totalValueLocked).format(BASE_FORMAT);
-  };
-
   return !proposal || !markets || !orders ? (
     <Group justify="center" w="100%" h="100%">
       <Loader />
@@ -306,23 +252,6 @@ export function ProposalOrdersCard() {
             <IconRefresh />
           </ActionIcon>
         </Group>
-        <Flex justify="flex-end" align="flex-end" direction="row" wrap="wrap">
-          <Stack gap={0} align="center" justify="flex-end">
-            <Group>
-              <Text size="xl" fw="bold">
-                ${totalUsdcInOrder()}
-              </Text>
-              <Text size="md">condUSDC</Text>|
-              <Text size="xl" fw="bold">
-                {totalMetaInOrder()}
-              </Text>
-              <Text size="md">condMETA</Text>
-            </Group>
-            <Text fw="bolder" size="xl">
-              (${totalInOrder()}) Total
-            </Text>
-          </Stack>
-        </Flex>
       </Group>
       <Tabs defaultValue="open">
         <Tabs.List>

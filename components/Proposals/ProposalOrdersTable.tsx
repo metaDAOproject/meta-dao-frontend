@@ -185,8 +185,10 @@ export function ProposalOrdersTable({
 
   return (
     <>
-      <Group justify="flex-end">{description}</Group>
-      <Table>
+      <Group justify="flex-end" my="md">
+        {description}
+      </Group>
+      <Table verticalSpacing="md">
         <Table.Thead>
           <Table.Tr>
             {headers.map((header) => (
@@ -194,7 +196,7 @@ export function ProposalOrdersTable({
             ))}
           </Table.Tr>
         </Table.Thead>
-        <Table.Tbody>
+        <Table.Tbody style={{ height: 'fit-content' }}>
           {orders && orders.length > 0 ? (
             orders.map((order) => (
               <Table.Tr key={order.publicKey.toString()}>
@@ -411,7 +413,9 @@ export function ProposalOrdersTable({
               </Table.Tr>
             ))
           ) : (
-            <Table.Tr>No Orders Found</Table.Tr>
+            <Table.Tr>
+              <Text py="md">No Orders Found</Text>
+            </Table.Tr>
           )}
         </Table.Tbody>
       </Table>
