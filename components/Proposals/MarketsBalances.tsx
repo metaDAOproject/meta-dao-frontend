@@ -7,7 +7,7 @@ export default function MarketsBalances() {
   const { tokens } = useTokens();
 
   return (
-    <Group align="center" justify="center" pos="relative" pt="lg">
+    <Group align="center" justify="center" pos="relative" pt="lg" wrap="nowrap">
       <HoverCard position="top">
         <HoverCard.Target>
           <Group pos="absolute" top="0" left="0" justify="center" align="flex-start">
