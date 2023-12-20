@@ -1,5 +1,14 @@
 import { useCallback, useState } from 'react';
-import { ActionIcon, Group, Stack, Table, Text, useMantineTheme, Input } from '@mantine/core';
+import {
+  ActionIcon,
+  Group,
+  Stack,
+  Table,
+  Text,
+  useMantineTheme,
+  Input,
+  Tooltip,
+} from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import numeral from 'numeral';
 import {
@@ -236,35 +245,47 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
             ).format(NUMERAL_FORMAT)}
       </Table.Td>
       <Table.Td>
-        {isPartiallyFilled(order) ? (
-          <>
+        {isPartiallyFilled(order) && (
+          <Tooltip label="Settle funds">
             <ActionIcon variant="light" loading={isSettling} onClick={() => handleSettleFunds()}>
               <Icon3dRotate />
             </ActionIcon>
-          </>
-        ) : null}
+          </Tooltip>
+        )}
         <Group gap="sm">
-          <ActionIcon variant="light" loading={isCanceling} onClick={() => handleCancel()}>
-            <IconTrash />
-          </ActionIcon>
+          <Tooltip label="Cancel order" events={{ hover: true, focus: true, touch: false }}>
+            <ActionIcon variant="light" loading={isCanceling} onClick={() => handleCancel()}>
+              <IconTrash />
+            </ActionIcon>
+          </Tooltip>
           {editingOrder === order ? (
             <Group gap="0.1rem">
-              <ActionIcon
-                c="green"
-                variant="light"
-                loading={isEditing}
-                onClick={() => handleEdit()}
-              >
-                <IconCheck />
-              </ActionIcon>
-              <ActionIcon c="red" variant="light" onClick={() => setEditingOrder(() => undefined)}>
-                <IconPencilCancel />
-              </ActionIcon>
+              <Tooltip label="Submit" events={{ hover: true, focus: true, touch: false }}>
+                <ActionIcon
+                  c="green"
+                  variant="light"
+                  loading={isEditing}
+                  onClick={() => handleEdit()}
+                >
+                  <IconCheck />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label="Cancel" events={{ hover: true, focus: true, touch: false }}>
+                <ActionIcon
+                  c="red"
+                  variant="light"
+                  onClick={() => setEditingOrder(() => undefined)}
+                >
+                  <IconPencilCancel />
+                </ActionIcon>
+              </Tooltip>
             </Group>
           ) : (
-            <ActionIcon variant="light" onClick={() => setEditingOrder(() => order)}>
-              <IconEdit />
-            </ActionIcon>
+            <Tooltip label="Edit order" events={{ hover: true, focus: true, touch: false }}>
+              <ActionIcon variant="light" onClick={() => setEditingOrder(() => order)}>
+                <IconEdit />
+              </ActionIcon>
+            </Tooltip>
           )}
         </Group>
       </Table.Td>

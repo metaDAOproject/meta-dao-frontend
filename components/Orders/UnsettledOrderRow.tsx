@@ -47,12 +47,13 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
       );
 
       if (!txs) return;
+
       sender.send(txs);
       fetchOpenOrders(wallet.publicKey);
     } finally {
       setIsSettling(false);
     }
-  }, [order, proposal, settleFundsTransactions]);
+  }, [order, proposal, settleFundsTransactions, wallet, fetchOpenOrders]);
 
   const handleCloseAccount = useCallback(async () => {
     if (!proposal || !markets) return;
@@ -66,7 +67,7 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
     } catch (err) {
       console.error(err);
     }
-  }, [proposal, sender, order]);
+  }, [proposal, sender, order, wallet]);
 
   return (
     <Table.Tr key={order.publicKey.toString()}>
@@ -97,12 +98,12 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
         <Stack gap={0}>
           <Text>
             {`${order.account.position.baseFreeNative.toNumber() / 1_000_000_000} ${
-              isPass(order) ? 'pMETA' : 'fMETA'
+              isPass(order, proposal) ? 'pMETA' : 'fMETA'
             }`}
           </Text>
           <Text>
             {`${order.account.position.quoteFreeNative / 1_000_000} ${
-              isPass(order) ? 'pUSDC' : 'fUSDC'
+              isPass(order, proposal) ? 'pUSDC' : 'fUSDC'
             }`}
           </Text>
         </Stack>
@@ -121,23 +122,27 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
               </ActionIcon>
             </Tooltip>
           ) : null}
-          <ActionIcon variant="light" loading={isSettling} onClick={() => handleSettleFunds()}>
-            <Icon3dRotate />
-          </ActionIcon>
+          <Tooltip label="Settle Funds" events={{ hover: true, focus: true, touch: false }}>
+            <ActionIcon variant="light" loading={isSettling} onClick={() => handleSettleFunds()}>
+              <Icon3dRotate />
+            </ActionIcon>
+          </Tooltip>
           <Space />
-          <ActionIcon
-            disabled={
-              order.account.position.asksBaseLots > BN_0 ||
-              order.account.position.bidsBaseLots > BN_0 ||
-              order.account.position.baseFreeNative > BN_0 ||
-              order.account.position.quoteFreeNative > BN_0
-            }
-            variant="light"
-            loading={isSettling}
-            onClick={handleCloseAccount}
-          >
-            <IconAssemblyOff />
-          </ActionIcon>
+          <Tooltip label="Close Account" events={{ hover: true, focus: true, touch: false }}>
+            <ActionIcon
+              disabled={
+                order.account.position.asksBaseLots > BN_0 ||
+                order.account.position.bidsBaseLots > BN_0 ||
+                order.account.position.baseFreeNative > BN_0 ||
+                order.account.position.quoteFreeNative > BN_0
+              }
+              variant="light"
+              loading={isSettling}
+              onClick={handleCloseAccount}
+            >
+              <IconAssemblyOff />
+            </ActionIcon>
+          </Tooltip>
         </Group>
       </Table.Td>
     </Table.Tr>

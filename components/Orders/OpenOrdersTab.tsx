@@ -89,19 +89,24 @@ export function OpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }
   }, [orders, proposal, settleFundsTransactions]);
 
   return (
-    <Stack>
-      <Text>
+    <Stack py="md">
+      <Text size="sm">
         If you see orders here with a settle button, you can settle them to redeem the partial fill
         amount. These exist when there is a balance available within the Open Orders Account.
       </Text>
       <Group justify="space-around">
-        <Button loading={isCranking} onClick={() => crankMarkets()}>
+        <Button loading={isCranking} color="blue" onClick={() => crankMarkets()}>
           Crank 🐷
         </Button>
-        <Button color="red" loading={isCanceling} onClick={handleCancelAll}>
+        <Button loading={isCanceling} onClick={handleCancelAll}>
           Cancel all orders
         </Button>
-        <Button loading={isSettling} onClick={handleSettleAllFunds}>
+        <Button
+          loading={isSettling}
+          color="blue"
+          onClick={handleSettleAllFunds}
+          disabled={!orders.filter((order) => isPartiallyFilled(order)).length}
+        >
           Settle {orders.filter((order) => isPartiallyFilled(order)).length} orders
         </Button>
       </Group>
@@ -117,7 +122,7 @@ export function OpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }
           {orders && orders.length > 0 ? (
             orders.map((order) => <OpenOrderRow order={order} />)
           ) : (
-            <Table.Tr>No Orders Found</Table.Tr>
+            <Text py="sm">No Orders Found</Text>
           )}
         </Table.Tbody>
       </Table>

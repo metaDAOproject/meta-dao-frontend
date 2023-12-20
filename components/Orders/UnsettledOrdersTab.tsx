@@ -53,7 +53,7 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
   }, [orders, markets, proposal, sender, settleFundsTransactions, fetchOpenOrders]);
 
   return (
-    <Stack>
+    <Stack py="md">
       <Text size="sm">
         These are your Order Accounts (OpenBook uses a{' '}
         <a
@@ -88,7 +88,7 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
           {orders && orders.length > 0 ? (
             orders.map((order) => <UnsettledOrderRow order={order} />)
           ) : (
-            <Table.Tr>No Orders Found</Table.Tr>
+            <Text py="sm">No Orders Found</Text>
           )}
         </Table.Tbody>
       </Table>

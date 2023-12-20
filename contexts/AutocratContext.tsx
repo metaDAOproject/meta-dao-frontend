@@ -12,7 +12,7 @@ import { PublicKey } from '@solana/web3.js';
 import { useLocalStorage } from '@mantine/hooks';
 import { useProvider } from '@/hooks/useProvider';
 import { AUTOCRAT_VERSIONS, OPENBOOK_PROGRAM_ID } from '@/lib/constants';
-import { AutocratProgram, DaoState, ProgramVersion, ProposalAccountWithKey } from '../lib/types';
+import { AutocratProgram, DaoState, ProgramVersion, Proposal } from '../lib/types';
 import { useNetworkConfiguration } from '../hooks/useNetworkConfiguration';
 import { useOpenbookTwap } from '../hooks/useOpenbookTwap';
 import { IDL as OPENBOOK_IDL, OpenbookV2 } from '@/lib/idl/openbook_v2';
@@ -23,7 +23,7 @@ export interface AutocratContext {
   daoState?: DaoState;
   openbook?: Program<OpenbookV2>;
   openbookTwap?: Program<any>;
-  proposals?: ProposalAccountWithKey[];
+  proposals?: Proposal[];
   autocratProgram?: Program<AutocratProgram>;
   programVersion?: ProgramVersion;
   fetchState: () => Promise<void>;
@@ -46,7 +46,7 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
   const [programVersion, setProgramVersion] = useLocalStorage<ProgramVersion>({
     key: 'program_version',
     defaultValue: AUTOCRAT_VERSIONS[0],
-    getInitialValueInEffect: true,
+    getInitialValueInEffect: false,
     serialize: (value) => String(AUTOCRAT_VERSIONS.indexOf(value)),
     deserialize: (value) => AUTOCRAT_VERSIONS[Number(value)],
   });
@@ -76,18 +76,39 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
 
   const { program: openbookTwap } = useOpenbookTwap();
   const [daoState, setDaoState] = useState<DaoState>();
-  const [proposals, setProposals] = useState<ProposalAccountWithKey[]>();
-  console.log(programVersion, proposals);
+  const [proposals, setProposals] = useState<Proposal[]>();
 
   const fetchState = useCallback(async () => {
     setDaoState(await autocratProgram.account.dao.fetch(dao));
   }, [autocratProgram, dao]);
 
   const fetchProposals = useCallback(async () => {
-    const props = ((await autocratProgram?.account.proposal.all()) || []).sort((a, b) =>
+    const props = ((await autocratProgram?.account.proposal?.all()) || []).sort((a, b) =>
       a.account.number < b.account.number ? 1 : -1,
     );
-    setProposals(props);
+
+    let _proposals: Proposal[] = props.map((prop) => ({
+      title: `Proposal ${prop.account.number}`,
+      description: '',
+      ...prop,
+    }));
+    setProposals(_proposals);
+
+    _proposals = await Promise.all(
+      props.map(async (prop) => {
+        let resp;
+        if (prop.account.descriptionUrl.includes('hackmd.io'))
+          resp = await fetch(`/api/hackmd?url=${prop.account.descriptionUrl}`, { method: 'GET' })
+            .then(async (r) => await r.json())
+            .catch((e) => console.error(e));
+        return {
+          title: resp?.title || `Proposal ${prop.account.number}`,
+          description: resp?.description || '',
+          ...prop,
+        };
+      }),
+    );
+    setProposals(_proposals);
   }, [autocratProgram]);
 
   useEffect(() => {

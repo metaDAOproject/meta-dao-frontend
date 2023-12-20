@@ -4,10 +4,12 @@ import { Token } from '@/hooks/useTokens';
 import { useTokenAmount } from '@/hooks/useTokenAmount';
 import { useProposal } from '@/contexts/ProposalContext';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
+import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 
 export function MintConditionalTokenCard({ token }: { token: Token }) {
   const sender = useTransactionSender();
   const { markets, mintTokensTransactions } = useProposal();
+  const { generateExplorerLink } = useExplorerConfiguration();
 
   if (!markets) return null;
 
@@ -58,6 +60,11 @@ export function MintConditionalTokenCard({ token }: { token: Token }) {
       >
         Mint
       </Button>
+      <Text size="xs" mt="md">
+        <a href={generateExplorerLink(vault.toString()!, 'account')} target="blank">
+          See cond{token.symbol} vault in explorer
+        </a>
+      </Text>
     </Fieldset>
   );
 }

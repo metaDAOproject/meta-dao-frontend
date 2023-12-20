@@ -1,0 +1,24 @@
+.redHover {
+  color: inherit;
+  transition: color 0.2s ease;
+}
+
+.redHover:hover {
+  color: #ff0000;
+}
+
+.colorschemebutton {
+  background: #F6F6F6;
+  color: #999999;
+}
+.colorschemebutton:hover{
+    background: #EFEFEF;
+}
+
+[data-mantine-color-scheme='dark'] .colorschemebutton{
+    background: #252525;
+}
+
+[data-mantine-color-scheme='dark'] .colorschemebutton:hover{
+    background: #2F3033;
+}

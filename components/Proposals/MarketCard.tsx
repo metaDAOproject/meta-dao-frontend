@@ -133,35 +133,33 @@ export function MarketCard() {
     </Group>
   ) : (
     <Stack align="center" gap="xs" p="lg" pt="xl">
-      <Group wrap="wrap">
-        <Container size="3xs" p="0">
-          <Fieldset p="sm">
-            <Stack align="center" gap="0">
-              <Title order={3} c="green">
-                On PASS
-              </Title>
-              <Text ta="center">The market thinks it will change the value of the DAO to</Text>
-              <Title>{numeral(circulatingMarketPassValue).format(NUMERAL_FORMAT)}$</Title>
-              <Text ta="center" fw="lighter" size="sm">
-                {numeral(totalMarketPassValue).format(NUMERAL_FORMAT)}$ FDV
-              </Text>
-            </Stack>
-          </Fieldset>
-        </Container>
-        <Container size="3xs" p="0">
-          <Fieldset p="sm">
-            <Stack align="center" gap="0">
-              <Title order={3} c="red">
-                On FAIL
-              </Title>
-              <Text ta="center">The market thinks it will change the value of the DAO to</Text>
-              <Title>{numeral(circulatingMarketFailValue).format(NUMERAL_FORMAT)}$</Title>
-              <Text ta="center" fw="lighter" size="sm">
-                {numeral(totalMarketFailValue).format(NUMERAL_FORMAT)}$ FDV
-              </Text>
-            </Stack>
-          </Fieldset>
-        </Container>
+      <Group>
+        <Fieldset p="sm">
+          <Stack align="center" gap="0">
+            <Title order={3} c="green">
+              On PASS
+            </Title>
+            <Text ta="center">The market thinks it will change the value of the DAO to</Text>
+            <Title>{numeral(circulatingMarketPassValue).format(NUMERAL_FORMAT)}$</Title>
+            <Text ta="center" fw="lighter" size="sm">
+              {numeral(totalMarketPassValue).format(NUMERAL_FORMAT)}$ FDV
+            </Text>
+          </Stack>
+        </Fieldset>
+        {/* <Container size="3xs" p="0"> */}
+        <Fieldset p="sm" w="fit-content">
+          <Stack align="center" gap="0">
+            <Title order={3} c="red">
+              On FAIL
+            </Title>
+            <Text ta="center">The market thinks it will change the value of the DAO to</Text>
+            <Title>{numeral(circulatingMarketFailValue).format(NUMERAL_FORMAT)}$</Title>
+            <Text ta="center" fw="lighter" size="sm">
+              {numeral(totalMarketFailValue).format(NUMERAL_FORMAT)}$ FDV
+            </Text>
+          </Stack>
+        </Fieldset>
+        {/* </Container> */}
       </Group>
       <Group justify="center">
         <Container size="xs" p="0">

@@ -1,23 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Accordion,
-  ActionIcon,
   Button,
+  Card,
+  Container,
   Divider,
   Flex,
   Group,
-  HoverCard,
   Loader,
-  Space,
+  ScrollArea,
   Stack,
   Tabs,
   Text,
+  Title,
+  em,
+  useMantineColorScheme,
 } from '@mantine/core';
-import Link from 'next/link';
+import Markdown from 'react-markdown';
 import { useConnection } from '@solana/wallet-adapter-react';
-import { IconExternalLink, IconQuestionMark } from '@tabler/icons-react';
-import { useTokens } from '@/hooks/useTokens';
-import { useTokenAmount } from '@/hooks/useTokenAmount';
+import { IconChevronLeft } from '@tabler/icons-react';
+import { useMediaQuery } from '@mantine/hooks';
 import { ProposalOrdersCard } from './ProposalOrdersCard';
 import { ConditionalMarketCard } from '../Markets/ConditionalMarketCard';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
@@ -29,7 +30,9 @@ import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useConditionalVault } from '../../hooks/useConditionalVault';
 import { useProposal } from '@/contexts/ProposalContext';
 import { MarketCard } from './MarketCard';
-import { MintConditionalTokenCard } from './MintConditionalTokenCard';
+import ExternalLink from '../ExternalLink';
+import MarketsBalances from './MarketsBalances';
+import classes from '../../app/globals.module.css';
 
 export function ProposalDetailCard() {
   const { connection } = useConnection();
@@ -37,24 +40,14 @@ export function ProposalDetailCard() {
   const { redeemTokensTransactions } = useConditionalVault();
   const { proposal, markets, finalizeProposalTransactions } = useProposal();
   const sender = useTransactionSender();
-  const { amount: basePassAmount } = useTokenAmount(
-    markets?.baseVault.conditionalOnFinalizeTokenMint,
-  );
-  const { amount: baseFailAmount } = useTokenAmount(
-    markets?.baseVault.conditionalOnRevertTokenMint,
-  );
-  const { amount: quotePassAmount } = useTokenAmount(
-    markets?.quoteVault.conditionalOnFinalizeTokenMint,
-  );
-  const { amount: quoteFailAmount } = useTokenAmount(
-    markets?.quoteVault.conditionalOnRevertTokenMint,
-  );
-  const { tokens } = useTokens();
+  const { colorScheme } = useMantineColorScheme();
+
   const { generateExplorerLink } = useExplorerConfiguration();
   const [lastSlot, setLastSlot] = useState<number>();
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
+  const isMobile = useMediaQuery(`(max-width: ${em(1546)})`);
 
   const remainingSlots = useMemo(() => {
     if (!proposal || !daoState || !lastSlot) return;
@@ -72,6 +65,7 @@ export function ProposalDetailCard() {
   useEffect(() => {
     setSecondsLeft(((remainingSlots || 0) / SLOTS_PER_10_SECS) * 10);
   }, [remainingSlots]);
+
   useEffect(() => {
     const interval = setInterval(
       () => (secondsLeft && secondsLeft > 0 ? setSecondsLeft((old) => old - 1) : 0),
@@ -142,180 +136,97 @@ export function ProposalDetailCard() {
       <Loader />
     </Group>
   ) : (
-    <Stack gap="0">
-      <Flex justify="flex-start" align="flex-start" direction="row" wrap="wrap">
-        <Accordion w="100%" pb="md">
-          <Accordion.Item value={proposal.publicKey.toString()}>
-            <Accordion.Control>
-              <Group justify="space-between">
-                <Text size="xl" fw={500}>
-                  Proposal #{proposal.account.number + 1}
-                </Text>
-                {timeLeft ? <Text fw="bold">Ends in {timeLeft}</Text> : null}
-                <StateBadge proposal={proposal} />
-              </Group>
-            </Accordion.Control>
-            <Accordion.Panel p="0" style={{ padding: '0' }}>
-              <Stack gap="sm">
-                <Link href={proposal.account.descriptionUrl}>
-                  <Group gap="sm">
-                    <Text>Go to description</Text>
-                    <IconExternalLink />
-                  </Group>
-                </Link>
-                <Text>
-                  Proposer{' '}
-                  <a
-                    href={generateExplorerLink(proposal.account.proposer.toString(), 'account')}
-                    target="blank"
-                  >
-                    {shortKey(proposal.account.proposer.toString())}
-                  </a>
-                </Text>
-                <Text>
-                  Pass Market{' '}
-                  <a
-                    href={generateExplorerLink(
-                      proposal.account.openbookPassMarket.toString(),
-                      'account',
-                    )}
-                    target="blank"
-                  >
-                    {shortKey(proposal.account.openbookPassMarket.toString())}
-                  </a>
-                </Text>
-                <Text>
-                  Fail Market{' '}
-                  <a
-                    href={generateExplorerLink(
-                      proposal.account.openbookFailMarket.toString(),
-                      'account',
-                    )}
-                    target="blank"
-                  >
-                    {shortKey(proposal.account.openbookFailMarket.toString())}
-                  </a>
-                </Text>
-                <Text>
-                  Pass TWAP Market{' '}
-                  <a
-                    href={generateExplorerLink(
-                      proposal.account.openbookTwapPassMarket.toString(),
-                      'account',
-                    )}
-                    target="blank"
-                  >
-                    {shortKey(proposal.account.openbookTwapPassMarket.toString())}
-                  </a>
-                </Text>
-                <Text>
-                  Fail TWAP Market{' '}
-                  <a
-                    href={generateExplorerLink(
-                      proposal.account.openbookTwapFailMarket.toString(),
-                      'account',
-                    )}
-                    target="blank"
-                  >
-                    {shortKey(proposal.account.openbookTwapFailMarket.toString())}
-                  </a>
-                </Text>
-                <Text>
-                  Conditional USDC Vault{' '}
-                  <a
-                    href={generateExplorerLink(proposal.account.quoteVault.toString(), 'account')}
-                    target="blank"
-                  >
-                    {shortKey(proposal.account.quoteVault.toString())}
-                  </a>
-                </Text>
-                <Text>
-                  Conditional META Vault{' '}
-                  <a
-                    href={generateExplorerLink(proposal.account.baseVault.toString(), 'account')}
-                    target="blank"
-                  >
-                    {shortKey(proposal.account.baseVault.toString())}
-                  </a>
-                </Text>
-                {proposal.account.state.pending ? (
-                  <Button
-                    disabled={(remainingSlots || 0) > 0}
-                    loading={isFinalizing}
-                    onClick={handleFinalize}
-                  >
-                    Finalize
-                  </Button>
-                ) : null}
-                {proposal.account.state.passed ? (
-                  <Button color="green" loading={isRedeeming} onClick={handleRedeem}>
-                    Redeem
-                  </Button>
-                ) : null}
-              </Stack>
-            </Accordion.Panel>
-          </Accordion.Item>
-        </Accordion>
-        <Space w="md" />
-        <Group align="center" justify="center" m="auto" pos="relative" w="100%">
-          <HoverCard>
-            <HoverCard.Target>
-              <Group pos="absolute" top="0" left="0" justify="center" align="flex-start">
-                <ActionIcon variant="transparent" pos="absolute" top="0" left="0">
-                  <IconQuestionMark />
-                </ActionIcon>
-              </Group>
-            </HoverCard.Target>
-            <HoverCard.Dropdown w="22rem">
-              <Text>
-                Conditional tokens are the tokens used to trade on conditional markets. You can mint
-                some by depositing $META or $USDC. These tokens will be locked up until the proposal
-                is finalized.
-                <br />
-                <Text span fw="bold">
-                  Pass tokens (pTokens)
-                </Text>{' '}
-                are used to trade on the Pass Market, while{' '}
-                <Text span fw="bold">
-                  Fail tokens (fTokens)
-                </Text>{' '}
-                are used to trade on the Fail Market.
-              </Text>
-            </HoverCard.Dropdown>
-          </HoverCard>
-          {tokens?.meta ? <MintConditionalTokenCard token={tokens.meta} /> : null}
-          {tokens?.usdc ? <MintConditionalTokenCard token={tokens.usdc} /> : null}
-        </Group>
-      </Flex>
-      <Divider m={20} />
-      <Stack>
-        <Tabs defaultValue="order-book">
-          <Tabs.List>
-            <Tabs.Tab value="order-book">Order Book</Tabs.Tab>
-            <Tabs.Tab value="bet">Bet</Tabs.Tab>
-          </Tabs.List>
-          <Tabs.Panel value="order-book">
-            {markets ? (
-              <Group gap="md" justify="space-around" p="sm" pt="xl">
-                <ConditionalMarketCard
-                  isPassMarket
-                  quoteBalance={quotePassAmount?.uiAmountString}
-                  baseBalance={basePassAmount?.uiAmountString}
-                />
-                <ConditionalMarketCard
-                  isPassMarket={false}
-                  quoteBalance={quoteFailAmount?.uiAmountString}
-                  baseBalance={baseFailAmount?.uiAmountString}
-                />
-              </Group>
-            ) : null}
-          </Tabs.Panel>
-          <Tabs.Panel value="bet">
-            <MarketCard />
-          </Tabs.Panel>
-        </Tabs>
-        <ProposalOrdersCard />
+    <Flex
+      direction={isMobile ? 'column' : 'row'}
+      align="start"
+      justify="start"
+      gap={isMobile ? 'xl' : 'md'}
+    >
+      <Button
+        pos="fixed"
+        top="76px"
+        className={classes.colorschemebutton}
+        leftSection={<IconChevronLeft />}
+        href="/proposals"
+        component="a"
+        style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
+      >
+        Back to Proposals
+      </Button>
+      <Stack
+        pos={isMobile ? 'relative' : 'sticky'}
+        top={isMobile ? '10px' : '96px'}
+        justify="space-between"
+        p="md"
+        w={isMobile ? '100%' : '530'}
+      >
+        <Stack py="lg">
+          <Group justify="space-between" align="start">
+            <Title fw={500} w={380} order={3}>
+              {proposal.title}
+            </Title>
+            <StateBadge proposal={proposal} />
+          </Group>
+          {secondsLeft !== 0 && <Text fw="bold">Ends in {timeLeft}</Text>}
+          <Card bg={colorScheme === 'dark' ? 'dark' : '#f9f9f9'} w="fit-content">
+            <Stack justify="end" align="end" w="fit-content">
+              {proposal.description && (
+                <ScrollArea.Autosize mah={isMobile ? '340px' : '240px'} mx="auto">
+                  <Markdown className="markdown">{proposal.description}</Markdown>
+                </ScrollArea.Autosize>
+              )}
+              <ExternalLink href={proposal.account.descriptionUrl} />
+            </Stack>
+          </Card>
+          <Text opacity={0.6} style={{ textAlign: 'right' }}>
+            Proposed by{' '}
+            <a
+              href={generateExplorerLink(proposal.account.proposer.toString(), 'account')}
+              target="blank"
+            >
+              {shortKey(proposal.account.proposer)}
+            </a>
+          </Text>
+        </Stack>
+        <MarketsBalances />
+        {proposal.account.state.pending && (
+          <Button
+            disabled={(remainingSlots || 0) > 0}
+            loading={isFinalizing}
+            onClick={handleFinalize}
+          >
+            Finalize
+          </Button>
+        )}
+        {proposal.account.state.passed && (
+          <Button color="green" loading={isRedeeming} onClick={handleRedeem}>
+            Redeem
+          </Button>
+        )}
       </Stack>
-    </Stack>
+      <Divider orientation={isMobile ? 'horizontal' : 'vertical'} />
+      <Container>
+        <Stack style={{ flex: 1 }}>
+          <Tabs defaultValue="order-book">
+            <Tabs.List>
+              <Tabs.Tab value="order-book">Order Book</Tabs.Tab>
+              <Tabs.Tab value="bet">Bet</Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel value="order-book">
+              {markets ? (
+                <Group gap="md" justify="space-around" p="sm" pt="xl">
+                  <ConditionalMarketCard isPassMarket />
+                  <ConditionalMarketCard />
+                </Group>
+              ) : null}
+            </Tabs.Panel>
+            <Tabs.Panel value="bet">
+              <MarketCard />
+            </Tabs.Panel>
+          </Tabs>
+          <ProposalOrdersCard />
+        </Stack>
+      </Container>
+    </Flex>
   );
 }

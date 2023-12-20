@@ -1,12 +1,12 @@
 'use client';
 
-import { Welcome } from '../components/Welcome/Welcome';
-import { Layout } from '../components/Layout/Layout';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function HomePage() {
-  return (
-    <Layout>
-      <Welcome />
-    </Layout>
-  );
+  const router = useRouter();
+  useEffect(() => {
+    router.push('/proposals');
+  }, []);
+  return <></>;
 }
