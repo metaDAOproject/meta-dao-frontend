@@ -47,7 +47,7 @@ export function ProposalDetailCard() {
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
-  const isMobile = useMediaQuery(`(max-width: ${em(1546)})`);
+  const isMobile = useMediaQuery(`(max-width: ${em(1046)})`);
 
   const remainingSlots = useMemo(() => {
     if (!proposal || !daoState || !lastSlot) return;
