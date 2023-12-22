@@ -15,7 +15,7 @@ import {
   em,
   useMantineColorScheme,
 } from '@mantine/core';
-import Markdown from 'react-markdown';
+// import Markdown from 'react-markdown';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { useMediaQuery } from '@mantine/hooks';
@@ -47,7 +47,7 @@ export function ProposalDetailCard() {
   const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
-  const isMobile = useMediaQuery(`(max-width: ${em(1546)})`);
+  const isMobile = useMediaQuery(`(max-width: ${em(1046)})`);
 
   const remainingSlots = useMemo(() => {
     if (!proposal || !daoState || !lastSlot) return;
@@ -172,7 +172,7 @@ export function ProposalDetailCard() {
             <Stack justify="end" align="end" w="fit-content">
               {proposal.description && (
                 <ScrollArea.Autosize mah={isMobile ? '340px' : '240px'} mx="auto">
-                  <Markdown className="markdown">{proposal.description}</Markdown>
+                  {/* <Markdown className="markdown">{proposal.description}</Markdown> */}
                 </ScrollArea.Autosize>
               )}
               <ExternalLink href={proposal.account.descriptionUrl} />
