@@ -48,7 +48,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   const quoteBalance = useTokenAmount(
     isPassMarket
       ? markets?.quoteVault.conditionalOnFinalizeTokenMint
-      : markets?.baseVault.conditionalOnRevertTokenMint,
+      : markets?.quoteVault.conditionalOnRevertTokenMint,
   ).amount?.uiAmountString;
 
   if (!markets) return <></>;
