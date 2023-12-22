@@ -1,5 +1,5 @@
 import { useRouter } from 'next/navigation';
-import Markdown from 'react-markdown';
+// import Markdown from 'react-markdown';
 import { Card, Group, Stack, Text, UnstyledButton } from '@mantine/core';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { StateBadge } from './StateBadge';
@@ -31,7 +31,7 @@ export function ProposalPreview({ proposal }: { proposal: Proposal }) {
           </Group>
           {proposal.description && (
             <Group mt="-20px" h="120" style={{ overflow: 'hidden' }}>
-              <Markdown>{proposal.description.replaceAll('\n', '')}</Markdown>
+              {/* <Markdown>{proposal.description.replaceAll('\n', '')}</Markdown> */}
             </Group>
           )}
           <Group justify="space-between">

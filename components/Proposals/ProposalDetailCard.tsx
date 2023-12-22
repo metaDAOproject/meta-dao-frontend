@@ -15,7 +15,7 @@ import {
   em,
   useMantineColorScheme,
 } from '@mantine/core';
-import Markdown from 'react-markdown';
+// import Markdown from 'react-markdown';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { useMediaQuery } from '@mantine/hooks';
@@ -172,7 +172,7 @@ export function ProposalDetailCard() {
             <Stack justify="end" align="end" w="fit-content">
               {proposal.description && (
                 <ScrollArea.Autosize mah={isMobile ? '340px' : '240px'} mx="auto">
-                  <Markdown className="markdown">{proposal.description}</Markdown>
+                  {/* <Markdown className="markdown">{proposal.description}</Markdown> */}
                 </ScrollArea.Autosize>
               )}
               <ExternalLink href={proposal.account.descriptionUrl} />
