@@ -323,6 +323,20 @@ export function useOpenbookTwap() {
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SYSTEM_PROGRAM,
         })
+        .preInstructions([
+          createAssociatedTokenAccountIdempotentInstruction(
+            wallet.publicKey,
+            userBaseAccount,
+            wallet.publicKey,
+            market.account.baseMint,
+          ),
+          createAssociatedTokenAccountIdempotentInstruction(
+            wallet.publicKey,
+            userQuoteAccount,
+            wallet.publicKey,
+            market.account.quoteMint,
+          ),
+        ])
         .transaction();
       return [placeTx];
     },
