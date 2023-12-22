@@ -1,8 +1,8 @@
-// import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 // import { parse } from 'node-html-parser';
 
 // export const GET = async (request: NextRequest) => {
-export const GET = async () => {
+export const GET = async () => (
   // const { searchParams } = new URL(request.url);
   // const url = searchParams.get('url');
   // if (!url) return;
@@ -22,5 +22,5 @@ export const GET = async () => {
   // const title = lines[firstTitleIndex].replace('# ', '');
   // let description = lines.slice(secondTitleIndex + 1, thridTitleIndex).join('\n');
   // description = description.replace(/^\n+/, '');
-  // return NextResponse.json({ title, description });
-};
+  NextResponse.json({})
+);
