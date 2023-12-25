@@ -77,7 +77,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <AppShell header={{ height: 60 }} padding="md">
         <AppShell.Header withBorder>
           <Flex justify="space-between" align="center" p="md" w="100%" h="100%">
-            <Link href="/proposals" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
               <Flex justify="flex-start" align="center" gap="xs">
                 <Image src={icon} alt="App logo" width={36} height={36} ref={logoRef} />
                 <Title order={3}>the Meta-DAO</Title>

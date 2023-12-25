@@ -141,6 +141,7 @@ export function ProposalDetailCard() {
       align="start"
       justify="start"
       gap={isMobile ? 'xl' : 'md'}
+      mt="-1rem"
     >
       <Button
         pos="fixed"
@@ -205,7 +206,7 @@ export function ProposalDetailCard() {
         )}
       </Stack>
       <Divider orientation={isMobile ? 'horizontal' : 'vertical'} />
-      <Container>
+      <Container mt="1rem">
         <Stack style={{ flex: 1 }}>
           <Tabs defaultValue="order-book">
             <Tabs.List>
