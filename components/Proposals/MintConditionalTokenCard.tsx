@@ -47,11 +47,14 @@ export function MintConditionalTokenCard({ token }: { token: Token }) {
         type="number"
         onChange={(e) => setMintAmount(Number(e.target.value))}
       />
+      <Text fw="lighter" size="sm">
+        Balances:
+      </Text>
       <Text fw="lighter" size="sm" c="green">
-        Balance: {passAmount?.uiAmountString || 0} $p{token.symbol}
+        - {passAmount?.uiAmountString || 0} $p{token.symbol}
       </Text>
       <Text fw="lighter" size="sm" c="red">
-        Balance: {failAmount?.uiAmountString || 0} $f{token.symbol}
+        - {failAmount?.uiAmountString || 0} $f{token.symbol}
       </Text>
       <Button
         mt="md"
