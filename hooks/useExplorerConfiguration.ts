@@ -49,7 +49,7 @@ export function useExplorerConfiguration() {
   );
 
   const generateExplorerLink = useCallback(
-    (element: string, type: string) => matchSuffix(type) + element,
+    (element: string, type: 'account' | 'tx' | 'transaction') => matchSuffix(type) + element,
     [explorer],
   );
 

@@ -1,5 +1,7 @@
 import { useCallback, useState } from 'react';
-import { Button, Fieldset, Text, TextInput } from '@mantine/core';
+import { Button, Fieldset, Group, Text, TextInput } from '@mantine/core';
+import Link from 'next/link';
+import { IconExternalLink } from '@tabler/icons-react';
 import { Token } from '@/hooks/useTokens';
 import { useTokenAmount } from '@/hooks/useTokenAmount';
 import { useProposal } from '@/contexts/ProposalContext';
@@ -60,11 +62,26 @@ export function MintConditionalTokenCard({ token }: { token: Token }) {
       >
         Mint
       </Button>
-      <Text size="xs" mt="md">
-        <a href={generateExplorerLink(vault.toString()!, 'account')} target="blank">
-          See cond{token.symbol} vault in explorer
-        </a>
-      </Text>
+      <Group mt="md">
+        <Link
+          target="_blank"
+          href={generateExplorerLink(vault.conditionalOnFinalizeTokenMint.toString(), 'account')}
+        >
+          <Group gap="0" justify="center" ta="center">
+            <Text size="xs">p{token.symbol}</Text>
+            <IconExternalLink height="1rem" />
+          </Group>
+        </Link>
+        <Link
+          target="_blank"
+          href={generateExplorerLink(vault.conditionalOnRevertTokenMint.toString(), 'account')}
+        >
+          <Group gap="0" align="center">
+            <Text size="xs">f{token.symbol}</Text>
+            <IconExternalLink height="1rem" />
+          </Group>
+        </Link>
+      </Group>
     </Fieldset>
   );
 }
