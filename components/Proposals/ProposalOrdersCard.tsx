@@ -34,7 +34,7 @@ export function ProposalOrdersCard() {
           <ActionIcon
             variant="subtle"
             // @ts-ignore
-            onClick={() => fetchOpenOrders(proposal, wallet.publicKey)}
+            onClick={() => fetchOpenOrders(wallet.publicKey)}
           >
             <IconRefresh />
           </ActionIcon>
