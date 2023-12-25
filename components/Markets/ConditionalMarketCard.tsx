@@ -25,6 +25,7 @@ import { useProposal } from '@/contexts/ProposalContext';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useTokenAmount } from '@/hooks/useTokenAmount';
 import MarketTitle from './MarketTitle';
+import DisableNumberInputScroll from '../Utilities/DisableNumberInputScroll';
 
 export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?: boolean }) {
   const { daoState } = useAutocrat();
@@ -206,6 +207,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
       style={{ width: '26rem', border: `1px solid ${isWinning()}` }}
       bg="transparent"
     >
+      <DisableNumberInputScroll />
       <Stack gap="xs">
         <Group justify="space-between" align="flex-start">
           <MarketTitle isPassMarket={isPassMarket} />
