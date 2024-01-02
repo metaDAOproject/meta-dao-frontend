@@ -148,7 +148,7 @@ export function ProposalDetailCard() {
         top="76px"
         className={classes.colorschemebutton}
         leftSection={<IconChevronLeft />}
-        href="/proposals"
+        href="/"
         component="a"
         style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
       >
