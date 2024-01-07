@@ -42,6 +42,10 @@ export function useNetworkConfiguration() {
     network,
     setNetwork,
     setCustomEndpoint: (s: string) =>
-      setCustomEndpoint((old) => (/^(http|https):\/\//.test(s) ? s : old)),
+      setCustomEndpoint((old) =>
+        /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gi.test(s)
+          ? s
+          : old,
+      ),
   };
 }
