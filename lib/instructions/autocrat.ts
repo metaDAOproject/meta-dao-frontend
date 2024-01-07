@@ -15,17 +15,18 @@ export const instructions: InstructionSet = {
   name: 'Autocrat',
   actions: [
     {
-      label: 'Set Pass Threshold',
+      label: 'Update DAO',
       fields: [
         {
           type: InstructionFieldTypes.Number,
+          required: true,
           label: 'Threshold',
           description:
             'The difference threshold needed between PASS and FAIL market for a proposal to pass, in basis points',
           deserialize: (value: string) => Number(value),
         },
       ],
-      instruction: (params: any[]) => ({
+      instruction: async (params: any[]) => ({
         programId: defaultVersion.programId,
         accounts: [
           {
@@ -39,7 +40,7 @@ export const instructions: InstructionSet = {
             isWritable: false,
           },
         ],
-        data: coder.encode('set_pass_threshold_bps', {
+        data: coder.encode('update_dao', {
           passThresholdBps: params[0],
         }),
       }),

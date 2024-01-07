@@ -111,6 +111,7 @@ export enum InstructionFieldTypes {
 }
 export type InstructionFieldType = {
   type: InstructionFieldTypes;
+  required: boolean;
   label: string;
   description: string;
   deserialize: (value: string) => any;
@@ -118,7 +119,7 @@ export type InstructionFieldType = {
 export type InstructionAction = {
   label: string;
   fields: InstructionFieldType[];
-  instruction: (params: any[]) => ProposalInstruction;
+  instruction: (params: any[]) => Promise<ProposalInstruction>;
 };
 export type InstructionSet = {
   name: string;

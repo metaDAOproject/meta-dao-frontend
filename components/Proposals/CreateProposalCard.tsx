@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Card, Fieldset, NativeSelect, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Card, Fieldset, NativeSelect, Stack, Text, TextInput, Title } from '@mantine/core';
 import numeral, { Numeral } from 'numeral';
 import { BN } from '@coral-xyz/anchor';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
@@ -64,8 +64,12 @@ export function CreateProposalCard() {
   }, [selectedInstruction]);
 
   useEffect(() => {
-    if (params) {
-      setInstruction(selectedInstruction.instruction(params));
+    if (params && params.filter((_, i) => selectedInstruction.fields[i].required).length > 0) {
+      const constructInstruction = async () => {
+        const ix = await selectedInstruction.instruction(params);
+        setInstruction(ix);
+      };
+      constructInstruction();
     }
   }, [params, selectedInstruction]);
 
@@ -76,67 +80,70 @@ export function CreateProposalCard() {
   }, [initializeProposal, url, instruction]);
 
   return (
-    <Card shadow="sm" padding="sm" radius="md" withBorder>
-      {daoState ? (
-        <Stack>
-          <TextInput
-            defaultValue={url}
-            onChange={(e) => setUrl(e.target.value)}
-            label="Proposal's description URL"
-            description="A link to a page that describes what the proposal does"
-          />
-          <NativeSelect
-            label="Select instruction"
-            data={instructionGroups.map((group) => ({
-              group: group.name,
-              items: group.actions.map((a) => ({
-                label: a.label,
-                value: JSON.stringify(a),
-              })),
-            }))}
-            onChange={(e) => setSelectedInstruction(JSON.parse(e.target.value))}
-          />
-          <Fieldset legend="Instruction parameters">
-            {selectedInstruction?.fields.map((field, index) => (
-              <TextInput
-                key={field.label + index}
-                label={field.label}
-                description={field.description}
-                onChange={(e) =>
-                  setParams((old) => {
-                    if (!old) {
-                      old = new Array(selectedInstruction.fields.length);
-                    }
-                    return old.toSpliced(index, 1, field.deserialize(e.target.value));
-                  })
-                }
-              />
-            ))}
-          </Fieldset>
-          <Button
-            onClick={handleCreate}
-            disabled={
-              params?.includes(undefined) ||
-              (balance?.value() || 0) < (nextProposalCost.value() || 0)
-            }
-          >
-            Create proposal
-          </Button>
-          {(nextProposalCost.value() || 0) > 0 ? (
-            <Stack gap="0">
-              <Text fw="lighter">Your balance: {balance?.format(NUMERAL_FORMAT)} $SOL</Text>
-              <Text fw="lighter">
-                A {nextProposalCost.format(NUMERAL_FORMAT)} $SOL fee is required to create the
-                proposal. This helps prevent spam.
-              </Text>
-            </Stack>
-          ) : null}
-        </Stack>
-      ) : (
-        <Text fw="bolder" ta="center">
-          DAO not found
-        </Text>
-      )}
-    </Card>
+    <Stack>
+      <Title order={2}>Proposal creation</Title>
+      <Card shadow="sm" padding="sm" radius="md" withBorder>
+        {daoState ? (
+          <Stack>
+            <TextInput
+              defaultValue={url}
+              onChange={(e) => setUrl(e.target.value)}
+              label="Proposal's description URL"
+              description="A link to a page that describes what the proposal does"
+            />
+            <NativeSelect
+              label="Select instruction"
+              data={instructionGroups.map((group) => ({
+                group: group.name,
+                items: group.actions.map((a) => ({
+                  label: a.label,
+                  value: JSON.stringify(a),
+                })),
+              }))}
+              onChange={(e) => setSelectedInstruction(JSON.parse(e.target.value))}
+            />
+            <Fieldset legend="Instruction parameters">
+              {selectedInstruction?.fields.map((field, index) => (
+                <TextInput
+                  key={field.label + index}
+                  label={field.label}
+                  description={field.description}
+                  onChange={(e) =>
+                    setParams((old) => {
+                      if (!old) {
+                        old = new Array(selectedInstruction.fields.length);
+                      }
+                      return old.toSpliced(index, 1, field.deserialize(e.target.value));
+                    })
+                  }
+                />
+              ))}
+            </Fieldset>
+            <Button
+              onClick={handleCreate}
+              disabled={
+                params?.includes(undefined) ||
+                (balance?.value() || 0) < (nextProposalCost.value() || 0)
+              }
+            >
+              Create proposal
+            </Button>
+            {(nextProposalCost.value() || 0) > 0 ? (
+              <Stack gap="0">
+                <Text fw="lighter">Your balance: {balance?.format(NUMERAL_FORMAT)} $SOL</Text>
+                <Text fw="lighter">
+                  A {nextProposalCost.format(NUMERAL_FORMAT)} $SOL fee is required to create the
+                  proposal. This helps prevent spam.
+                </Text>
+              </Stack>
+            ) : null}
+          </Stack>
+        ) : (
+          <Text fw="bolder" ta="center">
+            DAO not found
+          </Text>
+        )}
+      </Card>
+    </Stack>
   );
 }
