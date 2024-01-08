@@ -97,10 +97,11 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
     _proposals = await Promise.all(
       props.map(async (prop) => {
         let resp;
-        if (prop.account.descriptionUrl.includes('hackmd.io'))
+        if (prop.account.descriptionUrl.includes('hackmd.io')) {
           resp = await fetch(`/api/hackmd?url=${prop.account.descriptionUrl}`, { method: 'GET' })
-            .then(async (r) => await r.json())
+            .then((r) => r.json())
             .catch((e) => console.error(e));
+        }
         return {
           title: resp?.title || `Proposal ${prop.account.number}`,
           description: resp?.description || '',

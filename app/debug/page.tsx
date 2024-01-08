@@ -8,6 +8,7 @@ import { notifications } from '@mantine/notifications';
 import { Layout } from '@/components/Layout/Layout';
 import CreateTestTokensCard from '../../components/ManageDao/CreateTestTokensCard';
 import CreateDaoButton from '../../components/ManageDao/CreateDaoButton';
+import TransferTokensButton from '../../components/ManageDao/TransferTokensButton';
 
 export default function DebugPage() {
   const { connection } = useConnection();
@@ -32,6 +33,7 @@ export default function DebugPage() {
           <Button onClick={handleAirdrop}>Airdrop</Button>
           <CreateTestTokensCard />
           <CreateDaoButton />
+          <TransferTokensButton />
         </Stack>
       </Container>
     </Layout>
