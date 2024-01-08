@@ -2,6 +2,7 @@ import { BorshInstructionCoder, utils } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { AUTOCRAT_VERSIONS } from '@/lib/constants';
 import { InstructionFieldTypes, InstructionSet } from '../types';
+import { validateType } from '../utils';
 
 const defaultVersion = AUTOCRAT_VERSIONS[0];
 const coder = new BorshInstructionCoder(defaultVersion.idl);
@@ -23,7 +24,7 @@ export const instructions: InstructionSet = {
           label: 'Threshold',
           description:
             'The difference threshold needed between PASS and FAIL market for a proposal to pass, in basis points',
-          deserialize: (value: string) => Number(value),
+          validate: async (value?: string) => validateType(InstructionFieldTypes.Key, value),
         },
       ],
       instruction: async (params: any[]) => ({

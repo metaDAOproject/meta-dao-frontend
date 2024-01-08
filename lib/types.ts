@@ -114,7 +114,7 @@ export type InstructionFieldType = {
   required: boolean;
   label: string;
   description: string;
-  deserialize: (value: string) => any;
+  validate: (value: string) => Promise<boolean>;
 };
 export type InstructionAction = {
   label: string;
