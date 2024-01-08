@@ -41,12 +41,11 @@ export const useAutocrat = () => {
 };
 
 export function AutocratProvider({ children }: { children: ReactNode }) {
-  const { network } = useNetworkConfiguration();
+  const { endpoint } = useNetworkConfiguration();
   const provider = useProvider();
   const [programVersion, setProgramVersion] = useLocalStorage<ProgramVersion>({
     key: 'program_version',
     defaultValue: AUTOCRAT_VERSIONS[0],
-    getInitialValueInEffect: false,
     serialize: (value) => String(AUTOCRAT_VERSIONS.indexOf(value)),
     deserialize: (value) => AUTOCRAT_VERSIONS[Number(value)],
   });
@@ -61,7 +60,7 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
   );
   const daoTreasury = useMemo(
     () => PublicKey.findProgramAddressSync([dao.toBuffer()], programId)[0],
-    [programId],
+    [dao, programId],
   );
   const autocratProgram = useMemo(
     () => new Program<AutocratProgram>(idl as AutocratProgram, programId, provider),
@@ -80,7 +79,7 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
 
   const fetchState = useCallback(async () => {
     setDaoState(await autocratProgram.account.dao.fetch(dao));
-  }, [autocratProgram, dao]);
+  }, [endpoint, autocratProgram, dao]);
 
   const fetchProposals = useCallback(async () => {
     const props = ((await autocratProgram?.account.proposal?.all()) || []).sort((a, b) =>
@@ -110,12 +109,12 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
       }),
     );
     setProposals(_proposals);
-  }, [autocratProgram]);
+  }, [endpoint, autocratProgram]);
 
   useEffect(() => {
     fetchProposals();
     fetchState();
-  }, [network, programVersion]);
+  }, [fetchState, fetchProposals]);
 
   return (
     <contextAutocrat.Provider

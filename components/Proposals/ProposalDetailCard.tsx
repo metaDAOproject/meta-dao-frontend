@@ -16,9 +16,11 @@ import {
   useMantineColorScheme,
 } from '@mantine/core';
 // import Markdown from 'react-markdown';
-import { useConnection } from '@solana/wallet-adapter-react';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { useMediaQuery } from '@mantine/hooks';
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { SystemProgram } from '@solana/web3.js';
 import { ProposalOrdersCard } from './ProposalOrdersCard';
 import { ConditionalMarketCard } from '../Markets/ConditionalMarketCard';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
@@ -33,11 +35,14 @@ import { MarketCard } from './MarketCard';
 import ExternalLink from '../ExternalLink';
 import MarketsBalances from './MarketsBalances';
 import classes from '../../app/globals.module.css';
+import { useTokens } from '../../hooks/useTokens';
 
 export function ProposalDetailCard() {
   const { connection } = useConnection();
-  const { fetchProposals, daoState } = useAutocrat();
+  const wallet = useWallet();
+  const { fetchProposals, daoTreasury, daoState } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
+  const { tokens } = useTokens();
   const { proposal, markets, finalizeProposalTransactions } = useProposal();
   const sender = useTransactionSender();
   const { colorScheme } = useMantineColorScheme();
@@ -89,8 +94,47 @@ export function ProposalDetailCard() {
   }, [secondsLeft]);
 
   const handleFinalize = useCallback(async () => {
+    if (!tokens?.meta || !daoTreasury || !wallet?.publicKey) return;
+
     setIsFinalizing(true);
-    const txs = await finalizeProposalTransactions();
+    // HACK: Use a UI to add remaining accounts
+    const txs = await finalizeProposalTransactions([
+      {
+        pubkey: getAssociatedTokenAddressSync(tokens.meta.publicKey, daoTreasury, true),
+        isSigner: false,
+        isWritable: true,
+      },
+      {
+        pubkey: getAssociatedTokenAddressSync(tokens.meta.publicKey, wallet.publicKey, true),
+        isSigner: false,
+        isWritable: true,
+      },
+      {
+        pubkey: tokens.meta.publicKey,
+        isSigner: false,
+        isWritable: true,
+      },
+      {
+        pubkey: wallet.publicKey,
+        isSigner: true,
+        isWritable: true,
+      },
+      {
+        pubkey: daoTreasury,
+        isSigner: false,
+        isWritable: true,
+      },
+      {
+        pubkey: TOKEN_PROGRAM_ID,
+        isSigner: false,
+        isWritable: false,
+      },
+      {
+        pubkey: SystemProgram.programId,
+        isSigner: false,
+        isWritable: false,
+      },
+    ]);
     if (!txs) return;
     try {
       await sender.send(txs);
@@ -98,7 +142,7 @@ export function ProposalDetailCard() {
     } finally {
       setIsFinalizing(false);
     }
-  }, [sender, finalizeProposalTransactions, fetchProposals]);
+  }, [tokens, daoTreasury, sender, finalizeProposalTransactions, fetchProposals]);
 
   const handleRedeem = useCallback(async () => {
     if (!markets || !proposal) return;
