@@ -1,9 +1,13 @@
 import { BN, utils } from '@coral-xyz/anchor';
-import { PublicKey, SystemProgram } from '@solana/web3.js';
-import { createTransferInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { PublicKey } from '@solana/web3.js';
+import {
+  TOKEN_PROGRAM_ID,
+  createTransferCheckedInstruction,
+  getAssociatedTokenAddressSync,
+  getMint,
+} from '@solana/spl-token';
 import { AUTOCRAT_VERSIONS } from '@/lib/constants';
 import { InstructionFieldTypes, InstructionSet } from '../types';
-import { validateType } from '../utils';
 
 const defaultVersion = AUTOCRAT_VERSIONS[0];
 const dao = PublicKey.findProgramAddressSync(
@@ -23,36 +27,38 @@ export const instructions: InstructionSet = {
           label: 'Recipient',
           description:
             'The wallet that will receive the token (not the token account) from the treasury',
-          validate: async (value?: string) => validateType(InstructionFieldTypes.Key, value),
         },
         {
           type: InstructionFieldTypes.Key,
           required: true,
           label: 'Token Mint',
           description: 'The mint of the token to transfer from the treasury',
-          validate: async (value?: string) => validateType(InstructionFieldTypes.Key, value),
         },
         {
-          type: InstructionFieldTypes.BigNumber,
+          type: InstructionFieldTypes.Number,
           required: true,
           label: 'Amount',
           description: 'The amount of tokens to transfer',
-          validate: async (value?: string) => validateType(InstructionFieldTypes.BigNumber, value),
         },
       ],
-      instruction: async (params: string[]) => {
+      instruction: async (params, options = {}) => {
+        if (!options?.connection) throw new Error('Connection not provided');
+
         const recipient = new PublicKey(params[0]);
         const mint = new PublicKey(params[1]);
-        const amount = new BN(params[2]);
-        const ix = createTransferInstruction(
+        const mintAccount = await getMint(options.connection, mint);
+        const amount = new BN(Number(params[2]) * 10 ** mintAccount.decimals);
+        const ix = createTransferCheckedInstruction(
           getAssociatedTokenAddressSync(mint, daoTreasury, true),
+          mint,
           getAssociatedTokenAddressSync(mint, recipient, true),
           daoTreasury,
           amount,
+          mintAccount.decimals,
         );
 
         return {
-          programId: SystemProgram.programId,
+          programId: TOKEN_PROGRAM_ID,
           accounts: ix.keys,
           data: ix.data,
         };

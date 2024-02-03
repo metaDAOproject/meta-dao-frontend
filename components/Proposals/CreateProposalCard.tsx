@@ -76,12 +76,12 @@ export function CreateProposalCard() {
         ) {
           return;
         }
-        const ix = await selectedInstruction.instruction(params);
+        const ix = await selectedInstruction.instruction(params, { connection });
         setInstruction(ix);
       };
       constructInstruction();
     }
-  }, [params, selectedInstruction]);
+  }, [connection, params, selectedInstruction]);
 
   const handleCreate = useCallback(async () => {
     if (!instruction || !initializeProposal) return;

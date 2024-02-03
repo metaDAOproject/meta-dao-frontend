@@ -2,7 +2,6 @@ import { utils } from '@coral-xyz/anchor';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
 import { AUTOCRAT_VERSIONS } from '@/lib/constants';
 import { InstructionFieldTypes, InstructionSet } from '../types';
-import { validateType } from '../utils';
 
 const defaultVersion = AUTOCRAT_VERSIONS[0];
 const dao = PublicKey.findProgramAddressSync(
@@ -21,14 +20,12 @@ export const instructions: InstructionSet = {
           required: true,
           label: 'Recipient',
           description: 'The wallet that will receive the token',
-          validate: async (value?: string) => validateType(InstructionFieldTypes.Key, value),
         },
         {
           type: InstructionFieldTypes.BigNumber,
           required: true,
           label: 'Amount',
           description: 'The amount of SOL to transfer',
-          validate: async (value?: string) => validateType(InstructionFieldTypes.BigNumber, value),
         },
       ],
       instruction: async (params: any[]) => {

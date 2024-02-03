@@ -110,6 +110,11 @@ export function ProposalDetailCard() {
         isWritable: true,
       },
       {
+        pubkey: daoTreasury,
+        isSigner: false,
+        isWritable: true,
+      },
+      {
         pubkey: tokens.meta.publicKey,
         isSigner: false,
         isWritable: true,
@@ -117,11 +122,6 @@ export function ProposalDetailCard() {
       {
         pubkey: wallet.publicKey,
         isSigner: true,
-        isWritable: true,
-      },
-      {
-        pubkey: daoTreasury,
-        isSigner: false,
         isWritable: true,
       },
       {

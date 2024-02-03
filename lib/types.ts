@@ -1,5 +1,5 @@
 import { Idl, IdlAccounts, IdlTypes } from '@coral-xyz/anchor';
-import { PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
 import { AutocratV0 } from './idl/autocrat_v0';
 import { AutocratV0 as AutocratV0_1 } from './idl/autocrat_v0.1';
 import { OpenbookTwap } from './idl/openbook_twap';
@@ -114,12 +114,14 @@ export type InstructionFieldType = {
   required: boolean;
   label: string;
   description: string;
-  validate: (value: string) => Promise<boolean>;
 };
 export type InstructionAction = {
   label: string;
   fields: InstructionFieldType[];
-  instruction: (params: any[]) => Promise<ProposalInstruction>;
+  instruction: (
+    params: any[],
+    options?: { connection?: Connection },
+  ) => Promise<ProposalInstruction>;
 };
 export type InstructionSet = {
   name: string;

@@ -29,7 +29,7 @@ export const validateType = async (type: InstructionFieldTypes, value?: string) 
       if (!value) {
         return false;
       }
-      return /^[1-9A-HJ-NP-Za-km-z]{44}$/.test(value);
+      return /^[1-9A-HJ-NP-Za-km-z]{40,44}$/.test(value);
     default:
       return true;
   }
