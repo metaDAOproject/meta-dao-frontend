@@ -71,8 +71,8 @@ export function useOpenbookTwap() {
     const maxBaseLots = new BN(Math.floor(amount));
     let maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
     if (!limitOrder) {
-        priceLots = new BN(1_000_000_000_000_000);
-        maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
+      priceLots = new BN(1_000_000_000_000_000);
+      maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
     }
     return {
       side: ask ? Side.Ask : Side.Bid,

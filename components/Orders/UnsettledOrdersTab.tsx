@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Stack, Table, Button, Group, Text } from '@mantine/core';
 import { Transaction } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
@@ -7,9 +7,8 @@ import { OpenOrdersAccountWithKey } from '@/lib/types';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { useProposal } from '@/contexts/ProposalContext';
-import { isEmptyOrder, isPartiallyFilled } from '@/lib/openbook';
+import { isClosableOrder, isEmptyOrder } from '@/lib/openbook';
 import { UnsettledOrderRow } from './UnsettledOrderRow';
-import { BN_0 } from '../../lib/constants';
 
 const headers = ['Order ID', 'Market', 'Claimable', 'Actions'];
 
@@ -22,14 +21,8 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
   const [isSettling, setIsSettling] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
 
-  const ordersToSettle = orders.filter((order) => isEmptyOrder(order)).length;
-  const ordersToClose = orders.filter(
-    (order) =>
-      order.account.position.asksBaseLots.eq(BN_0) &&
-      order.account.position.bidsBaseLots.eq(BN_0) &&
-      order.account.position.baseFreeNative.eq(BN_0) &&
-      order.account.position.quoteFreeNative.eq(BN_0),
-  ).length;
+  const ordersToSettle = useMemo(() => orders.filter((order) => !isEmptyOrder(order)), [orders]);
+  const ordersToClose = useMemo(() => orders.filter((order) => isClosableOrder(order)), [orders]);
 
   const handleSettleAllFunds = useCallback(async () => {
     if (!proposal || !markets || !wallet?.publicKey) return;
@@ -38,19 +31,17 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
     try {
       const txs = (
         await Promise.all(
-          orders
-            .filter((order) => isPartiallyFilled(order))
-            .map((order) => {
-              const pass = order.account.market.equals(proposal.account.openbookPassMarket);
-              return settleFundsTransactions(
-                order.account.accountNum,
-                pass,
-                proposal,
-                pass
-                  ? { account: markets.pass, publicKey: proposal.account.openbookPassMarket }
-                  : { account: markets.fail, publicKey: proposal.account.openbookFailMarket },
-              );
-            }),
+          ordersToSettle.map((order) => {
+            const pass = order.account.market.equals(proposal.account.openbookPassMarket);
+            return settleFundsTransactions(
+              order.account.accountNum,
+              pass,
+              proposal,
+              pass
+                ? { account: markets.pass, publicKey: proposal.account.openbookPassMarket }
+                : { account: markets.fail, publicKey: proposal.account.openbookFailMarket },
+            );
+          }),
         )
       )
         .flat()
@@ -62,7 +53,7 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
     } finally {
       setIsSettling(false);
     }
-  }, [orders, markets, proposal, sender, settleFundsTransactions, fetchOpenOrders]);
+  }, [ordersToSettle, markets, proposal, sender, settleFundsTransactions, fetchOpenOrders]);
 
   const handleCloseAllOrders = useCallback(async () => {
     if (!proposal || !markets || !wallet?.publicKey) return;
@@ -72,15 +63,9 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
     try {
       const txs = (
         await Promise.all(
-          orders
-            .filter(
-              (order) =>
-                order.account.position.asksBaseLots.eq(BN_0) &&
-                order.account.position.bidsBaseLots.eq(BN_0) &&
-                order.account.position.baseFreeNative.eq(BN_0) &&
-                order.account.position.quoteFreeNative.eq(BN_0),
-            )
-            .map((order) => closeOpenOrdersAccountTransactions(new BN(order.account.accountNum))),
+          ordersToClose.map((order) =>
+            closeOpenOrdersAccountTransactions(new BN(order.account.accountNum)),
+          ),
         )
       )
         .flat()
@@ -88,11 +73,11 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
 
       if (!txs) return;
       await sender.send(txs as Transaction[]);
-      fetchOpenOrders(wallet.publicKey);
     } finally {
+      fetchOpenOrders(wallet.publicKey);
       setIsClosing(false);
     }
-  }, [orders, markets, proposal, sender, settleFundsTransactions, fetchOpenOrders]);
+  }, [ordersToClose, markets, proposal, sender, settleFundsTransactions, fetchOpenOrders]);
 
   return (
     <Stack py="md">
@@ -114,17 +99,17 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
           variant="light"
           loading={isSettling}
           onClick={handleSettleAllFunds}
-          disabled={ordersToSettle === 0}
+          disabled={ordersToSettle.length === 0}
         >
-          Settle All Orders
+          Settle {ordersToSettle.length} Orders
         </Button>
         <Button
           variant="light"
           loading={isClosing}
           onClick={handleCloseAllOrders}
-          disabled={ordersToClose === 0}
+          disabled={ordersToClose.length === 0}
         >
-          Close All Orders
+          Close {ordersToClose.length} Orders
         </Button>
       </Group>
       <Table>
@@ -137,7 +122,9 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
         </Table.Thead>
         <Table.Tbody>
           {orders && orders.length > 0 ? (
-            orders.map((order) => <UnsettledOrderRow order={order} />)
+            orders.map((order) => (
+              <UnsettledOrderRow key={order.publicKey.toString()} order={order} />
+            ))
           ) : (
             <Text py="sm">No Orders Found</Text>
           )}

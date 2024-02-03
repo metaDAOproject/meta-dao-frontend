@@ -120,7 +120,7 @@ export function OpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }
         </Table.Thead>
         <Table.Tbody>
           {orders && orders.length > 0 ? (
-            orders.map((order) => <OpenOrderRow order={order} />)
+            orders.map((order) => <OpenOrderRow key={order.publicKey.toString()} order={order} />)
           ) : (
             <Text py="sm">No Orders Found</Text>
           )}

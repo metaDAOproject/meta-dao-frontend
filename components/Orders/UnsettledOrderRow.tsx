@@ -18,7 +18,7 @@ import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { BN_0 } from '@/lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
-import { isBid, isPass } from '@/lib/openbook';
+import { isBid, isEmptyOrder, isPass } from '@/lib/openbook';
 
 export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
   const { markets } = useProposal();
@@ -30,6 +30,7 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
 
   const [isSettling, setIsSettling] = useState<boolean>(false);
+  const [isClosing, setIsClosing] = useState<boolean>(false);
 
   const handleSettleFunds = useCallback(async () => {
     if (!proposal || !markets || !wallet?.publicKey) return;
@@ -48,8 +49,8 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
 
       if (!txs) return;
 
-      sender.send(txs);
-      fetchOpenOrders(wallet.publicKey);
+      await sender.send(txs);
+      await fetchOpenOrders(wallet.publicKey);
     } finally {
       setIsSettling(false);
     }
@@ -62,10 +63,14 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
 
     if (!wallet.publicKey || !txs) return;
 
+    setIsClosing(true);
     try {
       await sender.send(txs);
+      fetchOpenOrders(wallet.publicKey);
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsClosing(false);
     }
   }, [proposal, sender, order, wallet]);
 
@@ -123,7 +128,12 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
             </Tooltip>
           ) : null}
           <Tooltip label="Settle Funds" events={{ hover: true, focus: true, touch: false }}>
-            <ActionIcon variant="light" loading={isSettling} onClick={() => handleSettleFunds()}>
+            <ActionIcon
+              variant="light"
+              disabled={isEmptyOrder(order)}
+              loading={isSettling}
+              onClick={() => handleSettleFunds()}
+            >
               <Icon3dRotate />
             </ActionIcon>
           </Tooltip>
@@ -137,7 +147,7 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
                 order.account.position.quoteFreeNative > BN_0
               }
               variant="light"
-              loading={isSettling}
+              loading={isClosing}
               onClick={handleCloseAccount}
             >
               <IconAssemblyOff />

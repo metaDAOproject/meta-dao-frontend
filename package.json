@@ -26,7 +26,7 @@
     "@mantine/notifications": "^7.1.5",
     "@moongate/moongate-adapter": "^0.0.99",
     "@next/bundle-analyzer": "^13.5.3",
-    "@openbook-dex/openbook-v2": "^0.0.15",
+    "@openbook-dex/openbook-v2": "^0.1.9",
     "@solana/spl-token": "^0.3.8",
     "@solana/wallet-adapter-base": "^0.9.23",
     "@solana/wallet-adapter-react": "^0.15.35",
