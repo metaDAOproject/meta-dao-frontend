@@ -1,5 +1,5 @@
 import { Idl, IdlAccounts, IdlTypes } from '@coral-xyz/anchor';
-import { PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey } from '@solana/web3.js';
 import { AutocratV0 } from './idl/autocrat_v0';
 import { AutocratV0 as AutocratV0_1 } from './idl/autocrat_v0.1';
 import { OpenbookTwap } from './idl/openbook_twap';
@@ -111,14 +111,17 @@ export enum InstructionFieldTypes {
 }
 export type InstructionFieldType = {
   type: InstructionFieldTypes;
+  required: boolean;
   label: string;
   description: string;
-  deserialize: (value: string) => any;
 };
 export type InstructionAction = {
   label: string;
   fields: InstructionFieldType[];
-  instruction: (params: any[]) => ProposalInstruction;
+  instruction: (
+    params: any[],
+    options?: { connection?: Connection },
+  ) => Promise<ProposalInstruction>;
 };
 export type InstructionSet = {
   name: string;

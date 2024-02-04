@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
+import { AccountMeta, PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 import {
   getAssociatedTokenAddressSync,
   createAssociatedTokenAccountInstruction,
@@ -37,7 +37,9 @@ export interface ProposalInterface {
   fetchMarketsInfo: () => Promise<void>;
   createTokenAccounts: (fromBase?: boolean) => Promise<void>;
   createTokenAccountsTransactions: (fromBase?: boolean) => Promise<Transaction[] | undefined>;
-  finalizeProposalTransactions: () => Promise<Transaction[] | undefined>;
+  finalizeProposalTransactions: (
+    remainingAccounts?: AccountMeta[],
+  ) => Promise<Transaction[] | undefined>;
   mintTokensTransactions: (
     amount: number,
     fromBase?: boolean,
@@ -309,25 +311,29 @@ export function ProposalProvider({
     [wallet, connection, sender, createTokenAccountsTransactions, proposal],
   );
 
-  const finalizeProposalTransactions = useCallback(async () => {
-    if (!autocratProgram || !proposal || !dao || !daoState || !vaultProgram) return;
+  const finalizeProposalTransactions = useCallback(
+    async (remainingAccounts: AccountMeta[] = []) => {
+      if (!autocratProgram || !proposal || !dao || !daoState || !vaultProgram) return;
 
-    const tx = await autocratProgram.methods
-      .finalizeProposal()
-      .accounts({
-        proposal: proposal.publicKey,
-        openbookTwapPassMarket: proposal.account.openbookTwapPassMarket,
-        openbookTwapFailMarket: proposal.account.openbookTwapFailMarket,
-        dao,
-        daoTreasury,
-        baseVault: proposal.account.baseVault,
-        quoteVault: proposal.account.quoteVault,
-        vaultProgram: vaultProgram.programId,
-      })
-      .transaction();
+      const tx = await autocratProgram.methods
+        .finalizeProposal()
+        .accounts({
+          proposal: proposal.publicKey,
+          openbookTwapPassMarket: proposal.account.openbookTwapPassMarket,
+          openbookTwapFailMarket: proposal.account.openbookTwapFailMarket,
+          dao,
+          daoTreasury,
+          baseVault: proposal.account.baseVault,
+          quoteVault: proposal.account.quoteVault,
+          vaultProgram: vaultProgram.programId,
+        })
+        .remainingAccounts(remainingAccounts)
+        .transaction();
 
-    return [tx];
-  }, [autocratProgram, proposal, vaultProgram, dao, daoTreasury]);
+      return [tx];
+    },
+    [autocratProgram, proposal, vaultProgram, dao, daoTreasury],
+  );
 
   const mintTokensTransactions = useCallback(
     async (amount: number, fromBase?: boolean) => {

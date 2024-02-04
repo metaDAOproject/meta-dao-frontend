@@ -97,9 +97,9 @@ export function useTokens() {
   });
 
   return {
-    tokens: { ...tokens, ...selectDefaultTokens(network) },
+    tokens: { ...selectDefaultTokens(network), ...tokens },
     setTokens: (newTokens: TokensDict) => {
-      setTokens({ ...tokens, ...newTokens, ...selectDefaultTokens(network) });
+      setTokens({ ...tokens, ...newTokens });
     },
   };
 }
