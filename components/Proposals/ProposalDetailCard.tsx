@@ -205,12 +205,22 @@ export function ProposalDetailCard() {
 
     setIsClosing(true);
     try {
-      await sender.send([cancelOpenOrdersTxs, settleOrdersTxs, closeOrdersTxs]);
+      await sender.send(
+        [cancelOpenOrdersTxs, settleOrdersTxs, closeOrdersTxs].filter((set) => set.length !== 0),
+      );
     } finally {
       fetchOpenOrders(wallet.publicKey);
       setIsClosing(false);
     }
-  }, [orders, sender, wallet.publicKey, cancelOrderTransactions, fetchOpenOrders]);
+  }, [
+    orders,
+    markets,
+    proposal,
+    sender,
+    wallet.publicKey,
+    cancelOrderTransactions,
+    fetchOpenOrders,
+  ]);
 
   const handleRedeem = useCallback(async () => {
     if (!markets || !proposal) return;
