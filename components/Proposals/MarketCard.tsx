@@ -16,16 +16,18 @@ import {
 } from '@mantine/core';
 import numeral from 'numeral';
 import { IconQuestionMark } from '@tabler/icons-react';
+import { Mint, getMint } from '@solana/spl-token';
+import { useConnection } from '@solana/wallet-adapter-react';
 import { NUMERAL_FORMAT } from '@/lib/constants';
 import { Token, useTokens } from '../../hooks/useTokens';
 import { useTokenAmount } from '../../hooks/useTokenAmount';
-import { useTokenMint } from '../../hooks/useTokenMint';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { getParsedOrders } from '@/lib/openbook';
 import { useProposal } from '@/contexts/ProposalContext';
 
 export function MarketCard() {
+  const { connection } = useConnection();
   const { daoTreasury } = useAutocrat();
   const { proposal, markets, mintTokensTransactions, placeOrderTransactions, fetchMarketsInfo } =
     useProposal();
@@ -33,7 +35,7 @@ export function MarketCard() {
   const { amount: quoteBalance } = useTokenAmount(markets?.quoteVault.underlyingTokenMint);
   const { tokens } = useTokens();
   const { amount: treasuryBalance } = useTokenAmount(tokens?.meta?.publicKey, daoTreasury);
-  const { mint } = useTokenMint(tokens?.meta?.publicKey);
+  const [mint, setMint] = useState<Mint>();
   const sender = useTransactionSender();
   const [passPrice, setPassPrice] = useState<number>(0);
   const [failPrice, setFailPrice] = useState<number>(0);
@@ -46,6 +48,16 @@ export function MarketCard() {
   const payoutToken = selectedToken === tokens?.usdc ? tokens?.meta : tokens?.usdc;
   const passPayoutAmount = usingBaseToken ? passPrice * amount : amount / passPrice;
   const failPayoutAmount = usingBaseToken ? failPrice * amount : amount / failPrice;
+
+  const fetchMint = async () => {
+    if (tokens?.meta?.publicKey && connection) {
+      setMint(await getMint(connection, tokens.meta.publicKey));
+    }
+  };
+
+  useEffect(() => {
+    fetchMint();
+  }, [tokens, connection]);
 
   useEffect(() => {
     if (!selectedToken) {
@@ -111,7 +123,9 @@ export function MarketCard() {
 
     try {
       setIsBetting(true);
-      await sender.send([...mintTxs, ...placePassTxs, ...placeFailTxs].filter(Boolean), true);
+      await sender.send(
+        [...mintTxs, ...placePassTxs, ...placeFailTxs].filter(Boolean).map((e) => [e]),
+      );
     } finally {
       setIsBetting(false);
     }

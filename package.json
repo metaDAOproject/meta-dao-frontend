@@ -18,7 +18,7 @@
     "storybook:build": "storybook build"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.28.0-beta2",
+    "@coral-xyz/anchor": "^0.28.1-beta.2",
     "@lab49/react-order-book": "https://github.com/R-K-H/react-order-book",
     "@mantine/core": "7.3.2",
     "@mantine/hooks": "7.3.2",
@@ -26,7 +26,7 @@
     "@mantine/notifications": "^7.1.5",
     "@moongate/moongate-adapter": "^0.0.99",
     "@next/bundle-analyzer": "^13.5.3",
-    "@openbook-dex/openbook-v2": "^0.0.15",
+    "@openbook-dex/openbook-v2": "^0.1.9",
     "@solana/spl-token": "^0.3.8",
     "@solana/wallet-adapter-base": "^0.9.23",
     "@solana/wallet-adapter-react": "^0.15.35",
@@ -79,5 +79,8 @@
     "storybook-dark-mode": "^3.0.0",
     "ts-jest": "^29.1.0",
     "typescript": "5.2.2"
+  },
+  "resolutions": {
+    "**/@coral-xyz/anchor": "0.28.1-beta.2"
   }
 }

@@ -243,6 +243,12 @@ export const isPartiallyFilled = (order: OpenOrdersAccountWithKey): boolean => {
 export const isEmptyOrder = (order: OpenOrdersAccountWithKey): boolean =>
   order.account.openOrders[0].isFree === 1;
 
+export const isClosableOrder = (order: OpenOrdersAccountWithKey): boolean =>
+  order.account.position.asksBaseLots.eq(BN_0) &&
+  order.account.position.bidsBaseLots.eq(BN_0) &&
+  order.account.position.baseFreeNative.eq(BN_0) &&
+  order.account.position.quoteFreeNative.eq(BN_0);
+
 export const isOpenOrder = (order: OpenOrdersAccountWithKey, markets: Markets): boolean => {
   if (order.account.openOrders[0].isFree === 0) {
     const passAsksFilter = markets.passAsks.filter(

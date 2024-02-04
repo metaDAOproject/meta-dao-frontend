@@ -10,12 +10,12 @@ import React, {
 import { Program, utils } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { useLocalStorage } from '@mantine/hooks';
+import { OpenbookV2, IDL as OPENBOOK_IDL } from '@openbook-dex/openbook-v2';
 import { useProvider } from '@/hooks/useProvider';
 import { AUTOCRAT_VERSIONS, OPENBOOK_PROGRAM_ID } from '@/lib/constants';
 import { AutocratProgram, DaoState, ProgramVersion, Proposal } from '../lib/types';
 import { useNetworkConfiguration } from '../hooks/useNetworkConfiguration';
 import { useOpenbookTwap } from '../hooks/useOpenbookTwap';
-import { IDL as OPENBOOK_IDL, OpenbookV2 } from '@/lib/idl/openbook_v2';
 
 export interface AutocratContext {
   dao?: PublicKey;

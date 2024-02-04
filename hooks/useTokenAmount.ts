@@ -23,7 +23,9 @@ export function useTokenAmount(mint?: PublicKey, owner?: PublicKey) {
         setAmount((await connection.getTokenAccountBalance(account)).value);
       } catch (err) {
         console.error(
-          `Error with this account fetch ${account.toString()}, please review issue and solve.`,
+          `Error with this account fetch ${account.toString()} (owner: ${(
+            owner || wallet.publicKey
+          )?.toString()}, mint: ${mint?.toString()}), please review issue and solve.`,
         );
         setAmount(defaultAmount);
       }

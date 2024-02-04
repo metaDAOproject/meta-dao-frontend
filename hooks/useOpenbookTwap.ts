@@ -14,7 +14,11 @@ import {
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import { PlaceOrderArgs } from '@openbook-dex/openbook-v2/dist/types/client';
-import { SelfTradeBehavior, OrderType, Side } from '@openbook-dex/openbook-v2/dist/cjs/utils/utils';
+import {
+  SelfTradeBehavior,
+  OrderType,
+  SideUtils,
+} from '@openbook-dex/openbook-v2/dist/cjs/utils/utils';
 import { OpenbookTwap } from '@/lib/idl/openbook_twap';
 import { OPENBOOK_PROGRAM_ID, OPENBOOK_TWAP_PROGRAM_ID, QUOTE_LOTS } from '@/lib/constants';
 import {
@@ -71,11 +75,11 @@ export function useOpenbookTwap() {
     const maxBaseLots = new BN(Math.floor(amount));
     let maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
     if (!limitOrder) {
-        priceLots = new BN(1_000_000_000_000_000);
-        maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
+      priceLots = new BN(1_000_000_000_000_000);
+      maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
     }
     return {
-      side: ask ? Side.Ask : Side.Bid,
+      side: ask ? SideUtils.Ask : SideUtils.Bid,
       priceLots,
       maxBaseLots,
       maxQuoteLotsIncludingFees,
@@ -273,8 +277,9 @@ export function useOpenbookTwap() {
       market: MarketAccountWithKey,
     ) => {
       if (!wallet.publicKey || !openbook) {
-        return;
+        throw new Error('Some variables are not initialized yet...');
       }
+
       const quoteVault = await getVaultMint(proposal.account.quoteVault);
       const baseVault = await getVaultMint(proposal.account.baseVault);
       const openOrdersAccount = findOpenOrders(new BN(orderId), wallet.publicKey);
@@ -341,7 +346,7 @@ export function useOpenbookTwap() {
   const closeOpenOrdersAccountTransactions = useCallback(
     async (orderId: BN) => {
       if (!wallet.publicKey || !openbook) {
-        return;
+        throw new Error('Some variables are not initialized yet...');
       }
 
       const openOrdersIndexer = findOpenOrdersIndexer(wallet.publicKey);
@@ -364,7 +369,7 @@ export function useOpenbookTwap() {
   const cancelOrderTransactions = useCallback(
     async (orderId: BN, market: MarketAccountWithKey) => {
       if (!wallet.publicKey || !openbook || !openbookTwap) {
-        return;
+        throw new Error('Some variables are not initialized yet...');
       }
 
       const openOrdersAccount = findOpenOrders(orderId, wallet.publicKey);
