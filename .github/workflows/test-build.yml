@@ -1,8 +1,6 @@
 name: Test building
-
 on:
   pull_request
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -31,9 +29,16 @@ jobs:
         with:
           node-version: "20"
           cache: ${{ steps.detect-package-manager.outputs.manager }}
-      - name: Clean cache
-        run: ${{ steps.detect-package-manager.outputs.manager }} cache clean
+      - name: Restore cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            .${{ steps.detect-package-manager.outputs.manager }}/cache
+            .cache/${{ steps.detect-package-manager.outputs.manager }}
+            .next/cache
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}-new
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
       - name: Build with Next.js
         run: ${{ steps.detect-package-manager.outputs.runner }} next build
+ 

@@ -9,7 +9,7 @@ import numeral from 'numeral';
 import { ConditionalVault, IDL as CONDITIONAL_VAULT_IDL } from '../lib/idl/conditional_vault';
 import { useProvider } from './useProvider';
 import { useTokens } from './useTokens';
-import { ProposalAccount, VaultAccount, VaultAccountWithKey } from '../lib/types';
+import { InitializedVault, ProposalAccount, VaultAccount, VaultAccountWithKey } from '../lib/types';
 
 export function useConditionalVault() {
   const provider = useProvider();
@@ -30,7 +30,11 @@ export function useConditionalVault() {
   );
 
   const initializeVault = useCallback(
-    async (settlementAuthority: PublicKey, underlyingTokenMint: PublicKey, nonce: BN) => {
+    async (
+      settlementAuthority: PublicKey,
+      underlyingTokenMint: PublicKey,
+      nonce: BN,
+    ): Promise<InitializedVault> => {
       const [vault] = PublicKey.findProgramAddressSync(
         [
           utils.bytes.utf8.encode('conditional_vault'),

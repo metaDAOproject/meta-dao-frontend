@@ -1,5 +1,5 @@
 import { Idl, IdlAccounts, IdlTypes } from '@coral-xyz/anchor';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey, Signer, Transaction } from '@solana/web3.js';
 import { AutocratV0 } from './idl/autocrat_v0';
 import { AutocratV0 as AutocratV0_1 } from './idl/autocrat_v0.1';
 import { OpenbookTwap } from './idl/openbook_twap';
@@ -79,7 +79,13 @@ export type Markets = {
   quoteVault: VaultAccount;
 };
 export type AllMarketsInfo = { [proposalKey: string]: Markets | undefined };
-
+export interface InitializedVault {
+  tx?: Transaction;
+  signers: Signer[];
+  vault: PublicKey;
+  finalizeMint: PublicKey;
+  revertMint: PublicKey;
+}
 export type Proposal = ProposalAccountWithKey & {
   title: string;
   description: string;
