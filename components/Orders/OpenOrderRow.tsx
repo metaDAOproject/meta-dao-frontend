@@ -148,20 +148,6 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
     }
   }, [order, proposal, settleFundsTransactions]);
 
-  // const handleClose = useCallback(async () => {
-  //   if (!proposal || !markets) return;
-
-  //   const txs = await closeOpenOrdersAccountTransactions(new BN(order.account.accountNum));
-
-  //   if (!wallet.publicKey || !txs) return;
-
-  //   try {
-  //     await sender.send(txs);
-  //   } catch (err) {
-  //     console.error(err);
-  //   }
-  // }, [proposal, sender, order]);
-
   return (
     <Table.Tr key={order.publicKey.toString()}>
       <Table.Td>

@@ -18,7 +18,7 @@ import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { BN_0 } from '@/lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
-import { isBid, isEmptyOrder, isPass } from '@/lib/openbook';
+import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 
 export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
   const { markets } = useProposal();
@@ -130,7 +130,7 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
           <Tooltip label="Settle Funds" events={{ hover: true, focus: true, touch: false }}>
             <ActionIcon
               variant="light"
-              disabled={isEmptyOrder(order)}
+              disabled={!isPartiallyFilled(order)}
               loading={isSettling}
               onClick={() => handleSettleFunds()}
             >

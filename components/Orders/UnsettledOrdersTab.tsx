@@ -7,7 +7,7 @@ import { OpenOrdersAccountWithKey } from '@/lib/types';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { useProposal } from '@/contexts/ProposalContext';
-import { isClosableOrder, isEmptyOrder } from '@/lib/openbook';
+import { isClosableOrder, isPartiallyFilled } from '@/lib/openbook';
 import { UnsettledOrderRow } from './UnsettledOrderRow';
 
 const headers = ['Order ID', 'Market', 'Claimable', 'Actions'];
@@ -21,7 +21,10 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
   const [isSettling, setIsSettling] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
 
-  const ordersToSettle = useMemo(() => orders.filter((order) => !isEmptyOrder(order)), [orders]);
+  const ordersToSettle = useMemo(
+    () => orders.filter((order) => isPartiallyFilled(order)),
+    [orders],
+  );
   const ordersToClose = useMemo(() => orders.filter((order) => isClosableOrder(order)), [orders]);
 
   const handleSettleAllFunds = useCallback(async () => {
