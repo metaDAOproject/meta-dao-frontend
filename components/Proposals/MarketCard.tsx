@@ -25,14 +25,15 @@ import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { getParsedOrders } from '@/lib/openbook';
 import { useProposal } from '@/contexts/ProposalContext';
+import { useBalance } from '@/hooks/useBalance';
 
 export function MarketCard() {
   const { connection } = useConnection();
   const { daoTreasury } = useAutocrat();
   const { proposal, markets, mintTokensTransactions, placeOrderTransactions, fetchMarketsInfo } =
     useProposal();
-  const { amount: baseBalance } = useTokenAmount(markets?.baseVault.underlyingTokenMint);
-  const { amount: quoteBalance } = useTokenAmount(markets?.quoteVault.underlyingTokenMint);
+  const { amount: baseBalance } = useBalance(markets?.baseVault.underlyingTokenMint);
+  const { amount: quoteBalance } = useBalance(markets?.quoteVault.underlyingTokenMint);
   const { tokens } = useTokens();
   const { amount: treasuryBalance } = useTokenAmount(tokens?.meta?.publicKey, daoTreasury);
   const [mint, setMint] = useState<Mint>();
@@ -56,7 +57,7 @@ export function MarketCard() {
   };
 
   useEffect(() => {
-    fetchMint();
+    if (!mint) fetchMint();
   }, [tokens, connection]);
 
   useEffect(() => {

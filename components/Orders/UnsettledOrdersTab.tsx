@@ -9,6 +9,7 @@ import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { useProposal } from '@/contexts/ProposalContext';
 import { isClosableOrder, isPartiallyFilled } from '@/lib/openbook';
 import { UnsettledOrderRow } from './UnsettledOrderRow';
+import { useBalances } from '../../contexts/BalancesContext';
 
 const headers = ['Order ID', 'Market', 'Claimable', 'Actions'];
 
@@ -16,6 +17,7 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
   const sender = useTransactionSender();
   const wallet = useWallet();
   const { proposal, markets, fetchOpenOrders } = useProposal();
+  const { fetchBalance } = useBalances();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
 
   const [isSettling, setIsSettling] = useState<boolean>(false);
@@ -53,10 +55,22 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
       if (!txs) return;
       await sender.send(txs as Transaction[]);
       fetchOpenOrders(wallet.publicKey);
+      fetchBalance(markets.pass.baseMint);
+      fetchBalance(markets.pass.quoteMint);
+      fetchBalance(markets.fail.baseMint);
+      fetchBalance(markets.fail.quoteMint);
     } finally {
       setIsSettling(false);
     }
-  }, [ordersToSettle, markets, proposal, sender, settleFundsTransactions, fetchOpenOrders]);
+  }, [
+    ordersToSettle,
+    markets,
+    proposal,
+    sender,
+    settleFundsTransactions,
+    fetchOpenOrders,
+    fetchBalance,
+  ]);
 
   const handleCloseAllOrders = useCallback(async () => {
     if (!proposal || !markets || !wallet?.publicKey) return;

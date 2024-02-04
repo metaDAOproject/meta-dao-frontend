@@ -23,9 +23,9 @@ import { calculateTWAP } from '../../lib/openbookTwap';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
-import { useTokenAmount } from '@/hooks/useTokenAmount';
 import MarketTitle from './MarketTitle';
 import DisableNumberInputScroll from '../Utilities/DisableNumberInputScroll';
+import { useBalance } from '../../hooks/useBalance';
 
 export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?: boolean }) {
   const { daoState } = useAutocrat();
@@ -40,17 +40,17 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   const { generateExplorerLink } = useExplorerConfiguration();
   const { colorScheme } = useMantineColorScheme();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const baseBalance = useTokenAmount(
+  const { amount: baseBalance, fetchAmount: fetchBase } = useBalance(
     isPassMarket
       ? markets?.baseVault.conditionalOnFinalizeTokenMint
       : markets?.baseVault.conditionalOnRevertTokenMint,
-  ).amount?.uiAmountString;
+  );
 
-  const quoteBalance = useTokenAmount(
+  const { amount: quoteBalance, fetchAmount: fetchQuote } = useBalance(
     isPassMarket
       ? markets?.quoteVault.conditionalOnFinalizeTokenMint
       : markets?.quoteVault.conditionalOnRevertTokenMint,
-  ).amount?.uiAmountString;
+  );
 
   if (!markets) return <></>;
   const passTwap = calculateTWAP(markets.passTwap.twapOracle);
@@ -128,13 +128,13 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
 
   const maxOrderAmount = () => {
     if (isAskSide) {
-      if (Number(baseBalance) > 0) {
-        return Number(baseBalance);
+      if (Number(baseBalance?.uiAmountString || 0) > 0) {
+        return Number(baseBalance?.uiAmountString || 0);
       }
       return 0;
     }
     if (quoteBalance && price) {
-      const _maxAmountRatio = Math.floor(Number(quoteBalance) / Number(price));
+      const _maxAmountRatio = Math.floor(Number(quoteBalance?.uiAmountString) / Number(price));
       return _maxAmountRatio;
     }
     return 0;
@@ -195,10 +195,12 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
     try {
       setIsPlacingOrder(true);
       await placeOrder(amount, _orderPrice(), isLimitOrder, isAskSide, isPassMarket);
+      fetchBase();
+      fetchQuote();
     } finally {
       setIsPlacingOrder(false);
     }
-  }, [placeOrder, amount, isLimitOrder, isPassMarket, isAskSide]);
+  }, [placeOrder, fetchBase, fetchQuote, amount, isLimitOrder, isPassMarket, isAskSide]);
 
   return (
     <Card
@@ -331,16 +333,17 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
               <Group justify="space-between" align="center">
                 <Text>Amount of META </Text>
                 <Group align="center" gap={0}>
-                  {baseBalance || quoteBalance ? (
+                  {baseBalance?.uiAmountString || quoteBalance?.uiAmountString ? (
                     <>
                       <IconWallet height={12} />
                       <Text size="xs">
                         {isAskSide
                           ? `${isPassMarket ? 'p' : 'f'}META ${
-                              numeral(baseBalance).format(BASE_FORMAT) || ''
+                              numeral(baseBalance?.uiAmountString || 0).format(BASE_FORMAT) || ''
                             }`
                           : `${isPassMarket ? 'p' : 'f'}USDC $${
-                              numeral(quoteBalance).format(NUMERAL_FORMAT) || ''
+                              numeral(quoteBalance?.uiAmountString || 0).format(NUMERAL_FORMAT) ||
+                              ''
                             }`}
                       </Text>
                     </>

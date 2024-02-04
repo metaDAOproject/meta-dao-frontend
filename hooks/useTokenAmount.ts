@@ -1,8 +1,14 @@
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, TokenAmount } from '@solana/web3.js';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+/**
+ * Use this to fetch the account of any entity, but use `useBalance` to know user's balances
+ * @param mint Mint of the token account
+ * @param owner Owner of the account, defaulting to the connected wallet
+ * @returns The amount of tokens in the account and tools to fetch
+ */
 export function useTokenAmount(mint?: PublicKey, owner?: PublicKey) {
   const { connection } = useConnection();
   const wallet = useWallet();
@@ -12,7 +18,7 @@ export function useTokenAmount(mint?: PublicKey, owner?: PublicKey) {
   }, [mint, owner, wallet.publicKey]);
   const [amount, setAmount] = useState<TokenAmount>();
 
-  const fetchAmount = async () => {
+  const fetchAmount = useCallback(async () => {
     if (account && connection && wallet) {
       const defaultAmount: TokenAmount = {
         amount: '0.0',
@@ -30,11 +36,11 @@ export function useTokenAmount(mint?: PublicKey, owner?: PublicKey) {
         setAmount(defaultAmount);
       }
     }
-  };
+  }, [account, connection, wallet]);
 
   useEffect(() => {
     fetchAmount();
-  }, [account, connection, wallet]);
+  }, [fetchAmount]);
 
   return { amount, account, fetchAmount };
 }

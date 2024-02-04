@@ -3,10 +3,10 @@ import { Button, Fieldset, Group, Text, TextInput } from '@mantine/core';
 import Link from 'next/link';
 import { IconExternalLink } from '@tabler/icons-react';
 import { Token } from '@/hooks/useTokens';
-import { useTokenAmount } from '@/hooks/useTokenAmount';
 import { useProposal } from '@/contexts/ProposalContext';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
+import { useBalance } from '../../hooks/useBalance';
 
 export function MintConditionalTokenCard({ token }: { token: Token }) {
   const sender = useTransactionSender();
@@ -18,9 +18,13 @@ export function MintConditionalTokenCard({ token }: { token: Token }) {
   const [mintAmount, setMintAmount] = useState<number>();
   const fromBase = markets.baseVault.underlyingTokenMint.equals(token.publicKey);
   const vault = fromBase ? markets.baseVault : markets.quoteVault;
-  const { amount } = useTokenAmount(vault.underlyingTokenMint);
-  const { amount: passAmount } = useTokenAmount(vault.conditionalOnFinalizeTokenMint);
-  const { amount: failAmount } = useTokenAmount(vault.conditionalOnRevertTokenMint);
+  const { amount, fetchAmount: fetchUnderlying } = useBalance(vault.underlyingTokenMint);
+  const { amount: passAmount, fetchAmount: fetchPass } = useBalance(
+    vault.conditionalOnFinalizeTokenMint,
+  );
+  const { amount: failAmount, fetchAmount: fetchFail } = useBalance(
+    vault.conditionalOnRevertTokenMint,
+  );
   const [isMinting, setIsMinting] = useState(false);
 
   const handleMint = useCallback(async () => {
@@ -33,10 +37,13 @@ export function MintConditionalTokenCard({ token }: { token: Token }) {
       if (!txs) return;
 
       await sender.send(txs);
+      fetchUnderlying();
+      fetchPass();
+      fetchFail();
     } finally {
       setIsMinting(false);
     }
-  }, [mintTokensTransactions, amount, sender]);
+  }, [mintTokensTransactions, fetchUnderlying, fetchPass, fetchFail, amount, sender]);
 
   return (
     <Fieldset legend={`Mint conditional $${token.symbol}`}>

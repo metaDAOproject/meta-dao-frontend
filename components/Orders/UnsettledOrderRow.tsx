@@ -19,12 +19,14 @@ import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { BN_0 } from '@/lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
 import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
+import { useBalances } from '../../contexts/BalancesContext';
 
 export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
   const { markets } = useProposal();
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
+  const { fetchBalance } = useBalances();
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal, fetchOpenOrders, crankMarkets, isCranking } = useProposal();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
@@ -51,10 +53,12 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
 
       await sender.send(txs);
       await fetchOpenOrders(wallet.publicKey);
+      fetchBalance((pass ? markets.pass : markets.fail).baseMint);
+      fetchBalance((pass ? markets.pass : markets.fail).quoteMint);
     } finally {
       setIsSettling(false);
     }
-  }, [order, proposal, settleFundsTransactions, wallet, fetchOpenOrders]);
+  }, [order, proposal, settleFundsTransactions, wallet, fetchOpenOrders, fetchBalance]);
 
   const handleCloseAccount = useCallback(async () => {
     if (!proposal || !markets) return;

@@ -46,6 +46,7 @@ export function CreateProposalCard() {
       fetchBalance();
     }
   }, [balance, fetchBalance]);
+
   useEffect(() => {
     if (!lastSlot || daoState?.lastProposalSlot.gt(new BN(lastSlot || 0))) {
       fetchSlot();
