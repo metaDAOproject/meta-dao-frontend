@@ -277,8 +277,9 @@ export function useOpenbookTwap() {
       market: MarketAccountWithKey,
     ) => {
       if (!wallet.publicKey || !openbook) {
-        return;
+        throw new Error('Some variables are not initialized yet...');
       }
+
       const quoteVault = await getVaultMint(proposal.account.quoteVault);
       const baseVault = await getVaultMint(proposal.account.baseVault);
       const openOrdersAccount = findOpenOrders(new BN(orderId), wallet.publicKey);
@@ -345,7 +346,7 @@ export function useOpenbookTwap() {
   const closeOpenOrdersAccountTransactions = useCallback(
     async (orderId: BN) => {
       if (!wallet.publicKey || !openbook) {
-        return;
+        throw new Error('Some variables are not initialized yet...');
       }
 
       const openOrdersIndexer = findOpenOrdersIndexer(wallet.publicKey);
@@ -368,7 +369,7 @@ export function useOpenbookTwap() {
   const cancelOrderTransactions = useCallback(
     async (orderId: BN, market: MarketAccountWithKey) => {
       if (!wallet.publicKey || !openbook || !openbookTwap) {
-        return;
+        throw new Error('Some variables are not initialized yet...');
       }
 
       const openOrdersAccount = findOpenOrders(orderId, wallet.publicKey);

@@ -36,16 +36,14 @@ export function OpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }
           ),
         ),
       )
-    )
-      .flat()
-      .filter(Boolean);
+    ).flat();
 
     if (!wallet.publicKey || !txs) return;
 
     try {
       setIsCanceling(true);
       // Filtered undefined already
-      await sender.send(txs as Transaction[]);
+      await sender.send(txs);
       // We already return above if the wallet doesn't have a public key
       await fetchOpenOrders(wallet.publicKey!);
     } catch (err) {
