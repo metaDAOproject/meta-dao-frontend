@@ -12,6 +12,7 @@ import {
   Tabs,
   Text,
   Title,
+  Tooltip,
   em,
   useMantineColorScheme,
 } from '@mantine/core';
@@ -319,14 +320,17 @@ export function ProposalDetailCard() {
             >
               Close remaining orders
             </Button>
-            <Button
-              color="green"
-              loading={isRedeeming}
-              disabled={(orders?.length || 0) > 0}
-              onClick={handleRedeem}
-            >
-              Redeem
-            </Button>
+            {(orders?.length || 0) === 0 ? (
+              <Button color="green" loading={isRedeeming} onClick={handleRedeem}>
+                Redeem
+              </Button>
+            ) : (
+              <Tooltip label="You have open orders left!">
+                <Button color="green" loading={isRedeeming} variant="light" onClick={handleRedeem}>
+                  Redeem
+                </Button>
+              </Tooltip>
+            )}
           </>
         )}
       </Stack>
