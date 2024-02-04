@@ -14,7 +14,11 @@ import {
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import { PlaceOrderArgs } from '@openbook-dex/openbook-v2/dist/types/client';
-import { SelfTradeBehavior, OrderType, Side } from '@openbook-dex/openbook-v2/dist/cjs/utils/utils';
+import {
+  SelfTradeBehavior,
+  OrderType,
+  SideUtils,
+} from '@openbook-dex/openbook-v2/dist/cjs/utils/utils';
 import { OpenbookTwap } from '@/lib/idl/openbook_twap';
 import { OPENBOOK_PROGRAM_ID, OPENBOOK_TWAP_PROGRAM_ID, QUOTE_LOTS } from '@/lib/constants';
 import {
@@ -75,7 +79,7 @@ export function useOpenbookTwap() {
       maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
     }
     return {
-      side: ask ? Side.Ask : Side.Bid,
+      side: ask ? SideUtils.Ask : SideUtils.Bid,
       priceLots,
       maxBaseLots,
       maxQuoteLotsIncludingFees,
