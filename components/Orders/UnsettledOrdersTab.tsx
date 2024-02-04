@@ -112,24 +112,24 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
           Close {ordersToClose.length} Orders
         </Button>
       </Group>
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            {headers.map((header) => (
-              <Table.Th key={header}>{header}</Table.Th>
-            ))}
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {orders && orders.length > 0 ? (
-            orders.map((order) => (
+      {orders && orders.length > 0 ? (
+        <Table>
+          <Table.Thead>
+            <Table.Tr>
+              {headers.map((header) => (
+                <Table.Th key={header}>{header}</Table.Th>
+              ))}
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {orders.map((order) => (
               <UnsettledOrderRow key={order.publicKey.toString()} order={order} />
-            ))
-          ) : (
-            <Text py="sm">No Orders Found</Text>
-          )}
-        </Table.Tbody>
-      </Table>
+            ))}
+          </Table.Tbody>
+        </Table>
+      ) : (
+        <Text py="sm">No Orders Found</Text>
+      )}
     </Stack>
   );
 }

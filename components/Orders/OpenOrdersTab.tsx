@@ -110,22 +110,24 @@ export function OpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }
           Settle {orders.filter((order) => isPartiallyFilled(order)).length} orders
         </Button>
       </Group>
-      <Table>
-        <Table.Thead>
-          <Table.Tr>
-            {headers.map((header) => (
-              <Table.Th key={header}>{header}</Table.Th>
+      {orders && orders.length > 0 ? (
+        <Table>
+          <Table.Thead>
+            <Table.Tr>
+              {headers.map((header) => (
+                <Table.Th key={header}>{header}</Table.Th>
+              ))}
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {orders.map((order) => (
+              <OpenOrderRow key={order.publicKey.toString()} order={order} />
             ))}
-          </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-          {orders && orders.length > 0 ? (
-            orders.map((order) => <OpenOrderRow key={order.publicKey.toString()} order={order} />)
-          ) : (
-            <Text py="sm">No Orders Found</Text>
-          )}
-        </Table.Tbody>
-      </Table>
+          </Table.Tbody>
+        </Table>
+      ) : (
+        <Text py="sm">No Orders Found</Text>
+      )}
     </Stack>
   );
 }
