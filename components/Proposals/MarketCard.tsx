@@ -111,7 +111,9 @@ export function MarketCard() {
 
     try {
       setIsBetting(true);
-      await sender.send([...mintTxs, ...placePassTxs, ...placeFailTxs].filter(Boolean), true);
+      await sender.send(
+        [...mintTxs, ...placePassTxs, ...placeFailTxs].filter(Boolean).map((e) => [e]),
+      );
     } finally {
       setIsBetting(false);
     }

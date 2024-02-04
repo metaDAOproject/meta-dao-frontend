@@ -142,7 +142,7 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
       );
 
       if (!txs) return;
-      sender.send(txs);
+      await sender.send(txs);
     } finally {
       setIsSettling(false);
     }
