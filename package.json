@@ -18,7 +18,7 @@
     "storybook:build": "storybook build"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.28.1-beta2",
+    "@coral-xyz/anchor": "^0.28.1-beta.2",
     "@lab49/react-order-book": "https://github.com/R-K-H/react-order-book",
     "@mantine/core": "7.3.2",
     "@mantine/hooks": "7.3.2",
@@ -81,6 +81,6 @@
     "typescript": "5.2.2"
   },
   "resolutions": {
-    "**/@coral-xyz/anchor": "0.28.1-beta2"
+    "**/@coral-xyz/anchor": "0.28.1-beta.2"
   }
 }
