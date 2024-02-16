@@ -17,7 +17,7 @@ import { PlaceOrderArgs } from '@openbook-dex/openbook-v2/dist/types/client';
 import {
   SelfTradeBehavior,
   OrderType,
-  Side,
+  SideUtils,
 } from '@openbook-dex/openbook-v2/dist/cjs/utils/utils';
 import { OpenbookTwap } from '@/lib/idl/openbook_twap';
 import { OPENBOOK_PROGRAM_ID, OPENBOOK_TWAP_PROGRAM_ID, QUOTE_LOTS } from '@/lib/constants';
@@ -79,7 +79,7 @@ export function useOpenbookTwap() {
       maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
     }
     return {
-      side: ask ? Side.Ask : Side.Bid,
+      side: ask ? SideUtils.Ask : SideUtils.Bid,
       priceLots,
       maxBaseLots,
       maxQuoteLotsIncludingFees,
