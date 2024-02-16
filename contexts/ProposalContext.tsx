@@ -437,7 +437,7 @@ export function ProposalProvider({
     const getSpreadString = (bids: LeafNode[], asks: LeafNode[]) => {
       const { topAsk, topBid } = getToB(bids, asks);
       const spread: number = topAsk - topBid;
-      const spreadPercent: string = ((spread / topAsk) * 100).toFixed(2);
+      const spreadPercent: string = ((spread / topBid) * 100).toFixed(2);
 
       return spread === topAsk
         ? '∞ (100.00%)'
