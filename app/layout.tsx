@@ -17,7 +17,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <ColorSchemeScript />
         <link rel="shortcut icon" href="/meta.png" />
-        <script src="https://terminal.jup.ag/main-v2.js" data-preload />
         <meta
           name="viewport"
           content="minimum-scale=1, initial-scale=1, width=device-width, user-scalable=no"
