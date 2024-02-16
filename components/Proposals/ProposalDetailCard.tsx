@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Script from 'next/script';
 import {
   Button,
   Card,
@@ -112,7 +113,7 @@ export function ProposalDetailCard() {
     let intervalId: NodeJS.Timeout | undefined;
     if (!isLoaded || !(window as any).Jupiter.init || !intervalId) {
       intervalId = setInterval(() => {
-        setIsLoaded(Boolean((window as any).Jupiter.init));
+        setIsLoaded(Boolean((window as any).Jupiter?.init));
       }, 500);
     }
 
@@ -130,8 +131,9 @@ export function ProposalDetailCard() {
   }, [isLoaded]);
 
   useEffect(() => {
-    if (!(window as any).Jupiter.syncProps || network !== Networks.Mainnet) return;
-    (window as any).Jupiter.syncProps({ passthroughWalletContextState: wallet });
+    if ((window as any) && (window as any).Jupiter?.syncProps && network === Networks.Mainnet) {
+      (window as any).Jupiter?.syncProps({ passthroughWalletContextState: wallet });
+    }
   }, [wallet]);
 
   useEffect(() => {
@@ -317,6 +319,7 @@ export function ProposalDetailCard() {
       <Loader />
     </Group>
   ) : (
+
     <Flex
       direction={isMobile ? 'column' : 'row'}
       align="start"
@@ -324,6 +327,7 @@ export function ProposalDetailCard() {
       gap={isMobile ? 'xl' : 'md'}
       mt="-1rem"
     >
+      <Script src="https://terminal.jup.ag/main-v2.js" />
       <Button
         pos="fixed"
         top="76px"
