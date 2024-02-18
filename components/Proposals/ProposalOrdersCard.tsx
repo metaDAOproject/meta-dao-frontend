@@ -6,7 +6,6 @@ import {
   isCompletedOrder,
   isEmptyOrder,
   isOpenOrder,
-  totalInOrder,
   totalMetaInOrder,
   totalUsdcInOrder,
 } from '@/lib/openbook';
