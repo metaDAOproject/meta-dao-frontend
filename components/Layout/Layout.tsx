@@ -8,6 +8,7 @@ import {
   Group,
   Menu,
   NativeSelect,
+  NumberInput,
   Stack,
   Switch,
   TextInput,
@@ -18,6 +19,8 @@ import {
 } from '@mantine/core';
 import { useFavicon, useMediaQuery } from '@mantine/hooks';
 import '@mantine/notifications/styles.css';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import numeral from 'numeral';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import {
@@ -30,13 +33,15 @@ import {
 } from '@tabler/icons-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Networks, useNetworkConfiguration } from '../../hooks/useNetworkConfiguration';
 import { shortKey } from '@/lib/utils';
 import icon from '@/public/meta.png';
 import _favicon from '@/public/favicon.ico';
 import { Explorers, useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import classes from '../../app/globals.module.css';
+import { usePriorityFee } from '../../hooks/usePriorityFee';
+import { NUMERAL_FORMAT } from '../../lib/constants';
 
 const links = [
   {
@@ -72,11 +77,34 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const theme = useMantineTheme();
   const isTiny = useMediaQuery(`(max-width: ${theme.breakpoints.xs})`);
   const logoRef = useRef(null);
+  const { priorityFee, setPriorityFee } = usePriorityFee();
+  const [solPrice, setSolPrice] = useState<number>();
 
   useFavicon(_favicon.src);
   useEffect(() => {
     if (!wallet.connected && wallet.wallet) wallet.connect();
   }, [wallet]);
+
+  useEffect(() => {
+    if (solPrice === undefined) {
+      const f = async () => {
+        const res = await fetch(
+          'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
+        );
+        const data = await res.json();
+
+        if (data?.solana?.usd) {
+          setSolPrice(data.solana.usd);
+        } else {
+          setSolPrice(0);
+        }
+      };
+
+      f();
+    }
+  });
+
+  const feesCost = (((priorityFee / 100000) * 200000) / LAMPORTS_PER_SOL) * (solPrice || 0);
 
   const ThemeSwitch = () => (
     <Switch
@@ -125,10 +153,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         />
                       ) : null}
                       <NativeSelect
+                        w="100%"
                         label="Explorer"
                         data={explorers}
                         value={explorer}
                         onChange={(e) => setExplorer(e.target.value as Explorers)}
+                      />
+                      <NumberInput
+                        w="100%"
+                        label="Priority fee (µLamports)"
+                        description={`Adds up to $${numeral(feesCost).format(
+                          NUMERAL_FORMAT,
+                        )} per tx`}
+                        onChange={(e) => setPriorityFee(Number(e || 0))}
+                        defaultValue={priorityFee}
+                        hideControls
                       />
                       {isTiny ? <ThemeSwitch /> : null}
                       <Button fullWidth onClick={() => wallet.disconnect()}>
