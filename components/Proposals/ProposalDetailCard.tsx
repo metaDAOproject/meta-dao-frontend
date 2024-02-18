@@ -384,7 +384,7 @@ export function ProposalDetailCard() {
             Finalize
           </Button>
         )}
-        {proposal.account.state.passed && (
+        {(proposal.account.state.passed || proposal.account.state.failed) && (
           <>
             <Button
               loading={isClosing}
