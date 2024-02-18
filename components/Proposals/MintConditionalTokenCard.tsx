@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Button, Fieldset, Group, Text, TextInput } from '@mantine/core';
+import numeral from 'numeral';
 import Link from 'next/link';
 import { IconExternalLink } from '@tabler/icons-react';
 import { Token } from '@/hooks/useTokens';
@@ -7,6 +8,7 @@ import { useProposal } from '@/contexts/ProposalContext';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useBalance } from '../../hooks/useBalance';
+import { NUMERAL_FORMAT } from '../../lib/constants';
 
 export function MintConditionalTokenCard({ token }: { token: Token }) {
   const sender = useTransactionSender();
@@ -46,10 +48,12 @@ export function MintConditionalTokenCard({ token }: { token: Token }) {
   }, [mintTokensTransactions, fetchUnderlying, fetchPass, fetchFail, amount, sender]);
 
   return (
-    <Fieldset legend={`Mint conditional $${token.symbol}`}>
+    <Fieldset legend={`Mint conditional $${token.symbol}`} miw="180px">
       <TextInput
         label="Amount"
-        description={`Balance: ${amount?.uiAmountString || 0} $${token.symbol}`}
+        description={`Balance: ${numeral(amount?.uiAmountString || 0).format(NUMERAL_FORMAT)} $${
+          token.symbol
+        }`}
         placeholder="Amount to mint"
         type="number"
         onChange={(e) => setMintAmount(Number(e.target.value))}
@@ -72,23 +76,23 @@ export function MintConditionalTokenCard({ token }: { token: Token }) {
       >
         Mint
       </Button>
-      <Group mt="md">
+      <Group mt="md" justify="space-between">
         <Link
           target="_blank"
           href={generateExplorerLink(vault.conditionalOnFinalizeTokenMint.toString(), 'account')}
         >
-          <Group gap="0" justify="center" ta="center">
+          <Group gap="0" justify="center" ta="center" c="green">
             <Text size="xs">p{token.symbol}</Text>
-            <IconExternalLink height="1rem" />
+            <IconExternalLink height="1rem" width="1rem" />
           </Group>
         </Link>
         <Link
           target="_blank"
           href={generateExplorerLink(vault.conditionalOnRevertTokenMint.toString(), 'account')}
         >
-          <Group gap="0" align="center">
+          <Group gap="0" align="center" c="red">
             <Text size="xs">f{token.symbol}</Text>
-            <IconExternalLink height="1rem" />
+            <IconExternalLink height="1rem" width="1rem" />
           </Group>
         </Link>
       </Group>

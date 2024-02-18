@@ -8,14 +8,19 @@ import {
   Group,
   Menu,
   NativeSelect,
+  NumberInput,
   Stack,
   Switch,
   TextInput,
   Title,
+  rem,
   useMantineColorScheme,
+  useMantineTheme,
 } from '@mantine/core';
-import { useFavicon } from '@mantine/hooks';
+import { useFavicon, useMediaQuery } from '@mantine/hooks';
 import '@mantine/notifications/styles.css';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import numeral from 'numeral';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import {
@@ -23,16 +28,20 @@ import {
   IconBrandDiscord,
   IconBrandGithub,
   IconBrandTwitter,
+  IconSun,
+  IconMoonStars,
 } from '@tabler/icons-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Networks, useNetworkConfiguration } from '../../hooks/useNetworkConfiguration';
 import { shortKey } from '@/lib/utils';
 import icon from '@/public/meta.png';
 import _favicon from '@/public/favicon.ico';
 import { Explorers, useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import classes from '../../app/globals.module.css';
+import { usePriorityFee } from '../../hooks/usePriorityFee';
+import { NUMERAL_FORMAT } from '../../lib/constants';
 
 const links = [
   {
@@ -65,12 +74,49 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { network, endpoint, setNetwork, setCustomEndpoint } = useNetworkConfiguration();
   const { explorer, setExplorer } = useExplorerConfiguration();
   const colorScheme = useMantineColorScheme();
+  const theme = useMantineTheme();
+  const isTiny = useMediaQuery(`(max-width: ${theme.breakpoints.xs})`);
   const logoRef = useRef(null);
+  const { priorityFee, setPriorityFee } = usePriorityFee();
+  const [solPrice, setSolPrice] = useState<number>();
 
   useFavicon(_favicon.src);
   useEffect(() => {
     if (!wallet.connected && wallet.wallet) wallet.connect();
   }, [wallet]);
+
+  useEffect(() => {
+    if (solPrice === undefined) {
+      const f = async () => {
+        const res = await fetch(
+          'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
+        );
+        const data = await res.json();
+
+        if (data?.solana?.usd) {
+          setSolPrice(data.solana.usd);
+        } else {
+          setSolPrice(0);
+        }
+      };
+
+      f();
+    }
+  });
+
+  const feesCost = (((priorityFee / 100000) * 200000) / LAMPORTS_PER_SOL) * (solPrice || 0);
+
+  const ThemeSwitch = () => (
+    <Switch
+      variant="outline"
+      size="md"
+      color="red"
+      onChange={() => colorScheme.toggleColorScheme()}
+      checked={colorScheme.colorScheme === 'light'}
+      onLabel={<IconSun style={{ width: rem(16), height: rem(16) }} stroke={2.5} />}
+      offLabel={<IconMoonStars style={{ width: rem(16), height: rem(16) }} stroke={2.5} />}
+    />
+  );
 
   return (
     <div>
@@ -80,7 +126,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
               <Flex justify="flex-start" align="center" gap="xs">
                 <Image src={icon} alt="App logo" width={36} height={36} ref={logoRef} />
-                <Title order={3}>the Meta-DAO</Title>
+                <Title order={!isTiny ? 3 : 4}>the Meta-DAO</Title>
               </Flex>
             </Link>
             <Group>
@@ -90,8 +136,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <Button variant="secondary">{shortKey(wallet.publicKey)}</Button>
                   </Menu.Target>
                   <Menu.Dropdown>
-                    <Stack p="md">
+                    <Stack p="md" align="center">
                       <NativeSelect
+                        w="100%"
                         label="Network"
                         data={networks}
                         value={network}
@@ -106,11 +153,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         />
                       ) : null}
                       <NativeSelect
+                        w="100%"
                         label="Explorer"
                         data={explorers}
                         value={explorer}
                         onChange={(e) => setExplorer(e.target.value as Explorers)}
                       />
+                      <NumberInput
+                        w="100%"
+                        label="Priority fee (µLamports)"
+                        description={`Adds up to $${numeral(feesCost).format(
+                          NUMERAL_FORMAT,
+                        )} per tx`}
+                        onChange={(e) => setPriorityFee(Number(e || 0))}
+                        defaultValue={priorityFee}
+                        hideControls
+                      />
+                      {isTiny ? <ThemeSwitch /> : null}
                       <Button fullWidth onClick={() => wallet.disconnect()}>
                         Disconnect
                       </Button>
@@ -126,13 +185,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   Connect wallet
                 </Button>
               )}
-              <Switch
-                variant="outline"
-                size="md"
-                color="red"
-                onChange={() => colorScheme.toggleColorScheme()}
-                checked={colorScheme.colorScheme === 'light'}
-              />
+              {!isTiny ? <ThemeSwitch /> : null}
             </Group>
           </Flex>
         </AppShell.Header>
