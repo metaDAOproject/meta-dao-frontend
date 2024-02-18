@@ -26,21 +26,12 @@ export function ProposalOrdersCard() {
     </Group>
   ) : (
     <>
-      <Stack justify="space-between">
-        <Group>
+      <Stack gap={2}>
+        <Group justify="space-between" align="flex-start">
           <Text fw="bolder" size="xl">
             Orders
           </Text>
-          <ActionIcon
-            variant="subtle"
-            // @ts-ignore
-            onClick={() => fetchOpenOrders(wallet.publicKey)}
-          >
-            <IconRefresh />
-          </ActionIcon>
-        </Group>
-        <Stack justify="start" align="start">
-          <Group>
+          <Group justify="space-between" align="flex-start">
             <Text size="lg">
               <Text span fw="bold">
                 ${totalUsdcInOrder(orders)}
@@ -50,15 +41,20 @@ export function ProposalOrdersCard() {
             <Text>|</Text>
             <Text size="lg">
               <Text span fw="bold">
-                ${totalMetaInOrder(orders)}
+                {totalMetaInOrder(orders)}
               </Text>{' '}
               condMETA
             </Text>
           </Group>
-          <Text fw="bolder" size="md">
-            for a total value of ${totalInOrder(orders)}
-          </Text>
-        </Stack>
+          <ActionIcon
+            variant="subtle"
+            // @ts-ignore
+            onClick={() => fetchOpenOrders(wallet.publicKey)}
+          >
+            <IconRefresh />
+          </ActionIcon>
+        </Group>
+        <Stack justify="start" align="start" />
       </Stack>
       <Tabs defaultValue="open">
         <Tabs.List>
