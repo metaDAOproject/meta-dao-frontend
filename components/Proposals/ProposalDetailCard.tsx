@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Script from 'next/script';
 import {
+  ActionIcon,
   Button,
   Card,
   Container,
@@ -14,8 +15,8 @@ import {
   Text,
   Title,
   Tooltip,
-  em,
   useMantineColorScheme,
+  useMantineTheme,
 } from '@mantine/core';
 // import Markdown from 'react-markdown';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -68,7 +69,9 @@ export function ProposalDetailCard() {
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const isMobile = useMediaQuery(`(max-width: ${em(1046)})`);
+  const theme = useMantineTheme();
+  const isSmall = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
+  const isMedium = useMediaQuery(`(max-width: ${theme.breakpoints.md})`);
 
   const remainingSlots = useMemo(() => {
     if (!proposal || !daoState || !lastSlot) return;
@@ -319,60 +322,93 @@ export function ProposalDetailCard() {
       <Loader />
     </Group>
   ) : (
-
     <Flex
-      direction={isMobile ? 'column' : 'row'}
+      direction={isMedium ? 'column' : 'row'}
       align="start"
       justify="start"
-      gap={isMobile ? 'xl' : 'md'}
+      gap={isMedium ? 'xl' : 'md'}
       mt="-1rem"
     >
       <Script src="https://terminal.jup.ag/main-v2.js" />
-      <Button
-        pos="fixed"
-        top="76px"
-        className={classes.colorschemebutton}
-        leftSection={<IconChevronLeft />}
-        href="/"
-        component="a"
-        style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
-      >
-        Back to Proposals
-      </Button>
+      {isMedium ? (
+        isSmall ? null : (
+          <Button
+            pos="fixed"
+            top="76px"
+            className={classes.colorschemebutton}
+            leftSection={<IconChevronLeft />}
+            href="/"
+            component="a"
+            style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
+          >
+            Back to Proposals
+          </Button>
+        )
+      ) : (
+        <Button
+          pos="fixed"
+          top="76px"
+          className={classes.colorschemebutton}
+          leftSection={<IconChevronLeft />}
+          href="/"
+          component="a"
+          style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
+        >
+          Back to Proposals
+        </Button>
+      )}
       <Stack
-        pos={isMobile ? 'relative' : 'sticky'}
-        top={isMobile ? '10px' : '96px'}
+        pos={isMedium ? 'relative' : 'sticky'}
+        top={isMedium ? '10px' : '100px'}
         justify="space-between"
         p="md"
-        w={isMobile ? '100%' : '530'}
+        w={isMedium ? '100%' : '530px'}
+        miw="420px"
       >
-        <Stack py="lg">
-          <Group justify="space-between" align="start">
-            <Title fw={500} w={380} order={3}>
+        <Stack gap="sm">
+          <Group
+            justify={isMedium ? (isSmall ? 'space-around' : 'center') : 'space-between'}
+            align="start"
+          >
+            {isSmall ? (
+              <ActionIcon
+                my="auto"
+                className={classes.colorschemebutton}
+                href="/"
+                component="a"
+                style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
+              >
+                <IconChevronLeft />
+              </ActionIcon>
+            ) : null}
+            <Title fw={500} w={150} order={3}>
               {proposal.title}
             </Title>
             <StateBadge proposal={proposal} />
           </Group>
-          {secondsLeft !== 0 && <Text fw="bold">Ends in {timeLeft}</Text>}
-          <Card bg={colorScheme === 'dark' ? 'dark' : '#f9f9f9'} w="fit-content">
-            <Stack justify="end" align="end" w="fit-content">
-              {proposal.description && (
-                <ScrollArea.Autosize mah={isMobile ? '340px' : '240px'} mx="auto">
+          {proposal.description ? (
+            <Card bg={colorScheme === 'dark' ? 'dark' : '#f9f9f9'} w="fit-content">
+              <Stack justify="end" align="end" w="fit-content">
+                <ScrollArea.Autosize mah={isMedium ? '340px' : '240px'} mx="auto">
                   {/* <Markdown className="markdown">{proposal.description}</Markdown> */}
                 </ScrollArea.Autosize>
-              )}
-              <ExternalLink href={proposal.account.descriptionUrl} />
-            </Stack>
-          </Card>
-          <Text opacity={0.6} style={{ textAlign: 'right' }}>
-            Proposed by{' '}
-            <a
-              href={generateExplorerLink(proposal.account.proposer.toString(), 'account')}
-              target="blank"
-            >
-              {shortKey(proposal.account.proposer)}
-            </a>
-          </Text>
+                <ExternalLink href={proposal.account.descriptionUrl} />
+              </Stack>
+            </Card>
+          ) : null}
+          {secondsLeft !== 0 && <Text fw="bold">Ends in {timeLeft}</Text>}
+          <Group wrap="wrap" justify="space-between">
+            <ExternalLink href={proposal.account.descriptionUrl} />
+            <Text opacity={0.6} style={{ textAlign: 'right' }}>
+              Proposed by{' '}
+              <a
+                href={generateExplorerLink(proposal.account.proposer.toString(), 'account')}
+                target="blank"
+              >
+                {shortKey(proposal.account.proposer)}
+              </a>
+            </Text>
+          </Group>
         </Stack>
         <MarketsBalances />
         {proposal.account.state.pending && (
@@ -407,8 +443,8 @@ export function ProposalDetailCard() {
           </>
         )}
       </Stack>
-      <Divider orientation={isMobile ? 'horizontal' : 'vertical'} />
-      <Container mt="1rem">
+      <Divider orientation={isMedium ? 'horizontal' : 'vertical'} />
+      <Container mt="1rem" p={isMedium ? '0' : 'sm'}>
         <Stack style={{ flex: 1 }}>
           <Tabs defaultValue="order-book">
             <Tabs.List>
@@ -417,7 +453,7 @@ export function ProposalDetailCard() {
             </Tabs.List>
             <Tabs.Panel value="order-book">
               {markets ? (
-                <Group gap="md" justify="space-around" p="sm" pt="xl">
+                <Group gap="md" justify="space-around" mt="xl" p="0">
                   <ConditionalMarketCard isPassMarket />
                   <ConditionalMarketCard />
                 </Group>

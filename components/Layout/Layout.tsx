@@ -12,9 +12,11 @@ import {
   Switch,
   TextInput,
   Title,
+  rem,
   useMantineColorScheme,
+  useMantineTheme,
 } from '@mantine/core';
-import { useFavicon } from '@mantine/hooks';
+import { useFavicon, useMediaQuery } from '@mantine/hooks';
 import '@mantine/notifications/styles.css';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
@@ -23,6 +25,8 @@ import {
   IconBrandDiscord,
   IconBrandGithub,
   IconBrandTwitter,
+  IconSun,
+  IconMoonStars,
 } from '@tabler/icons-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -65,12 +69,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { network, endpoint, setNetwork, setCustomEndpoint } = useNetworkConfiguration();
   const { explorer, setExplorer } = useExplorerConfiguration();
   const colorScheme = useMantineColorScheme();
+  const theme = useMantineTheme();
+  const isTiny = useMediaQuery(`(max-width: ${theme.breakpoints.xs})`);
   const logoRef = useRef(null);
 
   useFavicon(_favicon.src);
   useEffect(() => {
     if (!wallet.connected && wallet.wallet) wallet.connect();
   }, [wallet]);
+
+  const ThemeSwitch = () => (
+    <Switch
+      variant="outline"
+      size="md"
+      color="red"
+      onChange={() => colorScheme.toggleColorScheme()}
+      checked={colorScheme.colorScheme === 'light'}
+      onLabel={<IconSun style={{ width: rem(16), height: rem(16) }} stroke={2.5} />}
+      offLabel={<IconMoonStars style={{ width: rem(16), height: rem(16) }} stroke={2.5} />}
+    />
+  );
 
   return (
     <div>
@@ -80,7 +98,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
               <Flex justify="flex-start" align="center" gap="xs">
                 <Image src={icon} alt="App logo" width={36} height={36} ref={logoRef} />
-                <Title order={3}>the Meta-DAO</Title>
+                <Title order={!isTiny ? 3 : 4}>the Meta-DAO</Title>
               </Flex>
             </Link>
             <Group>
@@ -90,8 +108,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <Button variant="secondary">{shortKey(wallet.publicKey)}</Button>
                   </Menu.Target>
                   <Menu.Dropdown>
-                    <Stack p="md">
+                    <Stack p="md" align="center">
                       <NativeSelect
+                        w="100%"
                         label="Network"
                         data={networks}
                         value={network}
@@ -111,6 +130,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         value={explorer}
                         onChange={(e) => setExplorer(e.target.value as Explorers)}
                       />
+                      {isTiny ? <ThemeSwitch /> : null}
                       <Button fullWidth onClick={() => wallet.disconnect()}>
                         Disconnect
                       </Button>
@@ -126,13 +146,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   Connect wallet
                 </Button>
               )}
-              <Switch
-                variant="outline"
-                size="md"
-                color="red"
-                onChange={() => colorScheme.toggleColorScheme()}
-                checked={colorScheme.colorScheme === 'light'}
-              />
+              {!isTiny ? <ThemeSwitch /> : null}
             </Group>
           </Flex>
         </AppShell.Header>

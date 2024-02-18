@@ -227,7 +227,8 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
     <Card
       withBorder
       radius="md"
-      style={{ width: '26rem', border: `1px solid ${isWinning()}` }}
+      maw="26rem"
+      style={{ border: `1px solid ${isWinning()}` }}
       bg="transparent"
     >
       <DisableNumberInputScroll />
@@ -337,59 +338,59 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
               setAmountError(null);
             }}
           />
-          <Group align="flex-start" justify="space-between">
-            <TextInput
-              label="Price"
-              placeholder="Enter price..."
-              type="number"
-              value={!isLimitOrder ? '' : price}
-              disabled={!isLimitOrder}
-              error={priceError}
-              w={150}
-              onChange={(e) => {
-                setPrice(e.target.value);
-              }}
-            />
-            <TextInput
-              label={
-                <Group justify="space-between" align="center">
-                  <Text size="sm">Amount of META</Text>
-                </Group>
-              }
-              placeholder="Enter amount..."
-              type="number"
-              value={amount || ''}
-              defaultValue={amount || ''}
-              w={200}
-              rightSectionWidth={50}
-              rightSection={
-                <ActionIcon
-                  size={20}
-                  radius="md"
-                  w={80}
-                  color="grey"
-                  onClick={() => {
-                    setAmount(maxOrderAmount()! ? maxOrderAmount()! : 0);
-                    amountValidator(maxOrderAmount()! ? maxOrderAmount()! : 0);
-                  }}
-                  disabled={!isLimitOrder ? !!isOrderAmountNan() : !price}
-                >
-                  <Text size="xs">
-                    Max{' '}
-                    {maxOrderAmount()
-                      ? !isOrderAmountNan()
-                        ? numeral(maxOrderAmount()).format(BASE_FORMAT)
-                        : ''
-                      : ''}
-                  </Text>
-                </ActionIcon>
-              }
-              error={amountError}
-              onChange={(e) => {
-                setAmount(Number(e.target.value));
-              }}
-            />
-          </Group>
+          <Grid>
+            <Grid.Col span={6}>
+              <TextInput
+                label="Price"
+                placeholder="Enter price..."
+                type="number"
+                w="100%"
+                value={!isLimitOrder ? '' : price}
+                disabled={!isLimitOrder}
+                error={priceError}
+                onChange={(e) => {
+                  setPrice(e.target.value);
+                }}
+              />
+            </Grid.Col>
+            <Grid.Col span={6}>
+              <TextInput
+                label={
+                  <Group justify="space-between" align="center">
+                    <Text size="sm">Amount of META</Text>
+                  </Group>
+                }
+                placeholder="Enter amount..."
+                type="number"
+                value={amount || ''}
+                defaultValue={amount || ''}
+                rightSection={
+                  <ActionIcon
+                    radius="md"
+                    color="grey"
+                    onClick={() => {
+                      setAmount(maxOrderAmount()! ? maxOrderAmount()! : 0);
+                      amountValidator(maxOrderAmount()! ? maxOrderAmount()! : 0);
+                    }}
+                    disabled={!isLimitOrder ? !!isOrderAmountNan() : !price}
+                  >
+                    <Text size="xs">
+                      Max{' '}
+                      {maxOrderAmount()
+                        ? !isOrderAmountNan()
+                          ? numeral(maxOrderAmount()).format(BASE_FORMAT)
+                          : ''
+                        : ''}
+                    </Text>
+                  </ActionIcon>
+                }
+                error={amountError}
+                onChange={(e) => {
+                  setAmount(Number(e.target.value));
+                }}
+              />
+            </Grid.Col>
+          </Grid>
           <Group align="center" justify="space-between">
             {baseBalance?.uiAmountString || quoteBalance?.uiAmountString ? (
               <Group gap={0}>
@@ -400,8 +401,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                         numeral(baseBalance?.uiAmountString || 0).format(BASE_FORMAT) || ''
                       }`
                     : `${isPassMarket ? 'p' : 'f'}USDC $${
-                        numeral(quoteBalance?.uiAmountString || 0).format(NUMERAL_FORMAT) ||
-                        ''
+                        numeral(quoteBalance?.uiAmountString || 0).format(NUMERAL_FORMAT) || ''
                       }`}
                 </Text>
               </Group>
@@ -409,9 +409,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
               <Text> </Text>
             )}
             <>
-              <Text size="xs">
-                Total Order Value {orderValue}
-              </Text>
+              <Text size="xs">Total Order Value {orderValue}</Text>
             </>
           </Group>
           <Grid>

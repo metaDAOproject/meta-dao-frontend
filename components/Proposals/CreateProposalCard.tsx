@@ -98,7 +98,6 @@ export function CreateProposalCard() {
     initializeProposal(url, instruction);
   }, [initializeProposal, url, instruction]);
 
-  console.log(markets, vaults, instruction, daoState);
   return (
     <Stack>
       <Title order={2}>Proposal creation</Title>
