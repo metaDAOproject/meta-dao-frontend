@@ -46,7 +46,7 @@ import { NUMERAL_FORMAT } from '../../lib/constants';
 const links = [
   {
     name: 'Github',
-    href: 'https://github.com/Dodecahedr0x/meta-dao-frontend',
+    href: 'https://github.com/metaDAOproject/meta-dao-frontend',
     icon: IconBrandGithub,
   },
   { name: 'Docs', href: 'https://docs.themetadao.org/', icon: IconBooks },
@@ -88,14 +88,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (solPrice === undefined) {
       const f = async () => {
-        const res = await fetch(
-          'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
-        );
-        const data = await res.json();
+        try {
+          const res = await fetch(
+            'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
+          );
+          const data = await res.json();
 
-        if (data?.solana?.usd) {
-          setSolPrice(data.solana.usd);
-        } else {
+          if (data?.solana?.usd) {
+            setSolPrice(data.solana.usd);
+          } else {
+            setSolPrice(0);
+          }
+        } catch {
           setSolPrice(0);
         }
       };
