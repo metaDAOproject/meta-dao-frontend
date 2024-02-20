@@ -11,7 +11,6 @@ import {
   Loader,
   ScrollArea,
   Stack,
-  Tabs,
   Text,
   Title,
   Tooltip,
@@ -446,19 +445,12 @@ export function ProposalDetailCard() {
       <Divider orientation={isMedium ? 'horizontal' : 'vertical'} />
       <Container mt="1rem" p={isMedium ? '0' : 'sm'}>
         <Stack style={{ flex: 1 }}>
-          <Tabs defaultValue="order-book">
-            <Tabs.List>
-              <Tabs.Tab value="order-book">Order Book</Tabs.Tab>
-            </Tabs.List>
-            <Tabs.Panel value="order-book">
-              {markets ? (
-                <Group gap="md" justify="space-around" mt="xl" p="0">
-                  <ConditionalMarketCard isPassMarket />
-                  <ConditionalMarketCard />
-                </Group>
-              ) : null}
-            </Tabs.Panel>
-          </Tabs>
+            {markets ? (
+              <Group gap="md" justify="space-around" mt="xl" p="0">
+                <ConditionalMarketCard isPassMarket />
+                <ConditionalMarketCard />
+              </Group>
+            ) : null}
           <ProposalOrdersCard />
         </Stack>
       </Container>
