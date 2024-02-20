@@ -1,11 +1,8 @@
 import { Group, HoverCard, Stack, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useTokens } from '@/hooks/useTokens';
 import { MintConditionalTokenCard } from './MintConditionalTokenCard';
 
 export default function MarketsBalances() {
-  const { tokens } = useTokens();
-
   return (
     <Group align="center" justify="center" pos="relative" pt="lg" wrap="wrap" grow>
       <HoverCard position="top">
@@ -36,8 +33,7 @@ export default function MarketsBalances() {
           </Stack>
         </HoverCard.Dropdown>
       </HoverCard>
-      {tokens?.meta ? <MintConditionalTokenCard token={tokens.meta} /> : null}
-      {tokens?.usdc ? <MintConditionalTokenCard token={tokens.usdc} /> : null}
+      <MintConditionalTokenCard />
     </Group>
   );
 }
