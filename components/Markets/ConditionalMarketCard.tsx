@@ -364,9 +364,11 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                 type="number"
                 value={amount || ''}
                 defaultValue={amount || ''}
+                rightSectionWidth={70}
                 rightSection={
                   <ActionIcon
-                    radius="md"
+                    w="80%"
+                    radius="sm"
                     color="grey"
                     onClick={() => {
                       setAmount(maxOrderAmount()! ? maxOrderAmount()! : 0);
@@ -376,7 +378,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                   >
                     <Text size="xs">
                       Max{' '}
-                      {maxOrderAmount()
+                      {maxOrderAmount() && maxOrderAmount() < 1000
                         ? !isOrderAmountNan()
                           ? numeral(maxOrderAmount()).format(BASE_FORMAT)
                           : ''
@@ -409,7 +411,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
               <Text> </Text>
             )}
             <>
-              <Text size="xs">Total Order Value {orderValue}</Text>
+              <Text size="xs">Total Order Value ${orderValue}</Text>
             </>
           </Group>
           <Grid>
