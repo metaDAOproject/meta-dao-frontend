@@ -368,7 +368,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                 rightSection={
                   <ActionIcon
                     w="80%"
-                    radius="lg"
+                    radius="sm"
                     color="grey"
                     onClick={() => {
                       setAmount(maxOrderAmount()! ? maxOrderAmount()! : 0);
