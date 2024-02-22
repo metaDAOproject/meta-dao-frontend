@@ -30,7 +30,7 @@ import {
   IconBrandTwitter,
   IconSun,
   IconMoonStars,
-  IconExternalLink
+  IconExternalLink,
 } from '@tabler/icons-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -91,12 +91,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
     try {
       const res2 = await fetch('https://quote-api.jup.ag/v6/quote?inputMint=METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&amount=100000&slippageBps=50&swapMode=ExactIn&onlyDirectRoutes=false&asLegacyTransaction=false&maxAccounts=64&experimentalDexes=Jupiter%20LO');
       const data2 = await res2.json();
-      setTokenPrice(Math.round(Number(data2.outAmount)/Number(data2.inAmount) * 100000)/100)
+      setTokenPrice(Math.round(Number(data2.outAmount) / Number(data2.inAmount) * 100000) / 100);
     } catch {
-      console.log('couldnt load token price')
+      console.log('couldnt load token price');
     }
   }
-
 
   useEffect(() => {
     const fetchData = async () => {
@@ -128,7 +127,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, []); // Empty dependency array means this effect will only run once
 
-
   const feesCost = (((priorityFee / 100000) * 200000) / LAMPORTS_PER_SOL) * (solPrice || 0);
 
   const ThemeSwitch = () => (
@@ -155,19 +153,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Flex>
             </Link>
 
-            <Group gap="0" justify="center" ta="center" onClick={updateTokenPrice} >
+            <Group gap="0" justify="center" ta="center" onClick={updateTokenPrice}>
 
-              <div style={{fontSize: 'small'}} >
+              <div style={{ fontSize: 'small' }}>
             {tokenPrice === undefined ? '' : `1 META ≈ $${tokenPrice}`}
             <Link
-          target="_blank"
-          href='https://birdeye.so/token/METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr?chain=solana'
-        >
+              target="_blank"
+              href="https://birdeye.so/token/METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr?chain=solana"
+            >
             <IconExternalLink height=".7rem" width="1rem" />
-        </Link>
-            </div>
+            </Link>
+              </div>
             </Group>
-
 
             <Group>
               {wallet?.publicKey ? (
