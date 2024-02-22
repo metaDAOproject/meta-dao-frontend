@@ -1,8 +1,8 @@
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { PublicKey } from '@solana/web3.js';
 import { useLocalStorage } from '@mantine/hooks';
+import { useMemo } from 'react';
 import { Networks, useNetworkConfiguration } from './useNetworkConfiguration';
-import { useCallback, useMemo } from 'react';
 
 export interface Token {
   name: string;
@@ -67,7 +67,7 @@ type TokensDict = Partial<{ [key in TokenKeys]: Token }>;
 
 export function useTokens() {
   const { network } = useNetworkConfiguration();
-  
+
   const defaultTokens = useMemo(() => {
     switch (network) {
       case Networks.Devnet:
@@ -79,7 +79,7 @@ export function useTokens() {
       default:
         return staticTokens;
     }
-  }, [network])
+  }, [network]);
 
   const [tokens, setTokens] = useLocalStorage<TokensDict>({
     key: 'futarchy-tokens',
@@ -99,7 +99,7 @@ export function useTokens() {
   });
 
   return {
-    tokens: tokens,
+    tokens,
     setTokens: (newTokens: TokensDict) => {
       // Simple optimization to prevent unnecessary updates
       const mergedTokens = { ...tokens, ...newTokens };
