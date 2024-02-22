@@ -64,6 +64,8 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   const failTwap = calculateTWAP(markets.failTwap.twapOracle);
   const passObservation = getLastObservedAndSlot(markets.passTwap.twapOracle);
   const failObservation = getLastObservedAndSlot(markets.failTwap.twapOracle);
+  const passAggregateObservation = markets.passTwap.twapOracle.observationAggregator.toNumber();
+  const failAggregateObservation = markets.failTwap.twapOracle.observationAggregator.toNumber();
   const twap = isPassMarket ? passTwap : failTwap;
   const isAskSide = orderSide === 'Sell';
   const isLimitOrder = orderType === 'Limit';
@@ -156,7 +158,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
     return `${diff} seconds ago`;
   };
 
-  const lastObservedSlot = () => {
+  const lastObservedSlot = (): number => {
     if (passObservation && failObservation) {
       return (isPassMarket
         ? passObservation?.lastObservationSlot.toNumber()
@@ -260,6 +262,55 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
     return _slot;
   };
 
+  const getObservableTwap = () => {
+    if (isPassMarket) {
+      if (passObservation) {
+        if (passMidPrice > passObservation.lastObservationValue) {
+          const max_observation = (
+            (passObservation.lastObservationValue * (10_000 + 100)) / 10_000
+          ) + 1;
+          const evaluated = Math.min(passMidPrice, max_observation);
+          return evaluated;
+        }
+          const min_observation = (
+            (passObservation.lastObservationValue * (10_000 + 100)) / 10_000
+          );
+          const evaluated = Math.max(passMidPrice, min_observation);
+          return evaluated;
+      }
+    } else if (failObservation) {
+        if (failMidPrice > failObservation.lastObservationValue) {
+          const max_observation = (
+            (failObservation.lastObservationValue * (10_000 + 100)) / 10_000
+          ) + 1;
+          const evaluated = Math.min(failMidPrice, max_observation);
+          return evaluated;
+        }
+          const min_observation = (
+            (failObservation.lastObservationValue * (10_000 + 100)) / 10_000
+          );
+          const evaluated = Math.max(failMidPrice, min_observation);
+          return evaluated;
+      }
+  };
+
+  const getTotalImpact = (): number => {
+    const aggregateObservation = (isPassMarket
+      ? passAggregateObservation
+      : failAggregateObservation);
+    const twapObserved = getObservableTwap();
+    if (twapObserved) {
+      const _slotDiffObserved = twapObserved * (slot - lastObservedSlot());
+      const newAggregate = (aggregateObservation + _slotDiffObserved);
+      const startSlot = proposal?.account.slotEnqueued.toNumber();
+      const proposalTimeInSlots: number = lastObservedSlot() - startSlot;
+      const oldValue = aggregateObservation / proposalTimeInSlots;
+      const newValue = newAggregate / proposalTimeInSlots;
+      return (newValue - oldValue) / oldValue;
+    }
+    return 0;
+  };
+
   const getClusterTimestamp = async () => {
     const _clusterTimestamp = await provider.connection.getBlockTime(await getSlot());
     const _observedTimestamp = await provider.connection.getBlockTime(lastObservedSlot());
@@ -358,6 +409,13 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                     <br />
                     {(new Date((observedTimestamp * 1000))).toUTCString()}{' '}
                     | {timeSinceObservation()}
+                  </Text>
+                  <Text>Crank Impact {
+                    (getTotalImpact() * 100).toLocaleString('fullwide', {
+                      useGrouping: false,
+                      maximumSignificantDigits: 20,
+                   })
+                  }%
                   </Text>
                   <Text c={isWinning()}>
                     Currently the{' '}
