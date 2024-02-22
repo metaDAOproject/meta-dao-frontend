@@ -142,7 +142,7 @@ export function ConditionalMarketOrderBook({
             })
             .sort((
               a: { price: number, size: number },
-              b: { price: number, size: number }) => a.price - b.price);
+              b: { price: number, size: number }) => b.price - a.price);
 
           const _aggreateBids = new Map();
           _bids.forEach((order: { price: number, size: number }) => {
