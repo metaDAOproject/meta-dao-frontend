@@ -29,7 +29,7 @@ function Balance({ token, market, imageSrc }: { token: ConditionalToken, market:
       <Stack gap={0}>
         <Group gap={4}>
           <Text fw={600}>
-            {balance} $p{token.symbol}
+            {balance} ${market.charAt(0)}{token.symbol}
           </Text>
         </Group>
         <Link
