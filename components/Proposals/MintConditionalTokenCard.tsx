@@ -130,7 +130,7 @@ export function MintConditionalTokenCard() {
           onClick={handleMint}
           fullWidth
         >
-          Mint {mintAmount ? `${mintAmount} $p${token.symbol} and ${mintAmount} $f${token.symbol}` : ''}
+          Mint {mintAmount ? `${mintAmount} p${token.symbol} and ${mintAmount} f${token.symbol}` : ''}
         </Button>
       </Fieldset>
     );
