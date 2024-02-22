@@ -182,7 +182,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </Menu>
               ) : (
                 <Button
-                  variant="light"
+                  variant="outline"
                   onClick={() => modal.setVisible(true)}
                   loading={modal.visible || wallet.connecting}
                 >

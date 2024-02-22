@@ -113,7 +113,7 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
       </Text>
       <Group>
         <Button
-          variant="light"
+          variant="outline"
           loading={isSettling}
           onClick={handleSettleAllFunds}
           disabled={ordersToSettle.length === 0}
@@ -121,7 +121,7 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
           Settle {ordersToSettle.length} Orders
         </Button>
         <Button
-          variant="light"
+          variant="outline"
           loading={isClosing}
           onClick={handleCloseAllOrders}
           disabled={ordersToClose.length === 0}

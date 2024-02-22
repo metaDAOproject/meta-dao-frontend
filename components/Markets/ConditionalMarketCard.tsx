@@ -563,7 +563,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                 fullWidth
                 color={isAskSide ? 'red' : 'green'}
                 onClick={handlePlaceOrder}
-                variant="light"
+                variant="outline"
                 disabled={!amount || (isLimitOrder ? !price : false)}
                 loading={isPlacingOrder}
               >
