@@ -70,20 +70,31 @@ const explorers = [
   { label: 'Solana Explorer', value: Explorers.Solana.toString() },
 ];
 
-function getTokenPrice(data:any) {
-  const price = (Math.round((Number(data.outAmount) / Number(data.inAmount)) * 1000000) / 1000);
+function getTokenPrice(data: any) {
+  const price = Math.round((Number(data.outAmount) / Number(data.inAmount)) * 1000000) / 1000;
   return price;
 }
 
 function useTokenPrice() {
-  const url = 'https://quote-api.jup.ag/v6/quote?inputMint=METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&amount=100000000&slippageBps=50&swapMode=ExactIn&onlyDirectRoutes=false&asLegacyTransaction=false&maxAccounts=64&experimentalDexes=Jupiter%20LO';
-  const tokenPriceFetcher = () => fetch(url).then(res => res.json()).then(data => getTokenPrice(data));
+  const url =
+    'https://quote-api.jup.ag/v6/quote?inputMint=METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr&' +
+    'outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&' +
+    'amount=100000000&' +
+    'slippageBps=50&' +
+    'swapMode=ExactIn&' +
+    'onlyDirectRoutes=false&' +
+    'maxAccounts=64&' +
+    'experimentalDexes=Jupiter%20LO';
+  const tokenPriceFetcher = () =>
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => getTokenPrice(data));
   const { data, error, isLoading } = useSWR('metaSpotPrice', tokenPriceFetcher);
 
   return {
-      price: data,
-      isLoading,
-      isError: error,
+    price: data,
+    isLoading,
+    isError: error,
   };
 }
 
@@ -154,15 +165,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </Link>
 
             <Group gap="0" justify="center" ta="center">
-
               <div style={{ fontSize: 'small' }}>
-            {tokenPrice.isLoading ? 'loading...' : !tokenPrice.isError ? `1 META ≈ $${tokenPrice.price}` : ''}
-            <Link
-              target="_blank"
-              href="https://birdeye.so/token/METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr?chain=solana"
-            >
-            <IconExternalLink height=".7rem" width="1rem" />
-            </Link>
+                {tokenPrice.isLoading
+                  ? 'loading...'
+                  : !tokenPrice.isError
+                  ? `1 META ≈ $${tokenPrice.price}`
+                  : ''}
+                <Link
+                  target="_blank"
+                  href="https://birdeye.so/token/METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr?chain=solana"
+                >
+                  <IconExternalLink height=".7rem" width="1rem" />
+                </Link>
               </div>
             </Group>
 
@@ -245,7 +259,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </Link>
               ))}
             </Group>
-
           </Group>
         </Card>
       </footer>
