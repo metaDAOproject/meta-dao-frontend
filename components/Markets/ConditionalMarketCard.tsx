@@ -260,7 +260,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
       }
     }
   });
-
+  }, []);
   return (
     <Card
       withBorder
