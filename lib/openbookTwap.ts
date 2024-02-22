@@ -15,6 +15,15 @@ export const calculateTWAP = (twapOracle?: TWAPOracle) => {
   return twapValue.toNumber() * QUOTE_LOTS;
 };
 
+export const getLastObservedAndSlot = (twapOracle?: TWAPOracle) => {
+  if (!twapOracle) return undefined;
+
+  return {
+    lastObservationValue: twapOracle.lastObservation * QUOTE_LOTS,
+    lastObservationSlot: twapOracle.lastObservedSlot,
+  };
+};
+
 export const getTwapMarketKey = (market: PublicKey) =>
   PublicKey.findProgramAddressSync(
     [Buffer.from('twap_market'), market.toBuffer()],
