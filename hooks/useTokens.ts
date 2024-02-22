@@ -2,6 +2,7 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { PublicKey } from '@solana/web3.js';
 import { useLocalStorage } from '@mantine/hooks';
 import { Networks, useNetworkConfiguration } from './useNetworkConfiguration';
+import { useCallback, useMemo } from 'react';
 
 export interface Token {
   name: string;
@@ -61,27 +62,28 @@ const devnetTokens: TokensDict = {
   },
 };
 
-const selectDefaultTokens = (n?: Networks) => {
-  switch (n) {
-    case Networks.Devnet:
-      return { ...staticTokens, ...devnetTokens };
-    case Networks.Mainnet:
-      return { ...staticTokens, ...mainnetTokens };
-    case Networks.Custom:
-      return { ...staticTokens, ...mainnetTokens };
-    default:
-      return staticTokens;
-  }
-};
-
 type TokenKeys = 'meta' | 'usdc' | keyof typeof staticTokens;
 type TokensDict = Partial<{ [key in TokenKeys]: Token }>;
 
 export function useTokens() {
   const { network } = useNetworkConfiguration();
+  
+  const defaultTokens = useMemo(() => {
+    switch (network) {
+      case Networks.Devnet:
+        return { ...staticTokens, ...devnetTokens };
+      case Networks.Mainnet:
+        return { ...staticTokens, ...mainnetTokens };
+      case Networks.Custom:
+        return { ...staticTokens, ...mainnetTokens };
+      default:
+        return staticTokens;
+    }
+  }, [network])
+
   const [tokens, setTokens] = useLocalStorage<TokensDict>({
     key: 'futarchy-tokens',
-    defaultValue: selectDefaultTokens(network),
+    defaultValue: defaultTokens,
     getInitialValueInEffect: true,
     serialize: JSON.stringify,
     deserialize: (s) => {
@@ -97,9 +99,13 @@ export function useTokens() {
   });
 
   return {
-    tokens: { ...selectDefaultTokens(network), ...tokens },
+    tokens: tokens,
     setTokens: (newTokens: TokensDict) => {
-      setTokens({ ...tokens, ...newTokens });
+      // Simple optimization to prevent unnecessary updates
+      const mergedTokens = { ...tokens, ...newTokens };
+      if (JSON.stringify(mergedTokens) !== JSON.stringify(tokens)) {
+        setTokens(mergedTokens);
+      }
     },
   };
 }

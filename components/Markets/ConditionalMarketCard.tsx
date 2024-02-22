@@ -259,7 +259,6 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
         getClusterTimestamp();
       }
     }
-  });
   }, []);
   return (
     <Card
