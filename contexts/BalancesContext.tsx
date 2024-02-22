@@ -14,11 +14,13 @@ type Balances = { [token: string]: TokenAmount };
 export interface BalancesInterface {
   balances: Balances;
   fetchBalance: (mint: PublicKey) => Promise<TokenAmount>;
+  getBalance: (mint: PublicKey) => Promise<TokenAmount>;
 }
 
 export const balancesContext = createContext<BalancesInterface>({
   balances: {},
   fetchBalance: () => new Promise(() => {}),
+  getBalance: () => new Promise(() => { }),
 });
 
 export const useBalances = () => {
@@ -63,11 +65,22 @@ export function BalancesProvider({
     [connection, owner],
   );
 
+  const getBalance = useCallback(
+    async (mint: PublicKey | string) => {
+      if (Object.prototype.hasOwnProperty.call(balances, mint.toString())) {
+        return balances[mint.toString()];
+      }
+      return fetchBalance(mint);
+    },
+    [balances, fetchBalance],
+  );
+
   return (
     <balancesContext.Provider
       value={{
         balances,
         fetchBalance,
+        getBalance,
       }}
     >
       {children}
