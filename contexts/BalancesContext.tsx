@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useState } from 'react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey, TokenAmount } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
@@ -70,7 +70,7 @@ export function BalancesProvider({
       if (Object.prototype.hasOwnProperty.call(balances, mint.toString())) {
         return balances[mint.toString()];
       }
-      return fetchBalance(mint)
+      return fetchBalance(mint);
     },
     [balances, fetchBalance],
   );
