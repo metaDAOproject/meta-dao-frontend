@@ -52,7 +52,7 @@ export default function useConditionalTokens() {
     const [usdcToken, setUsdcToken] = useState<ConditionalToken | undefined>()
 
     useEffect(() => {
-        if (tokens && base && quote && metaBalance !== undefined && usdcBalance !== undefined) {
+        if (tokens && base && quote) {
             setMetaToken({
                 token: tokens.meta as unknown as Token,
                 symbol: tokens.meta?.symbol as unknown as string,
