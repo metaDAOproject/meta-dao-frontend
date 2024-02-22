@@ -91,7 +91,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     try {
       const res2 = await fetch('https://quote-api.jup.ag/v6/quote?inputMint=METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&amount=100000&slippageBps=50&swapMode=ExactIn&onlyDirectRoutes=false&asLegacyTransaction=false&maxAccounts=64&experimentalDexes=Jupiter%20LO');
       const data2 = await res2.json();
-      setTokenPrice(Math.round(Number(data2.outAmount) / Number(data2.inAmount) * 100000) / 100);
+      setTokenPrice((Math.round(Number(data2.outAmount) / Number(data2.inAmount)) * 100000) / 100);
     } catch {
       console.log('couldnt load token price');
     }
