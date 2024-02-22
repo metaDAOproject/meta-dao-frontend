@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { defaultAmount, useBalances } from '../contexts/BalancesContext';
 
 export function useBalance(mint?: PublicKey) {
-  const { balances, getBalance, fetchBalance} = useBalances();
+  const { balances, getBalance, fetchBalance } = useBalances();
 
   const fetchAmount = async () => {
     if (mint) {
@@ -13,7 +13,7 @@ export function useBalance(mint?: PublicKey) {
 
   useEffect(() => {
     if (mint) {
-      getBalance(mint)
+      getBalance(mint);
     }
   }, [mint, getBalance]);
 
