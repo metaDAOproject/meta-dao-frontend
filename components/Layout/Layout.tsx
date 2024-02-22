@@ -35,6 +35,7 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import React, { useEffect, useRef, useState } from 'react';
+import useSWR from 'swr';
 import { Networks, useNetworkConfiguration } from '../../hooks/useNetworkConfiguration';
 import { shortKey } from '@/lib/utils';
 import icon from '@/public/meta.png';
@@ -69,6 +70,34 @@ const explorers = [
   { label: 'Solana Explorer', value: Explorers.Solana.toString() },
 ];
 
+function getTokenPrice(data: any) {
+  const price = Math.round((Number(data.outAmount) / Number(data.inAmount)) * 1000000) / 1000;
+  return price;
+}
+
+function useTokenPrice() {
+  const url =
+    'https://quote-api.jup.ag/v6/quote?inputMint=METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr&' +
+    'outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&' +
+    'amount=100000000&' +
+    'slippageBps=50&' +
+    'swapMode=ExactIn&' +
+    'onlyDirectRoutes=false&' +
+    'maxAccounts=64&' +
+    'experimentalDexes=Jupiter%20LO';
+  const tokenPriceFetcher = () =>
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => getTokenPrice(data));
+  const { data, error, isLoading } = useSWR('metaSpotPrice', tokenPriceFetcher);
+
+  return {
+    price: data,
+    isLoading,
+    isError: error,
+  };
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const wallet = useWallet();
   const modal = useWalletModal();
@@ -80,22 +109,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const logoRef = useRef(null);
   const { priorityFee, setPriorityFee } = usePriorityFee();
   const [solPrice, setSolPrice] = useState<number>();
-  const [tokenPrice, setTokenPrice] = useState<number>();
 
   useFavicon(_favicon.src);
   useEffect(() => {
     if (!wallet.connected && wallet.wallet) wallet.connect();
   }, [wallet]);
-
-  async function updateTokenPrice() {
-    try {
-      const res2 = await fetch('https://quote-api.jup.ag/v6/quote?inputMint=METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&amount=100000&slippageBps=50&swapMode=ExactIn&onlyDirectRoutes=false&asLegacyTransaction=false&maxAccounts=64&experimentalDexes=Jupiter%20LO');
-      const data2 = await res2.json();
-      setTokenPrice((Math.round(Number(data2.outAmount) / Number(data2.inAmount)) * 100000) / 100);
-    } catch {
-      console.log('couldnt load token price');
-    }
-  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -113,19 +131,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
       } catch {
         setSolPrice(0);
       }
-      updateTokenPrice();
     };
-
-    const interval = setInterval(() => {
-      updateTokenPrice();
-    }, 10000); // 10 seconds
 
     // Call fetchData immediately when component mounts
     fetchData();
-
-    // Clear interval when component unmounts or when useEffect runs next time
-    return () => clearInterval(interval);
   }, []); // Empty dependency array means this effect will only run once
+  const tokenPrice = useTokenPrice();
 
   const feesCost = (((priorityFee / 100000) * 200000) / LAMPORTS_PER_SOL) * (solPrice || 0);
 
@@ -153,16 +164,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Flex>
             </Link>
 
-            <Group gap="0" justify="center" ta="center" onClick={updateTokenPrice}>
-
+            <Group gap="0" justify="center" ta="center">
               <div style={{ fontSize: 'small' }}>
-            {tokenPrice === undefined ? '' : `1 META ≈ $${tokenPrice}`}
-            <Link
-              target="_blank"
-              href="https://birdeye.so/token/METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr?chain=solana"
-            >
-            <IconExternalLink height=".7rem" width="1rem" />
-            </Link>
+                {tokenPrice.isLoading
+                  ? 'loading...'
+                  : !tokenPrice.isError
+                  ? `1 META ≈ $${tokenPrice.price}`
+                  : ''}
+                <Link
+                  target="_blank"
+                  href="https://birdeye.so/token/METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr?chain=solana"
+                >
+                  <IconExternalLink height=".7rem" width="1rem" />
+                </Link>
               </div>
             </Group>
 
@@ -245,7 +259,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </Link>
               ))}
             </Group>
-
           </Group>
         </Card>
       </footer>
