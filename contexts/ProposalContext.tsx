@@ -420,7 +420,7 @@ export function ProposalProvider({
       if (isBidSide) {
         return [[0, 0]];
       }
-      return [[69, 0]];
+      return [[0, 0]];
     };
 
     const getToB = (bids: LeafNode[], asks: LeafNode[]) => {
@@ -440,7 +440,7 @@ export function ProposalProvider({
       const spreadPercent: string = ((spread / topBid) * 100).toFixed(2);
 
       return spread === topAsk
-        ? '∞ (100.00%)'
+        ? '∞'
         : `${spread.toFixed(2).toString()} (${spreadPercent}%)`;
     };
 

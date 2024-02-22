@@ -104,7 +104,7 @@ export function ConditionalMarketOrderBook({
               side[1],
             ]);
           } else {
-            return [[69, 0]];
+            return [[0, 0]];
           }
           console.log(ctx.slot);
           setAsks(__asks);
@@ -159,7 +159,7 @@ export function ConditionalMarketOrderBook({
               side[1],
             ]);
           } else {
-            return [[69, 0]];
+            return [[0, 0]];
           }
           console.log(ctx.slot);
           setBids(__bids);
