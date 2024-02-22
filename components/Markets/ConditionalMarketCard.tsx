@@ -41,6 +41,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   const { generateExplorerLink } = useExplorerConfiguration();
   const { colorScheme } = useMantineColorScheme();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
   const { amount: baseBalance, fetchAmount: fetchBase } = useBalance(
     isPassMarket
       ? markets?.baseVault.conditionalOnFinalizeTokenMint
@@ -202,6 +203,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
     }
     return 'inherit';
   };
+
   const handlePlaceOrder = useCallback(async () => {
     try {
       setIsPlacingOrder(true);
