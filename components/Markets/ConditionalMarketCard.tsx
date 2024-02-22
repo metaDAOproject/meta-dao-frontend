@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, use } from 'react';
 import {
   ActionIcon,
   Card,
@@ -19,18 +19,20 @@ import numeral from 'numeral';
 import { Icon12Hours, IconWallet, IconInfoCircle } from '@tabler/icons-react';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
 import { useAutocrat } from '../../contexts/AutocratContext';
-import { calculateTWAP } from '../../lib/openbookTwap';
+import { calculateTWAP, getLastObservedAndSlot } from '../../lib/openbookTwap';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import MarketTitle from './MarketTitle';
 import DisableNumberInputScroll from '../Utilities/DisableNumberInputScroll';
 import { useBalance } from '../../hooks/useBalance';
+import { useProvider } from '@/hooks/useProvider';
 
 export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?: boolean }) {
   const { daoState } = useAutocrat();
   const { proposal, orderBookObject, markets, isCranking, crankMarkets, placeOrder } =
     useProposal();
+  const provider = useProvider();
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
@@ -41,6 +43,8 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   const { generateExplorerLink } = useExplorerConfiguration();
   const { colorScheme } = useMantineColorScheme();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [slot, setSlot] = useState<number>(0);
+  const [clusterTimestamp, setClusterTimestamp] = useState<number>(0);
   const { amount: baseBalance, fetchAmount: fetchBase } = useBalance(
     isPassMarket
       ? markets?.baseVault.conditionalOnFinalizeTokenMint
@@ -56,6 +60,8 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   if (!markets) return <></>;
   const passTwap = calculateTWAP(markets.passTwap.twapOracle);
   const failTwap = calculateTWAP(markets.failTwap.twapOracle);
+  const passObservation = getLastObservedAndSlot(markets.passTwap.twapOracle);
+  const failObservation = getLastObservedAndSlot(markets.failTwap.twapOracle);
   const twap = isPassMarket ? passTwap : failTwap;
   const isAskSide = orderSide === 'Sell';
   const isLimitOrder = orderType === 'Limit';
@@ -124,6 +130,16 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
         setPriceError('Enter a value greater than 0');
       }
     }
+  };
+
+  const lastObservedSlot = () => {
+    if (passObservation && failObservation) {
+      return (isPassMarket
+        ? passObservation?.lastObservationSlot.toNumber()
+        : failObservation?.lastObservationSlot.toNumber()
+      );
+    }
+    return 0;
   };
 
   const failMidPrice =
@@ -202,6 +218,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
     }
     return 'inherit';
   };
+
   const handlePlaceOrder = useCallback(async () => {
     try {
       setIsPlacingOrder(true);
@@ -213,6 +230,18 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
     }
   }, [placeOrder, fetchBase, fetchQuote, amount, isLimitOrder, isPassMarket, isAskSide]);
 
+  const getSlot = async () => {
+    const _slot = await provider.connection.getSlot();
+    setSlot(_slot);
+  };
+
+  const getClusterTimestamp = async () => {
+    const _clusterTimestamp = await provider.connection.getBlockTime(slot);
+    if (_clusterTimestamp) {
+      setClusterTimestamp(_clusterTimestamp);
+    }
+  };
+
   useEffect(() => {
     updateOrderValue();
     if (amount !== 0) amountValidator(amount);
@@ -222,6 +251,15 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
     updateOrderValue();
     if (price !== '') priceValidator(price);
   }, [price]);
+
+  useEffect(() => {
+    if (!slot || slot === 0) {
+      getSlot();
+      if ((!clusterTimestamp || clusterTimestamp === 0)) {
+        getClusterTimestamp();
+      }
+    }
+  });
 
   return (
     <Card
@@ -273,6 +311,16 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                         ).format(NUMERAL_FORMAT)})`
                       : null}
                     , the proposal will pass once the countdown ends.
+                  </Text>
+                  <Text>
+                    Last observed price (for TWAP calculation) ${numeral(
+                    isPassMarket
+                    ? passObservation?.lastObservationValue
+                    : failObservation?.lastObservationValue).format(NUMERAL_FORMAT)}
+                  </Text>
+                  <Text size="xs">Last observed at {isPassMarket ? passObservation?.lastObservationSlot.toNumber() : failObservation?.lastObservationSlot.toNumber()} (slot)</Text>
+                  <Text size="xs">Slots behind {
+                  slot - lastObservedSlot()} | Solana cluster unixtime {clusterTimestamp}
                   </Text>
                   <Text c={isWinning()}>
                     Currently the{' '}
