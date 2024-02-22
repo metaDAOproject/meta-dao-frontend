@@ -19,18 +19,20 @@ import numeral from 'numeral';
 import { Icon12Hours, IconWallet, IconInfoCircle } from '@tabler/icons-react';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
 import { useAutocrat } from '../../contexts/AutocratContext';
-import { calculateTWAP } from '../../lib/openbookTwap';
+import { calculateTWAP, getLastObservedAndSlot } from '../../lib/openbookTwap';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import MarketTitle from './MarketTitle';
 import DisableNumberInputScroll from '../Utilities/DisableNumberInputScroll';
 import { useBalance } from '../../hooks/useBalance';
+import { useProvider } from '@/hooks/useProvider';
 
 export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?: boolean }) {
   const { daoState } = useAutocrat();
   const { proposal, orderBookObject, markets, isCranking, crankMarkets, placeOrder } =
     useProposal();
+  const provider = useProvider();
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
@@ -41,6 +43,10 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   const { generateExplorerLink } = useExplorerConfiguration();
   const { colorScheme } = useMantineColorScheme();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [slot, setSlot] = useState<number>(0);
+  const [clusterTimestamp, setClusterTimestamp] = useState<number>(0);
+  const [observedTimestamp, setObservedTimestamp] = useState<number>(0);
+
   const { amount: baseBalance, fetchAmount: fetchBase } = useBalance(
     isPassMarket
       ? markets?.baseVault.conditionalOnFinalizeTokenMint
@@ -56,6 +62,10 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   if (!markets) return <></>;
   const passTwap = calculateTWAP(markets.passTwap.twapOracle);
   const failTwap = calculateTWAP(markets.failTwap.twapOracle);
+  const passObservation = getLastObservedAndSlot(markets.passTwap.twapOracle);
+  const failObservation = getLastObservedAndSlot(markets.failTwap.twapOracle);
+  const passAggregateObservation = markets.passTwap.twapOracle.observationAggregator.toNumber();
+  const failAggregateObservation = markets.failTwap.twapOracle.observationAggregator.toNumber();
   const twap = isPassMarket ? passTwap : failTwap;
   const isAskSide = orderSide === 'Sell';
   const isLimitOrder = orderType === 'Limit';
@@ -124,6 +134,38 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
         setPriceError('Enter a value greater than 0');
       }
     }
+  };
+
+  const timeSinceObservation = () => {
+    const diff = clusterTimestamp - observedTimestamp;
+    if (diff > 864_000) {
+      return 'A long time ago';
+    }
+    if (diff > 86_400) {
+      const _diff = diff / 86_400;
+      return `${_diff.toFixed(0)}+ days ago`;
+    }
+    if (diff > 3_600) {
+      // hours
+      const _diff = diff / 3_600;
+      return `${_diff.toFixed(0)}+ hours ago`;
+    }
+    if (diff > 60) {
+      // minutes
+      const _diff = diff / 60;
+      return `${_diff.toFixed(0)}+ minutes ago`;
+    }
+    return `${diff} seconds ago`;
+  };
+
+  const lastObservedSlot = (): number => {
+    if (passObservation && failObservation) {
+      return (isPassMarket
+        ? passObservation?.lastObservationSlot.toNumber()
+        : failObservation?.lastObservationSlot.toNumber()
+      );
+    }
+    return 0;
   };
 
   const failMidPrice =
@@ -202,6 +244,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
     }
     return 'inherit';
   };
+
   const handlePlaceOrder = useCallback(async () => {
     try {
       setIsPlacingOrder(true);
@@ -213,6 +256,72 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
     }
   }, [placeOrder, fetchBase, fetchQuote, amount, isLimitOrder, isPassMarket, isAskSide]);
 
+  const getSlot = async () => {
+    const _slot = await provider.connection.getSlot();
+    setSlot(_slot);
+    return _slot;
+  };
+
+  const getObservableTwap = () => {
+    if (isPassMarket) {
+      if (passObservation) {
+        if (passMidPrice > passObservation.lastObservationValue) {
+          const max_observation = (
+            (passObservation.lastObservationValue * (10_000 + 100)) / 10_000
+          ) + 1;
+          const evaluated = Math.min(passMidPrice, max_observation);
+          return evaluated;
+        }
+          const min_observation = (
+            (passObservation.lastObservationValue * (10_000 + 100)) / 10_000
+          );
+          const evaluated = Math.max(passMidPrice, min_observation);
+          return evaluated;
+      }
+    } else if (failObservation) {
+        if (failMidPrice > failObservation.lastObservationValue) {
+          const max_observation = (
+            (failObservation.lastObservationValue * (10_000 + 100)) / 10_000
+          ) + 1;
+          const evaluated = Math.min(failMidPrice, max_observation);
+          return evaluated;
+        }
+          const min_observation = (
+            (failObservation.lastObservationValue * (10_000 + 100)) / 10_000
+          );
+          const evaluated = Math.max(failMidPrice, min_observation);
+          return evaluated;
+      }
+  };
+
+  const getTotalImpact = (): number => {
+    const aggregateObservation = (isPassMarket
+      ? passAggregateObservation
+      : failAggregateObservation);
+    const twapObserved = getObservableTwap();
+    if (twapObserved) {
+      const _slotDiffObserved = twapObserved * (slot - lastObservedSlot());
+      const newAggregate = (aggregateObservation + _slotDiffObserved);
+      const startSlot = proposal?.account.slotEnqueued.toNumber();
+      const proposalTimeInSlots: number = lastObservedSlot() - startSlot;
+      const oldValue = aggregateObservation / proposalTimeInSlots;
+      const newValue = newAggregate / proposalTimeInSlots;
+      return (newValue - oldValue) / oldValue;
+    }
+    return 0;
+  };
+
+  const getClusterTimestamp = async () => {
+    const _clusterTimestamp = await provider.connection.getBlockTime(await getSlot());
+    const _observedTimestamp = await provider.connection.getBlockTime(lastObservedSlot());
+    if (_clusterTimestamp) {
+      setClusterTimestamp(_clusterTimestamp);
+    }
+    if (_observedTimestamp) {
+      setObservedTimestamp(_observedTimestamp);
+    }
+  };
+
   useEffect(() => {
     updateOrderValue();
     if (amount !== 0) amountValidator(amount);
@@ -222,6 +331,15 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
     updateOrderValue();
     if (price !== '') priceValidator(price);
   }, [price]);
+
+  useEffect(() => {
+    if (!slot || slot === 0) {
+      getSlot();
+    }
+    if ((!clusterTimestamp || clusterTimestamp === 0)) {
+      getClusterTimestamp();
+    }
+  }, []);
 
   return (
     <Card
@@ -273,6 +391,31 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                         ).format(NUMERAL_FORMAT)})`
                       : null}
                     , the proposal will pass once the countdown ends.
+                  </Text>
+                  <Text>
+                    Last observed price (for TWAP calculation) ${numeral(
+                    isPassMarket
+                    ? passObservation?.lastObservationValue
+                    : failObservation?.lastObservationValue).format(NUMERAL_FORMAT)}
+                  </Text>
+                  <Text size="xs">Last observed at
+                    <br />
+                    slot {
+                        isPassMarket
+                        ? passObservation?.lastObservationSlot.toNumber()
+                        : failObservation?.lastObservationSlot.toNumber()
+                      }{' '}
+                    | {slot - lastObservedSlot()} slots behind cluster
+                    <br />
+                    {(new Date((observedTimestamp * 1000))).toUTCString()}{' '}
+                    | {timeSinceObservation()}
+                  </Text>
+                  <Text>Crank Impact {
+                    (getTotalImpact() * 100).toLocaleString('fullwide', {
+                      useGrouping: false,
+                      maximumSignificantDigits: 20,
+                   })
+                  }%
                   </Text>
                   <Text c={isWinning()}>
                     Currently the{' '}
