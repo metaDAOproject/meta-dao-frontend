@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 import {
   ActionIcon,
@@ -11,13 +12,12 @@ import {
   Loader,
   ScrollArea,
   Stack,
+  Select,
   Text,
-  Title,
   Tooltip,
   useMantineColorScheme,
   useMantineTheme,
 } from '@mantine/core';
-// import Markdown from 'react-markdown';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { useMediaQuery } from '@mantine/hooks';
@@ -35,7 +35,6 @@ import { SLOTS_PER_10_SECS } from '../../lib/constants';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useConditionalVault } from '../../hooks/useConditionalVault';
 import { useProposal } from '@/contexts/ProposalContext';
-// import { MarketCard } from './MarketCard';
 import ExternalLink from '../ExternalLink';
 import MarketsBalances from './MarketsBalances';
 import classes from '../../app/globals.module.css';
@@ -44,6 +43,7 @@ import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '.
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 import { Networks, useNetworkConfiguration } from '../../hooks/useNetworkConfiguration';
 import { useBalances } from '../../contexts/BalancesContext';
+import { Proposal } from '../../lib/types';
 
 export function ProposalDetailCard() {
   const wallet = useWallet();
@@ -316,6 +316,25 @@ export function ProposalDetailCard() {
     fetchSlot();
   }, [connection, lastSlot]);
 
+  const router = useRouter();
+  const { proposals } = useAutocrat();
+
+  const [pendingProposals, setPendingProposals] = useState<Proposal[] | null>(null);
+
+  useEffect(() => {
+    if (proposals) {
+      setPendingProposals(proposals?.filter((p) => p.account.state.pending));
+    }
+  }, [proposals]);
+
+  const handleProposalChange = (title: string | null) => {
+    const proposalId = pendingProposals?.filter((p) => p?.title === title)[0].account.number;
+
+    if (proposalId) {
+      router.replace(`/proposal?id=${proposalId}`);
+    }
+  };
+
   return !proposal || !markets ? (
     <Group justify="center">
       <Loader />
@@ -380,9 +399,14 @@ export function ProposalDetailCard() {
                 <IconChevronLeft />
               </ActionIcon>
             ) : null}
-            <Title fw={500} w={150} order={3}>
-              {proposal.title}
-            </Title>
+            <Select
+              data={pendingProposals?.map(el => el.title)}
+              defaultValue={proposal.title}
+              onChange={handleProposalChange}
+              value={proposal.title}
+              size="md"
+              fw={700}
+            />
             <StateBadge proposal={proposal} />
           </Group>
           {proposal.description ? (

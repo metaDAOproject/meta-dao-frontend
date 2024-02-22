@@ -112,6 +112,10 @@ export function ProposalProvider({
     [proposals, fromProposal, proposalNumber],
   );
 
+  useEffect(() => {
+    fetchMarketsInfo()
+  }, [proposal])
+
   const fetchMarketsInfo = useCallback(
     debounce(async () => {
       if (!proposal || !openbook || !openbookTwap || !openbookTwap.views || !connection) {
@@ -182,8 +186,9 @@ export function ProposalProvider({
         quoteVault,
       });
     }, 1000),
-    [markets, vaultProgram, openbook, openbookTwap, proposal, connection],
+    [vaultProgram, openbook, openbookTwap, proposal, connection],
   );
+
   const fetchOpenOrders = useCallback(
     debounce<[PublicKey]>(async (owner: PublicKey) => {
       if (!openbook || !proposal) {
@@ -210,13 +215,13 @@ export function ProposalProvider({
     if (proposal && wallet.publicKey) {
       fetchOpenOrders(wallet.publicKey);
     }
-  }, [markets, fetchOpenOrders]);
+  }, [markets, fetchOpenOrders, proposal]);
 
   useEffect(() => {
     if (!markets && proposal) {
       fetchMarketsInfo();
     }
-  }, [markets, fetchMarketsInfo]);
+  }, [markets, fetchMarketsInfo, proposal]);
 
   const createTokenAccountsTransactions = useCallback(
     async (fromBase?: boolean) => {
