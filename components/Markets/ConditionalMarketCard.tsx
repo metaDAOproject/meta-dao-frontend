@@ -45,6 +45,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [slot, setSlot] = useState<number>(0);
   const [clusterTimestamp, setClusterTimestamp] = useState<number>(0);
+  const [observedTimestamp, setObservedTimestamp] = useState<number>(0);
 
   const { amount: baseBalance, fetchAmount: fetchBase } = useBalance(
     isPassMarket
@@ -131,6 +132,28 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
         setPriceError('Enter a value greater than 0');
       }
     }
+  };
+
+  const timeSinceObservation = () => {
+    const diff = clusterTimestamp - observedTimestamp;
+    if (diff > 864_000) {
+      return 'A long time ago';
+    }
+    if (diff > 86_400) {
+      const _diff = diff / 86_400;
+      return `${_diff.toFixed(0)}+ days ago`;
+    }
+    if (diff > 3_600) {
+      // hours
+      const _diff = diff / 3_600;
+      return `${_diff.toFixed(0)}+ hours ago`;
+    }
+    if (diff > 60) {
+      // minutes
+      const _diff = diff / 60;
+      return `${_diff.toFixed(0)}+ minutes ago`;
+    }
+    return `${diff} seconds ago`;
   };
 
   const lastObservedSlot = () => {
@@ -234,12 +257,17 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   const getSlot = async () => {
     const _slot = await provider.connection.getSlot();
     setSlot(_slot);
+    return _slot;
   };
 
   const getClusterTimestamp = async () => {
-    const _clusterTimestamp = await provider.connection.getBlockTime(slot);
+    const _clusterTimestamp = await provider.connection.getBlockTime(await getSlot());
+    const _observedTimestamp = await provider.connection.getBlockTime(lastObservedSlot());
     if (_clusterTimestamp) {
       setClusterTimestamp(_clusterTimestamp);
+    }
+    if (_observedTimestamp) {
+      setObservedTimestamp(_observedTimestamp);
     }
   };
 
@@ -256,9 +284,9 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   useEffect(() => {
     if (!slot || slot === 0) {
       getSlot();
-      if ((!clusterTimestamp || clusterTimestamp === 0)) {
-        getClusterTimestamp();
-      }
+    }
+    if ((!clusterTimestamp || clusterTimestamp === 0)) {
+      getClusterTimestamp();
     }
   }, []);
 
@@ -319,9 +347,17 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                     ? passObservation?.lastObservationValue
                     : failObservation?.lastObservationValue).format(NUMERAL_FORMAT)}
                   </Text>
-                  <Text size="xs">Last observed at {isPassMarket ? passObservation?.lastObservationSlot.toNumber() : failObservation?.lastObservationSlot.toNumber()} (slot)</Text>
-                  <Text size="xs">Slots behind {
-                  slot - lastObservedSlot()} | Solana cluster unixtime {clusterTimestamp}
+                  <Text size="xs">Last observed at
+                    <br />
+                    slot {
+                        isPassMarket
+                        ? passObservation?.lastObservationSlot.toNumber()
+                        : failObservation?.lastObservationSlot.toNumber()
+                      }{' '}
+                    | {slot - lastObservedSlot()} slots behind cluster
+                    <br />
+                    {(new Date((observedTimestamp * 1000))).toUTCString()}{' '}
+                    | {timeSinceObservation()}
                   </Text>
                   <Text c={isWinning()}>
                     Currently the{' '}
