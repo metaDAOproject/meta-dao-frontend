@@ -30,6 +30,7 @@ import {
   IconBrandTwitter,
   IconSun,
   IconMoonStars,
+  IconExternalLink
 } from '@tabler/icons-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -79,34 +80,54 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const logoRef = useRef(null);
   const { priorityFee, setPriorityFee } = usePriorityFee();
   const [solPrice, setSolPrice] = useState<number>();
+  const [tokenPrice, setTokenPrice] = useState<number>();
 
   useFavicon(_favicon.src);
   useEffect(() => {
     if (!wallet.connected && wallet.wallet) wallet.connect();
   }, [wallet]);
 
-  useEffect(() => {
-    if (solPrice === undefined) {
-      const f = async () => {
-        try {
-          const res = await fetch(
-            'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
-          );
-          const data = await res.json();
+  async function updateTokenPrice() {
+    try {
+      const res2 = await fetch('https://quote-api.jup.ag/v6/quote?inputMint=METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&amount=100000&slippageBps=50&swapMode=ExactIn&onlyDirectRoutes=false&asLegacyTransaction=false&maxAccounts=64&experimentalDexes=Jupiter%20LO');
+      const data2 = await res2.json();
+      setTokenPrice(Math.round(Number(data2.outAmount)/Number(data2.inAmount) * 100000)/100)
+    } catch {
+      console.log('couldnt load token price')
+    }
+  }
 
-          if (data?.solana?.usd) {
-            setSolPrice(data.solana.usd);
-          } else {
-            setSolPrice(0);
-          }
-        } catch {
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(
+          'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
+        );
+        const data = await res.json();
+
+        if (data?.solana?.usd) {
+          setSolPrice(data.solana.usd);
+        } else {
           setSolPrice(0);
         }
-      };
+      } catch {
+        setSolPrice(0);
+      }
+      updateTokenPrice();
+    };
 
-      f();
-    }
-  });
+    const interval = setInterval(() => {
+      updateTokenPrice();
+    }, 10000); // 10 seconds
+
+    // Call fetchData immediately when component mounts
+    fetchData();
+
+    // Clear interval when component unmounts or when useEffect runs next time
+    return () => clearInterval(interval);
+  }, []); // Empty dependency array means this effect will only run once
+
 
   const feesCost = (((priorityFee / 100000) * 200000) / LAMPORTS_PER_SOL) * (solPrice || 0);
 
@@ -133,6 +154,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <Title order={!isTiny ? 3 : 4}>the Meta-DAO</Title>
               </Flex>
             </Link>
+
+            <Group gap="0" justify="center" ta="center" onClick={updateTokenPrice} >
+
+              <div style={{fontSize: 'small'}} >
+            {tokenPrice === undefined ? '' : `1 META ≈ $${tokenPrice}`}
+            <Link
+          target="_blank"
+          href='https://birdeye.so/token/METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr?chain=solana'
+        >
+            <IconExternalLink height=".7rem" width="1rem" />
+        </Link>
+            </div>
+            </Group>
+
+
             <Group>
               {wallet?.publicKey ? (
                 <Menu position="bottom-end">
@@ -212,6 +248,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </Link>
               ))}
             </Group>
+
           </Group>
         </Card>
       </footer>
