@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useConnection } from '@solana/wallet-adapter-react';
-import { PublicKey, TokenAmount } from '@solana/web3.js';
+import { AccountInfo, PublicKey, TokenAmount } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 
 export const defaultAmount: TokenAmount = {
@@ -40,6 +40,7 @@ export function BalancesProvider({
 }) {
   const { connection } = useConnection();
   const [balances, setBalances] = useState<{ [token: string]: TokenAmount }>({});
+  const [websocketConnected, setWebsocketConnected] = useState<boolean>(false);
 
   const fetchBalance = useCallback(
     async (mint: PublicKey | string) => {
@@ -74,6 +75,28 @@ export function BalancesProvider({
     },
     [balances, fetchBalance],
   );
+
+  const updateBalances = (updatedAccountInfo: any, ctx: any) => {
+    console.log(updatedAccountInfo);
+    console.log(ctx.slot);
+  };
+
+  const connectWebsocket = () => {
+    try {
+      connection.onAccountChange(owner, updateBalances, 'confirmed');
+      setWebsocketConnected(true);
+      console.log('Balance WS connected');
+    } catch (err) {
+      setWebsocketConnected(false);
+      console.log('Balance WS disconnected');
+    }
+  };
+
+  useEffect(() => {
+    if (!websocketConnected && owner) {
+      connectWebsocket();
+    }
+  }, [owner]);
 
   return (
     <balancesContext.Provider
