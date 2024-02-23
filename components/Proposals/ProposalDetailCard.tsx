@@ -14,6 +14,7 @@ import {
   Stack,
   Select,
   Text,
+  Title,
   Tooltip,
   useMantineColorScheme,
   useMantineTheme,
@@ -399,14 +400,19 @@ export function ProposalDetailCard() {
                 <IconChevronLeft />
               </ActionIcon>
             ) : null}
-            <Select
-              data={pendingProposals?.map(el => el.title)}
-              defaultValue={proposal.title}
-              onChange={handleProposalChange}
-              value={proposal.title}
-              size="md"
-              fw={700}
-            />
+            {
+              proposal.account.state.pending ?
+                <Select
+                  data={pendingProposals?.map(el => el.title)}
+                  defaultValue={proposal.title}
+                  onChange={handleProposalChange}
+                  value={proposal.title}
+                  size="md"
+                  fw={800}
+                />
+                :
+                <Title order={2}>{proposal.title}</Title>
+            }
             <StateBadge proposal={proposal} />
           </Group>
           {proposal.description ? (
@@ -469,12 +475,12 @@ export function ProposalDetailCard() {
       <Divider orientation={isMedium ? 'horizontal' : 'vertical'} />
       <Container mt="1rem" p={isMedium ? '0' : 'sm'}>
         <Stack style={{ flex: 1 }}>
-            {markets ? (
-              <Group gap="md" justify="space-around" mt="xl" p="0">
-                <ConditionalMarketCard isPassMarket />
-                <ConditionalMarketCard />
-              </Group>
-            ) : null}
+          {markets ? (
+            <Group gap="md" justify="space-around" mt="xl" p="0">
+              <ConditionalMarketCard isPassMarket />
+              <ConditionalMarketCard />
+            </Group>
+          ) : null}
           <ProposalOrdersCard />
         </Stack>
       </Container>

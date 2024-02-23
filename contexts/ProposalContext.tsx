@@ -113,7 +113,8 @@ export function ProposalProvider({
   );
 
   useEffect(() => {
-    fetchMarketsInfo()
+    setMarkets(undefined);
+    fetchMarketsInfo();
   }, [proposal])
 
   const fetchMarketsInfo = useCallback(
