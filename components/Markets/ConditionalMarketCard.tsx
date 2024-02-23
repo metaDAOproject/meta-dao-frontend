@@ -13,7 +13,6 @@ import {
   NativeSelect,
   HoverCard,
   Group,
-  useMantineColorScheme,
 } from '@mantine/core';
 import numeral from 'numeral';
 import { Icon12Hours, IconWallet, IconInfoCircle } from '@tabler/icons-react';
@@ -41,7 +40,6 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   const [amountError, setAmountError] = useState<string | null>(null);
   const [orderValue, setOrderValue] = useState<string>('0');
   const { generateExplorerLink } = useExplorerConfiguration();
-  const { colorScheme } = useMantineColorScheme();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [slot, setSlot] = useState<number>(0);
   const [clusterTimestamp, setClusterTimestamp] = useState<number>(0);
@@ -440,13 +438,11 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
             </HoverCard>
           </Group>
         ) : null}
-        <Card withBorder bg={colorScheme === 'dark' ? '' : '#F9F9F9'}>
-          <ConditionalMarketOrderBook
-            orderBookObject={orderBookObject}
-            isPassMarket={isPassMarket}
-            setPriceFromOrderBook={setPriceFromOrderBook}
-          />
-        </Card>
+        <ConditionalMarketOrderBook
+          orderBookObject={orderBookObject}
+          isPassMarket={isPassMarket}
+          setPriceFromOrderBook={setPriceFromOrderBook}
+        />
         <Stack>
           <SegmentedControl
             style={{ marginTop: '10px' }}
