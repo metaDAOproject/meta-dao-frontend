@@ -123,7 +123,7 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
           order.account.position.bidsBaseLots.gt(BN_0) ? (
             <Tooltip label="Crank the market 🐷">
               <ActionIcon
-                variant="light"
+                variant="outline"
                 loading={isCranking}
                 onClick={() => crankMarkets(order.publicKey)}
               >
@@ -133,7 +133,7 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
           ) : null}
           <Tooltip label="Settle Funds" events={{ hover: true, focus: true, touch: false }}>
             <ActionIcon
-              variant="light"
+              variant="outline"
               disabled={!isPartiallyFilled(order)}
               loading={isSettling}
               onClick={() => handleSettleFunds()}
@@ -150,7 +150,7 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
                 order.account.position.baseFreeNative > BN_0 ||
                 order.account.position.quoteFreeNative > BN_0
               }
-              variant="light"
+              variant="outline"
               loading={isClosing}
               onClick={handleCloseAccount}
             >

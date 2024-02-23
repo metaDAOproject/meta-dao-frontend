@@ -434,7 +434,7 @@ export function ProposalDetailCard() {
               </Button>
             ) : (
               <Tooltip label="You have open orders left!">
-                <Button color="green" loading={isRedeeming} variant="light" onClick={handleRedeem}>
+                <Button color="green" loading={isRedeeming} variant="outline" onClick={handleRedeem}>
                   Redeem
                 </Button>
               </Tooltip>

@@ -233,14 +233,14 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
       <Table.Td>
         {isPartiallyFilled(order) && (
           <Tooltip label="Settle funds">
-            <ActionIcon variant="light" loading={isSettling} onClick={() => handleSettleFunds()}>
+            <ActionIcon variant="outline" loading={isSettling} onClick={() => handleSettleFunds()}>
               <Icon3dRotate />
             </ActionIcon>
           </Tooltip>
         )}
         <Group gap="sm">
           <Tooltip label="Cancel order" events={{ hover: true, focus: true, touch: false }}>
-            <ActionIcon variant="light" loading={isCanceling} onClick={() => handleCancel()}>
+            <ActionIcon variant="outline" loading={isCanceling} onClick={() => handleCancel()}>
               <IconTrash />
             </ActionIcon>
           </Tooltip>
@@ -249,7 +249,7 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
               <Tooltip label="Submit" events={{ hover: true, focus: true, touch: false }}>
                 <ActionIcon
                   c="green"
-                  variant="light"
+                  variant="outline"
                   loading={isEditing}
                   onClick={() => handleEdit()}
                 >
@@ -259,7 +259,7 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
               <Tooltip label="Cancel" events={{ hover: true, focus: true, touch: false }}>
                 <ActionIcon
                   c="red"
-                  variant="light"
+                  variant="outline"
                   onClick={() => setEditingOrder(() => undefined)}
                 >
                   <IconPencilCancel />
@@ -268,7 +268,7 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
             </Group>
           ) : (
             <Tooltip label="Edit order" events={{ hover: true, focus: true, touch: false }}>
-              <ActionIcon variant="light" onClick={() => setEditingOrder(() => order)}>
+              <ActionIcon variant="outline" onClick={() => setEditingOrder(() => order)}>
                 <IconEdit />
               </ActionIcon>
             </Tooltip>
