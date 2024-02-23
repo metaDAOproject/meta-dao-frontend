@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { OrderBook } from '@lab49/react-order-book';
 import { AnyNode, LeafNode, OpenbookV2, IDL as OPENBOOK_IDL, OPENBOOK_PROGRAM_ID } from '@openbook-dex/openbook-v2';
 import { Program } from '@coral-xyz/anchor';
+import { Text } from '@mantine/core';
 import { OrderBook as _OrderBook } from '@/lib/types';
 import { useProvider } from '@/hooks/useProvider';
 import { useProposal } from '@/contexts/ProposalContext';
@@ -20,7 +21,10 @@ export function ConditionalMarketOrderBook({
   const proposal = useProposal();
   const [bids, setBids] = useState<any[][]>();
   const [asks, setAsks] = useState<any[][]>();
+  const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [spreadString, setSpreadString] = useState<string>();
+  const [lastSlotUpdated, setLastSlotUpdated] = useState<number>(0);
+
   // On initialization
   if (isPassMarket) {
     if (!bids) {
@@ -48,6 +52,7 @@ export function ConditionalMarketOrderBook({
     const openBookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
 
     if (!proposal.proposal) return;
+    // Setup for pass and fail markets
     for (let i = 0; i < 1; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       let market = await openBookProgram.account.market.fetch(
@@ -59,122 +64,134 @@ export function ConditionalMarketOrderBook({
           proposal.proposal?.account.openbookPassMarket
         );
       }
-    provider.connection.onAccountChange(
-      market.asks,
-      (updatedAccountInfo, ctx) => {
+      if (!wsConnected) {
+        const markets = [
+          {
+            pubKey: market.asks,
+            side: 'asks',
+          },
+          {
+            pubKey: market.bids,
+            side: 'bids',
+          },
+        ];
+        // Setup Websocket subscription for the two sides
         try {
-          const leafNodes = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data);
-          const leafNodesData = leafNodes.nodes.nodes.filter(
-            (x: AnyNode) => x.tag === 2,
-          );
-          const _asks: {
-            price: number;
-            size: number;
-          }[] = leafNodesData
-            .map((x: any) => {
-              const leafNode: LeafNode = openBookProgram.coder.types.decode(
-                'LeafNode',
-                Buffer.from([0, ...x.data]),
-              );
-              // const owner = leafNode.owner.toString();
-              const size = leafNode.quantity.toNumber();
-              const price = leafNode.key.shrn(64).toNumber() / 10_000;
-              // console.log(`\x1b[31mAsk\x1b[0m on ${account.market} proposal ${account.proposalId} by ${owner} on slot ${ctx.slot} for ${size} @ $${price}`);
-              return {
-                price,
-                size,
-              };
-            })
-            .sort((
-              a: { price: number, size: number },
-              b: { price: number, size: number }) => a.price - b.price);
+          markets.map((side) => provider.connection.onAccountChange(
+              side.pubKey,
+              (updatedAccountInfo, ctx) => {
+                try {
+                  const leafNodes = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data);
+                  const leafNodesData = leafNodes.nodes.nodes.filter(
+                    (x: AnyNode) => x.tag === 2,
+                  );
+                  const _side: {
+                    price: number;
+                    size: number;
+                  }[] = leafNodesData
+                    .map((x: any) => {
+                      const leafNode: LeafNode = openBookProgram.coder.types.decode(
+                        'LeafNode',
+                        Buffer.from([0, ...x.data]),
+                      );
+                      const size = leafNode.quantity.toNumber();
+                      const price = leafNode.key.shrn(64).toNumber() / 10_000;
+                      return {
+                        price,
+                        size,
+                      };
+                    });
 
-          const _aggreateAsks = new Map();
-          _asks.forEach((order: { price: number, size: number }) => {
-            if (_aggreateAsks.get(order.price) === undefined) {
-              _aggreateAsks.set(order.price, order.size);
-            } else {
-              _aggreateAsks.set(order.price, _aggreateAsks.get(order.price) + order.size);
-            }
-          });
-          let __asks: any[][];
-          if (_aggreateAsks) {
-            __asks = Array.from(_aggreateAsks.entries()).map((side) => [
-              (side[0].toFixed(4)),
-              side[1],
-            ]);
-          } else {
-            return [[0, 0]];
-          }
-          console.log(ctx.slot);
-          setAsks(__asks);
-        } catch (err) {
-          console.error(err);
-        }
-      },
-      'processed'
-    );
-    provider.connection.onAccountChange(
-      market.bids,
-      (updatedAccountInfo, ctx) => {
-        try {
-          const leafNodes = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data);
-          const leafNodesData = leafNodes.nodes.nodes.filter(
-            (x: AnyNode) => x.tag === 2,
-          );
-          const _bids: {
-            price: number;
-            size: number;
-          }[] = leafNodesData
-            .map((x: any) => {
-              const leafNode: LeafNode = openBookProgram.coder.types.decode(
-                'LeafNode',
-                Buffer.from([0, ...x.data]),
-              );
-              // const owner = leafNode.owner.toString();
-              const size = leafNode.quantity.toNumber();
-              const price = leafNode.key.shrn(64).toNumber() / 10_000;
-              // console.log(`\x1b[31mAsk\x1b[0m on ${account.market} proposal ${account.proposalId} by ${owner} on slot ${ctx.slot} for ${size} @ $${price}`);
-              return {
-                price,
-                size,
-              };
-            })
-            .sort((
-              a: { price: number, size: number },
-              b: { price: number, size: number }) => b.price - a.price);
+                  let sortedSide;
 
-          const _aggreateBids = new Map();
-          _bids.forEach((order: { price: number, size: number }) => {
-            if (_aggreateBids.get(order.price) === undefined) {
-              _aggreateBids.set(order.price, order.size);
-            } else {
-              _aggreateBids.set(order.price, _aggreateBids.get(order.price) + order.size);
-            }
-          });
-          let __bids: any[][];
-          if (_aggreateBids) {
-            __bids = Array.from(_aggreateBids.entries()).map((side) => [
-              (side[0].toFixed(4)),
-              side[1],
-            ]);
-          } else {
-            return [[0, 0]];
-          }
-          console.log(ctx.slot);
-          setBids(__bids);
+                  if (side.side === 'asks') {
+                    // Ask side sort
+                    sortedSide = _side.sort((
+                      a: { price: number, size: number },
+                      b: { price: number, size: number }) => a.price - b.price);
+                  } else {
+                    // Bid side sort
+                    sortedSide = _side.sort((
+                      a: { price: number, size: number },
+                      b: { price: number, size: number }) => b.price - a.price);
+                  }
+
+                  // Aggregate the price levels into sum(size)
+                  const _aggreateSide = new Map();
+                  sortedSide.forEach((order: { price: number, size: number }) => {
+                    if (_aggreateSide.get(order.price) === undefined) {
+                      _aggreateSide.set(order.price, order.size);
+                    } else {
+                      _aggreateSide.set(order.price, _aggreateSide.get(order.price) + order.size);
+                    }
+                  });
+                  // Construct array for our orderbook system
+                  let __side: any[][];
+                  if (_aggreateSide) {
+                    __side = Array.from(_aggreateSide.entries()).map((_side_) => [
+                      (_side_[0].toFixed(4)),
+                      _side_[1],
+                    ]);
+                  } else {
+                    // Return default values of 0
+                    return [[0, 0]];
+                  }
+                  // Update our values for the orderbook
+                  if (side.side === 'asks') {
+                    setAsks(__side);
+                  } else {
+                    setBids(__side);
+                  }
+                  setLastSlotUpdated(ctx.slot);
+                  // Check that we have books
+
+                  let tobAsk: number;
+                  let tobBid: number;
+
+                  // Get top of books
+                  if (side.side === 'asks') {
+                    tobAsk = Number(__side[0][0]);
+                    // @ts-ignore
+                    tobBid = Number(bids[0][0]);
+                  } else {
+                    // @ts-ignore
+                    tobAsk = Number(asks[0][0]);
+                    tobBid = Number(__side[0][0]);
+                  }
+                  // Calculate spread
+                  const spread: number = tobAsk - tobBid;
+                  // Calculate spread percent
+                  const spreadPercent: string = ((spread / tobBid) * 100).toFixed(2);
+                  let _spreadString: string;
+                  // Create our string for output into the orderbook object
+                  if (spread === tobAsk) {
+                    _spreadString = '∞';
+                  } else {
+                    _spreadString = `${spread.toFixed(2).toString()} (${spreadPercent}%)`;
+                  }
+                  setSpreadString(_spreadString);
+
+                  setWsConnected(true);
+                } catch (err) {
+                  // console.error(err);
+                  // TODO: Add in call to analytics / reporting
+                }
+              },
+              'processed'
+            )
+          );
         } catch (err) {
-          console.error(err);
+          setWsConnected(false);
         }
-      },
-      'processed'
-    );
+      }
     }
   };
 
   useEffect(() => {
-    listenOrderBook();
-  });
+    if (!wsConnected) {
+      listenOrderBook();
+    }
+  }, [wsConnected]);
   return (
     <>
       <style
@@ -255,6 +272,7 @@ export function ConditionalMarketOrderBook({
       `,
         }}
       />
+      <Text>{lastSlotUpdated}</Text>
       <OrderBook
         book={{
           bids: bids || [[0, 0]],
