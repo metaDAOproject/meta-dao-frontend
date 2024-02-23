@@ -1,101 +1,137 @@
-import { useCallback, useState } from 'react';
-import { Button, Fieldset, Group, Text, TextInput } from '@mantine/core';
+import { useCallback, useEffect, useState } from 'react';
+import { Button, Fieldset, Group, Text, TextInput, SegmentedControl, Loader, Stack, HoverCard } from '@mantine/core';
 import numeral from 'numeral';
-import Link from 'next/link';
-import { IconExternalLink } from '@tabler/icons-react';
-import { Token } from '@/hooks/useTokens';
+import { BN } from '@coral-xyz/anchor';
+import { IconInfoCircle } from '@tabler/icons-react';
+import { PublicKey } from '@solana/web3.js';
 import { useProposal } from '@/contexts/ProposalContext';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
-import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
-import { useBalance } from '../../hooks/useBalance';
 import { NUMERAL_FORMAT } from '../../lib/constants';
+import { Token } from '@/hooks/useTokens';
+import useConditionalTokens from '@/hooks/useConditionalTokens';
 
-export function MintConditionalTokenCard({ token }: { token: Token }) {
+interface Balance {
+  token: Token;
+  symbol: string;
+  balanceSpot: BN;
+  balancePass: BN;
+  balanceFail: BN;
+  fetchUnderlying: () => Promise<void>
+  fetchPass: () => Promise<void>,
+  fetchFail: () => Promise<void>
+  finalize: PublicKey;
+  revert: PublicKey;
+}
+
+export function MintConditionalTokenCard() {
   const sender = useTransactionSender();
   const { markets, mintTokensTransactions } = useProposal();
-  const { generateExplorerLink } = useExplorerConfiguration();
-
+  const [mintAmount, setMintAmount] = useState<number>();
+  const [isMinting, setIsMinting] = useState(false);
   if (!markets) return null;
 
-  const [mintAmount, setMintAmount] = useState<number>();
-  const fromBase = markets.baseVault.underlyingTokenMint.equals(token.publicKey);
-  const vault = fromBase ? markets.baseVault : markets.quoteVault;
-  const { amount, fetchAmount: fetchUnderlying } = useBalance(vault.underlyingTokenMint);
-  const { amount: passAmount, fetchAmount: fetchPass } = useBalance(
-    vault.conditionalOnFinalizeTokenMint,
-  );
-  const { amount: failAmount, fetchAmount: fetchFail } = useBalance(
-    vault.conditionalOnRevertTokenMint,
-  );
-  const [isMinting, setIsMinting] = useState(false);
+  const { metaToken, usdcToken } = useConditionalTokens();
+
+  const [token, setToken] = useState<Balance | undefined>();
+
+  useEffect(() => {
+    setToken((prev) => {
+      if (!prev) return metaToken;
+      return prev.symbol === 'META' ? metaToken : usdcToken;
+    }
+    );
+  }, [metaToken, usdcToken]);
+
+  const updateSelectedToken = (e: string) => {
+    if (e === 'META') setToken(metaToken);
+    else if (e === 'USDC') {
+      setToken(usdcToken);
+    }
+  };
 
   const handleMint = useCallback(async () => {
-    if (!mintAmount || !markets) return;
+    if (!mintAmount) return;
 
     setIsMinting(true);
+    const fromBase = token?.symbol !== 'USDC';
     try {
-      const txs = await mintTokensTransactions(mintAmount!, fromBase);
+      const txs = await mintTokensTransactions(mintAmount, fromBase);
 
       if (!txs) return;
 
       await sender.send(txs);
-      fetchUnderlying();
-      fetchPass();
-      fetchFail();
+      token?.fetchUnderlying();
+      token?.fetchFail();
+      token?.fetchPass();
     } finally {
       setIsMinting(false);
     }
-  }, [mintTokensTransactions, fetchUnderlying, fetchPass, fetchFail, amount, sender]);
+  }, [mintTokensTransactions, sender, mintAmount, token]);
 
-  return (
-    <Fieldset legend={`Mint conditional $${token.symbol}`} miw="180px">
-      <TextInput
-        label="Amount"
-        description={`Balance: ${numeral(amount?.uiAmountString || 0).format(NUMERAL_FORMAT)} $${
-          token.symbol
-        }`}
-        placeholder="Amount to mint"
-        type="number"
-        onChange={(e) => setMintAmount(Number(e.target.value))}
-      />
-      <Text fw="lighter" size="sm">
-        Balances:
-      </Text>
-      <Text fw="lighter" size="sm" c="green">
-        - {passAmount?.uiAmountString || 0} $p{token.symbol}
-      </Text>
-      <Text fw="lighter" size="sm" c="red">
-        - {failAmount?.uiAmountString || 0} $f{token.symbol}
-      </Text>
-      <Button
-        mt="md"
-        disabled={(mintAmount || 0) <= 0}
-        loading={isMinting}
-        onClick={handleMint}
-        fullWidth
-      >
-        Mint
-      </Button>
-      <Group mt="md" justify="space-between">
-        <Link
-          target="_blank"
-          href={generateExplorerLink(vault.conditionalOnFinalizeTokenMint.toString(), 'account')}
-        >
-          <Group gap="0" justify="center" ta="center" c="green">
-            <Text size="xs">p{token.symbol}</Text>
-            <IconExternalLink height="1rem" width="1rem" />
-          </Group>
-        </Link>
-        <Link
-          target="_blank"
-          href={generateExplorerLink(vault.conditionalOnRevertTokenMint.toString(), 'account')}
-        >
-          <Group gap="0" align="center" c="red">
-            <Text size="xs">f{token.symbol}</Text>
-            <IconExternalLink height="1rem" width="1rem" />
-          </Group>
-        </Link>
+  return !token ?
+    (
+      <Group justify="center">
+        <Loader />
       </Group>
-    </Fieldset>
-  );
+    ) : (
+      <Fieldset legend="Mint Conditional Tokens" miw="350px" w="100%" pos="relative">
+        <HoverCard position="top">
+          <HoverCard.Target>
+            <Group pos="absolute" top="-10px" right="0" justify="center" align="flex-start">
+              <IconInfoCircle strokeWidth={1.3} />
+            </Group>
+          </HoverCard.Target>
+          <HoverCard.Dropdown w="22rem">
+            <Stack>
+              <Text>
+                Conditional tokens are the tokens used to trade on conditional markets. You can mint
+                some by depositing $META or $USDC. These tokens will be locked up until the proposal
+                is finalized.
+              </Text>
+              <Text size="sm">
+                <Text span fw="bold">
+                  Pass tokens (pTokens){' '}
+                </Text>
+                are used to trade on the Pass Market
+              </Text>
+              <Text size="sm">
+                <Text span fw="bold">
+                  Fail tokens (fTokens){' '}
+                </Text>
+                are used to trade on the Fail Market.
+              </Text>
+            </Stack>
+          </HoverCard.Dropdown>
+        </HoverCard>
+        <SegmentedControl
+          style={{ marginTop: '10px' }}
+          color="#4e4e4e"
+          value={token.symbol}
+          className="label"
+          onChange={(e) =>
+            updateSelectedToken(e)
+          }
+          fullWidth
+          data={['META', 'USDC']}
+        />
+        <TextInput
+          label="Amount"
+          description={`Balance: ${numeral(token.balanceSpot?.uiAmountString || 0).format(NUMERAL_FORMAT)} $${token.token.symbol
+            }`}
+          placeholder="Amount to mint"
+          type="number"
+          onChange={(e) => setMintAmount(Number(e.target.value))}
+        />
+
+        <Button
+          mt="md"
+          disabled={(mintAmount || 0) <= 0}
+          loading={isMinting}
+          onClick={handleMint}
+          fullWidth
+        >
+          Mint {mintAmount ? `${mintAmount} p${token.symbol} and ${mintAmount} f${token.symbol}` : ''}
+        </Button>
+      </Fieldset>
+    );
 }
