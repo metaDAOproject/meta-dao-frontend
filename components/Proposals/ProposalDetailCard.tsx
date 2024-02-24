@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Script from 'next/script';
 import {
   ActionIcon,
   Button,
@@ -24,9 +23,9 @@ import { useMediaQuery } from '@mantine/hooks';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { SystemProgram } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { ProposalOrdersCard } from './ProposalOrdersCard';
 import { ConditionalMarketCard } from '../Markets/ConditionalMarketCard';
+import { JupSwapCard } from './JupSwapCard';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { shortKey } from '@/lib/utils';
@@ -42,14 +41,9 @@ import classes from '../../app/globals.module.css';
 import { useTokens } from '../../hooks/useTokens';
 import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '../../lib/openbook';
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
-import { Networks, useNetworkConfiguration } from '../../hooks/useNetworkConfiguration';
-import { useBalances } from '../../contexts/BalancesContext';
 
 export function ProposalDetailCard() {
   const wallet = useWallet();
-  const { setVisible } = useWalletModal();
-  const balances = useBalances();
-  const { network } = useNetworkConfiguration();
   const { connection } = useConnection();
   const { fetchProposals, daoTreasury, daoState } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
@@ -67,7 +61,6 @@ export function ProposalDetailCard() {
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
-  const [isLoaded, setIsLoaded] = useState(false);
   const theme = useMantineTheme();
   const isSmall = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
   const isMedium = useMediaQuery(`(max-width: ${theme.breakpoints.md})`);
@@ -84,59 +77,6 @@ export function ProposalDetailCard() {
 
     return Math.max(endSlot - lastSlot, 0);
   }, [proposal, lastSlot, daoState]);
-
-  const launchTerminal = () => {
-    (window as any).Jupiter.init({
-      displayMode: 'widget',
-      widgetStyle: {
-        position: 'bottom-left',
-        size: 'default',
-      },
-      formProps: {
-        initialInputMint: tokens.usdc?.publicKey.toString(),
-        initialOutputMint: tokens.meta?.publicKey.toString(),
-      },
-      enableWalletPassthrough: wallet,
-      passthroughWalletContextState: wallet || undefined,
-      onRequestConnectWallet: () => setVisible(true),
-      onSuccess: () => {
-        if (tokens.meta && tokens.usdc) {
-          balances.fetchBalance(tokens.usdc.publicKey);
-          balances.fetchBalance(tokens.meta.publicKey);
-        }
-      },
-      endpoint: connection.rpcEndpoint,
-      strictTokenList: true,
-      defaultExplorer: 'SolanaFM',
-    });
-  };
-
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout | undefined;
-    if (!isLoaded || !(window as any).Jupiter.init || !intervalId) {
-      intervalId = setInterval(() => {
-        setIsLoaded(Boolean((window as any).Jupiter?.init));
-      }, 500);
-    }
-
-    if (intervalId) {
-      return () => clearInterval(intervalId);
-    }
-  }, []);
-
-  useEffect(() => {
-    setTimeout(() => {
-      if (isLoaded && Boolean((window as any).Jupiter.init)) {
-        launchTerminal();
-      }
-    }, 200);
-  }, [isLoaded]);
-
-  useEffect(() => {
-    if ((window as any) && (window as any).Jupiter?.syncProps && network === Networks.Mainnet) {
-      (window as any).Jupiter?.syncProps({ passthroughWalletContextState: wallet });
-    }
-  }, [wallet]);
 
   useEffect(() => {
     setSecondsLeft(((remainingSlots || 0) / SLOTS_PER_10_SECS) * 10);
@@ -328,7 +268,6 @@ export function ProposalDetailCard() {
       gap={isMedium ? 'xl' : 'md'}
       mt="-1rem"
     >
-      <Script src="https://terminal.jup.ag/main-v2.js" />
       {isMedium ? (
         isSmall ? null : (
           <Button
@@ -441,6 +380,7 @@ export function ProposalDetailCard() {
             )}
           </>
         )}
+        <JupSwapCard />
       </Stack>
       <Divider orientation={isMedium ? 'horizontal' : 'vertical'} />
       <Container mt="1rem" p={isMedium ? '0' : 'sm'}>
