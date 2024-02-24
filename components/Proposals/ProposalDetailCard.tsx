@@ -44,6 +44,7 @@ import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '.
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 import { Networks, useNetworkConfiguration } from '../../hooks/useNetworkConfiguration';
 import { useBalances } from '../../contexts/BalancesContext';
+import { MintConditionalTokenCard } from './MintConditionalTokenCard';
 
 export function ProposalDetailCard() {
   const wallet = useWallet();
@@ -410,6 +411,7 @@ export function ProposalDetailCard() {
           </Group>
         </Stack>
         <MarketsBalances />
+        {'pending' in proposal.account.state ? <MintConditionalTokenCard /> : null}
         {proposal.account.state.pending && (
           <Button
             disabled={(remainingSlots || 0) > 0}
@@ -434,7 +436,12 @@ export function ProposalDetailCard() {
               </Button>
             ) : (
               <Tooltip label="You have open orders left!">
-                <Button color="green" loading={isRedeeming} variant="outline" onClick={handleRedeem}>
+                <Button
+                  color="green"
+                  loading={isRedeeming}
+                  variant="outline"
+                  onClick={handleRedeem}
+                >
                   Redeem
                 </Button>
               </Tooltip>
@@ -445,12 +452,12 @@ export function ProposalDetailCard() {
       <Divider orientation={isMedium ? 'horizontal' : 'vertical'} />
       <Container mt="1rem" p={isMedium ? '0' : 'sm'}>
         <Stack style={{ flex: 1 }}>
-            {markets ? (
-              <Group gap="md" justify="space-around" mt="xl" p="0">
-                <ConditionalMarketCard isPassMarket />
-                <ConditionalMarketCard />
-              </Group>
-            ) : null}
+          {markets ? (
+            <Group gap="md" justify="space-around" mt="xl" p="0">
+              <ConditionalMarketCard isPassMarket />
+              <ConditionalMarketCard />
+            </Group>
+          ) : null}
           <ProposalOrdersCard />
         </Stack>
       </Container>
