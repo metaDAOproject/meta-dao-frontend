@@ -401,7 +401,7 @@ export function ProposalDetailCard() {
               </ActionIcon>
             ) : null}
             {
-              proposal.account.state.pending ?
+              proposal.account.state.pending && pendingProposals && pendingProposals.length > 1 ?
                 <Select
                   data={pendingProposals?.map(el => el.title)}
                   defaultValue={proposal.title}
