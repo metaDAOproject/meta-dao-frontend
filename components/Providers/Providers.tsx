@@ -34,7 +34,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <MantineProvider theme={theme}>
+    <MantineProvider theme={theme} defaultColorScheme="dark">
       <Notifications />
       <ConnectionProvider endpoint={endpoint}>
         <WalletProvider wallets={wallets} onError={onError}>
