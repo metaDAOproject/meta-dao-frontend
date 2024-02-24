@@ -3,6 +3,7 @@ import { OrderBook } from '@lab49/react-order-book';
 import { AnyNode, LeafNode, OpenbookV2, IDL as OPENBOOK_IDL, OPENBOOK_PROGRAM_ID } from '@openbook-dex/openbook-v2';
 import { Program } from '@coral-xyz/anchor';
 import { Card, Text, useMantineColorScheme } from '@mantine/core';
+import { Context, AccountInfo, PublicKey } from '@solana/web3.js';
 import { OrderBook as _OrderBook } from '@/lib/types';
 import { useProvider } from '@/hooks/useProvider';
 import { useProposal } from '@/contexts/ProposalContext';
@@ -25,6 +26,7 @@ export function ConditionalMarketOrderBook({
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [spreadString, setSpreadString] = useState<string>();
   const [lastSlotUpdated, setLastSlotUpdated] = useState<number>(0);
+  const openBookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
 
   // On initialization
   if (isPassMarket) {
@@ -49,143 +51,151 @@ export function ConditionalMarketOrderBook({
     }
   }
 
-  const listenOrderBook = async () => {
-    const openBookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
-
-    if (!proposal.proposal) return;
-    // Setup for pass and fail markets
-    for (let i = 0; i < 1; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
-      let market = await openBookProgram.account.market.fetch(
-        proposal.proposal?.account.openbookFailMarket
+  const consumeOrderBookSide = (
+    side: string,
+    updatedAccountInfo: AccountInfo<Buffer>,
+    ctx: Context
+  ) => {
+    try {
+      const leafNodes = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data);
+      const leafNodesData = leafNodes.nodes.nodes.filter(
+        (x: AnyNode) => x.tag === 2,
       );
-      if (i === 1) {
-        // eslint-disable-next-line no-await-in-loop
-        market = await openBookProgram.account.market.fetch(
-          proposal.proposal?.account.openbookPassMarket
-        );
+      const _side: {
+        price: number;
+        size: number;
+      }[] = leafNodesData
+        .map((x: any) => {
+          const leafNode: LeafNode = openBookProgram.coder.types.decode(
+            'LeafNode',
+            Buffer.from([0, ...x.data]),
+          );
+          const size = leafNode.quantity.toNumber();
+          const price = leafNode.key.shrn(64).toNumber() / 10_000;
+          return {
+            price,
+            size,
+          };
+        });
+
+      let sortedSide;
+
+      if (side === 'asks') {
+        // Ask side sort
+        sortedSide = _side.sort((
+          a: { price: number, size: number },
+          b: { price: number, size: number }) => a.price - b.price);
+      } else {
+        // Bid side sort
+        sortedSide = _side.sort((
+          a: { price: number, size: number },
+          b: { price: number, size: number }) => b.price - a.price);
       }
+
+      // Aggregate the price levels into sum(size)
+      const _aggreateSide = new Map();
+      sortedSide.forEach((order: { price: number, size: number }) => {
+        if (_aggreateSide.get(order.price) === undefined) {
+          _aggreateSide.set(order.price, order.size);
+        } else {
+          _aggreateSide.set(order.price, _aggreateSide.get(order.price) + order.size);
+        }
+      });
+      // Construct array for our orderbook system
+      let __side: any[][];
+      if (_aggreateSide) {
+        __side = Array.from(_aggreateSide.entries()).map((_side_) => [
+          (_side_[0].toFixed(4)),
+          _side_[1],
+        ]);
+      } else {
+        // Return default values of 0
+        return [[0, 0]];
+      }
+      // Update our values for the orderbook
+      if (side === 'asks') {
+        setAsks(__side);
+      } else {
+        setBids(__side);
+      }
+      setLastSlotUpdated(ctx.slot);
+      // Check that we have books
+
+      let tobAsk: number;
+      let tobBid: number;
+
+      // Get top of books
+      if (side === 'asks') {
+        tobAsk = Number(__side[0][0]);
+        // @ts-ignore
+        tobBid = Number(bids[0][0]);
+      } else {
+        // @ts-ignore
+        tobAsk = Number(asks[0][0]);
+        tobBid = Number(__side[0][0]);
+      }
+      // Calculate spread
+      const spread: number = tobAsk - tobBid;
+      // Calculate spread percent
+      const spreadPercent: string = ((spread / tobBid) * 100).toFixed(2);
+      let _spreadString: string;
+      // Create our string for output into the orderbook object
+      if (spread === tobAsk) {
+        _spreadString = '∞';
+      } else {
+        _spreadString = `${spread.toFixed(2).toString()} (${spreadPercent}%)`;
+      }
+      setSpreadString(_spreadString);
+
+      setWsConnected(true);
+    } catch (err) {
+      // console.error(err);
+      // TODO: Add in call to analytics / reporting
+    }
+  };
+
+  const listenOrderBook = async () => {
+    if (!proposal.proposal) return;
+
+    const markets = [
+      proposal.proposal?.account.openbookFailMarket,
+      proposal.proposal?.account.openbookPassMarket,
+    ];
+    // Setup for pass and fail markets
+    markets.forEach(async (market: PublicKey) => {
       if (!wsConnected) {
-        const markets = [
+        // Fetch via RPC for the openbook market
+        const _market = await openBookProgram.account.market.fetch(
+          market
+        );
+        const sides = [
           {
-            pubKey: market.asks,
+            pubKey: _market.asks,
             side: 'asks',
           },
           {
-            pubKey: market.bids,
+            pubKey: _market.bids,
             side: 'bids',
           },
         ];
         // Setup Websocket subscription for the two sides
         try {
-          markets.map((side) => provider.connection.onAccountChange(
+          const subscriptionId = sides.map((side) => provider.connection.onAccountChange(
               side.pubKey,
               (updatedAccountInfo, ctx) => {
-                try {
-                  const leafNodes = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data);
-                  const leafNodesData = leafNodes.nodes.nodes.filter(
-                    (x: AnyNode) => x.tag === 2,
-                  );
-                  const _side: {
-                    price: number;
-                    size: number;
-                  }[] = leafNodesData
-                    .map((x: any) => {
-                      const leafNode: LeafNode = openBookProgram.coder.types.decode(
-                        'LeafNode',
-                        Buffer.from([0, ...x.data]),
-                      );
-                      const size = leafNode.quantity.toNumber();
-                      const price = leafNode.key.shrn(64).toNumber() / 10_000;
-                      return {
-                        price,
-                        size,
-                      };
-                    });
-
-                  let sortedSide;
-
-                  if (side.side === 'asks') {
-                    // Ask side sort
-                    sortedSide = _side.sort((
-                      a: { price: number, size: number },
-                      b: { price: number, size: number }) => a.price - b.price);
-                  } else {
-                    // Bid side sort
-                    sortedSide = _side.sort((
-                      a: { price: number, size: number },
-                      b: { price: number, size: number }) => b.price - a.price);
-                  }
-
-                  // Aggregate the price levels into sum(size)
-                  const _aggreateSide = new Map();
-                  sortedSide.forEach((order: { price: number, size: number }) => {
-                    if (_aggreateSide.get(order.price) === undefined) {
-                      _aggreateSide.set(order.price, order.size);
-                    } else {
-                      _aggreateSide.set(order.price, _aggreateSide.get(order.price) + order.size);
-                    }
-                  });
-                  // Construct array for our orderbook system
-                  let __side: any[][];
-                  if (_aggreateSide) {
-                    __side = Array.from(_aggreateSide.entries()).map((_side_) => [
-                      (_side_[0].toFixed(4)),
-                      _side_[1],
-                    ]);
-                  } else {
-                    // Return default values of 0
-                    return [[0, 0]];
-                  }
-                  // Update our values for the orderbook
-                  if (side.side === 'asks') {
-                    setAsks(__side);
-                  } else {
-                    setBids(__side);
-                  }
-                  setLastSlotUpdated(ctx.slot);
-                  // Check that we have books
-
-                  let tobAsk: number;
-                  let tobBid: number;
-
-                  // Get top of books
-                  if (side.side === 'asks') {
-                    tobAsk = Number(__side[0][0]);
-                    // @ts-ignore
-                    tobBid = Number(bids[0][0]);
-                  } else {
-                    // @ts-ignore
-                    tobAsk = Number(asks[0][0]);
-                    tobBid = Number(__side[0][0]);
-                  }
-                  // Calculate spread
-                  const spread: number = tobAsk - tobBid;
-                  // Calculate spread percent
-                  const spreadPercent: string = ((spread / tobBid) * 100).toFixed(2);
-                  let _spreadString: string;
-                  // Create our string for output into the orderbook object
-                  if (spread === tobAsk) {
-                    _spreadString = '∞';
-                  } else {
-                    _spreadString = `${spread.toFixed(2).toString()} (${spreadPercent}%)`;
-                  }
-                  setSpreadString(_spreadString);
-
-                  setWsConnected(true);
-                } catch (err) {
-                  // console.error(err);
-                  // TODO: Add in call to analytics / reporting
-                }
+                consumeOrderBookSide(side.side, updatedAccountInfo, ctx);
               },
               'processed'
             )
           );
+          return subscriptionId;
         } catch (err) {
           setWsConnected(false);
         }
       }
-    }
+      // For map handling
+      return null;
+    });
   };
 
   useEffect(() => {
