@@ -303,10 +303,16 @@ export function ProposalDetailCard() {
     const txs = baseTxs.concat(quoteTxs);
     try {
       await sender.send(txs);
+      await balances.fetchBalance(markets.baseVault.conditionalOnFinalizeTokenMint);
+      await balances.fetchBalance(markets.baseVault.conditionalOnRevertTokenMint);
+      await balances.fetchBalance(markets.baseVault.underlyingTokenMint);
+      await balances.fetchBalance(markets.quoteVault.conditionalOnFinalizeTokenMint);
+      await balances.fetchBalance(markets.quoteVault.conditionalOnRevertTokenMint);
+      await balances.fetchBalance(markets.quoteVault.underlyingTokenMint);
     } finally {
       setIsRedeeming(false);
     }
-  }, [sender, redeemTokensTransactions, fetchProposals]);
+  }, [balances, sender, redeemTokensTransactions, fetchProposals]);
 
   useEffect(() => {
     if (lastSlot) return;
