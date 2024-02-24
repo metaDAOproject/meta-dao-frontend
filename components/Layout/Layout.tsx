@@ -35,7 +35,6 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import React, { useEffect, useRef, useState } from 'react';
-import useSWR from 'swr';
 import { Networks, useNetworkConfiguration } from '../../hooks/useNetworkConfiguration';
 import { shortKey } from '@/lib/utils';
 import icon from '@/public/meta.png';
@@ -44,6 +43,7 @@ import { Explorers, useExplorerConfiguration } from '@/hooks/useExplorerConfigur
 import classes from '../../app/globals.module.css';
 import { usePriorityFee } from '../../hooks/usePriorityFee';
 import { NUMERAL_FORMAT } from '../../lib/constants';
+import { useJupTokenPrice } from '@/hooks/useJupSwap';
 
 const links = [
   {
@@ -69,34 +69,6 @@ const explorers = [
   { label: 'X-Ray', value: Explorers.Xray.toString() },
   { label: 'Solana Explorer', value: Explorers.Solana.toString() },
 ];
-
-function getTokenPrice(data: any) {
-  const price = Math.round((Number(data.outAmount) / Number(data.inAmount)) * 1000000) / 1000;
-  return price;
-}
-
-function useTokenPrice() {
-  const url =
-    'https://quote-api.jup.ag/v6/quote?inputMint=METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr&' +
-    'outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&' +
-    'amount=100000000&' +
-    'slippageBps=50&' +
-    'swapMode=ExactIn&' +
-    'onlyDirectRoutes=false&' +
-    'maxAccounts=64&' +
-    'experimentalDexes=Jupiter%20LO';
-  const tokenPriceFetcher = () =>
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => getTokenPrice(data));
-  const { data, error, isLoading } = useSWR('metaSpotPrice', tokenPriceFetcher);
-
-  return {
-    price: data,
-    isLoading,
-    isError: error,
-  };
-}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const wallet = useWallet();
@@ -136,7 +108,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     // Call fetchData immediately when component mounts
     fetchData();
   }, []); // Empty dependency array means this effect will only run once
-  const tokenPrice = useTokenPrice();
+
+  const tokenPrice = useJupTokenPrice();
 
   const feesCost = (((priorityFee / 100000) * 200000) / LAMPORTS_PER_SOL) * (solPrice || 0);
 
