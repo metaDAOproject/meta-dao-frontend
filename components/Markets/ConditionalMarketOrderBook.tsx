@@ -157,10 +157,14 @@ export function ConditionalMarketOrderBook({
   const listenOrderBook = async () => {
     if (!proposal.proposal) return;
 
-    const markets = [
-      proposal.proposal?.account.openbookFailMarket,
-      proposal.proposal?.account.openbookPassMarket,
-    ];
+    let markets = [];
+
+    if (!isPassMarket) {
+      markets = [proposal.proposal?.account.openbookFailMarket];
+    } else {
+      markets = [proposal.proposal?.account.openbookPassMarket];
+    }
+
     // Setup for pass and fail markets
     markets.forEach(async (market: PublicKey) => {
       if (!wsConnected) {
@@ -298,7 +302,7 @@ export function ConditionalMarketOrderBook({
           stylePrefix="MakeItNice"
         />
       </Card>
-      <Text size="xs">Streaming books last updated {lastSlotUpdated}</Text>
+      {lastSlotUpdated && <Text size="xs">Book last updated {lastSlotUpdated} (slot)</Text>}
     </>
   );
 }
