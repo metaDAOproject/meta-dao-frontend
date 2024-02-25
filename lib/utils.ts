@@ -34,3 +34,11 @@ export const validateType = async (type: InstructionFieldTypes, value?: string) 
       return true;
   }
 };
+
+export const dedup = <T = any>(arr: Array<T>, key: (a: T) => string): Array<T> => {
+  const seen = new Set();
+  return arr.filter((item) => {
+    const k = key(item);
+    return seen.has(k) ? false : seen.add(k);
+  });
+};

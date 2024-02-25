@@ -1,7 +1,9 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey, TokenAmount } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { dedup } from '../lib/utils';
+import { MAX_REFETCH_RATE } from '../lib/constants';
 
 export const defaultAmount: TokenAmount = {
   amount: '0.0',
@@ -13,14 +15,14 @@ type Balances = { [token: string]: TokenAmount };
 
 export interface BalancesInterface {
   balances: Balances;
-  fetchBalance: (mint: PublicKey) => Promise<TokenAmount>;
-  getBalance: (mint: PublicKey) => Promise<TokenAmount>;
+  fetchBalance: (mint: PublicKey) => TokenAmount;
+  getBalance: (mint: PublicKey) => TokenAmount;
 }
 
 export const balancesContext = createContext<BalancesInterface>({
   balances: {},
-  fetchBalance: () => new Promise(() => {}),
-  getBalance: () => new Promise(() => { }),
+  fetchBalance: () => defaultAmount,
+  getBalance: () => defaultAmount,
 });
 
 export const useBalances = () => {
@@ -40,10 +42,16 @@ export function BalancesProvider({
 }) {
   const { connection } = useConnection();
   const [balances, setBalances] = useState<{ [token: string]: TokenAmount }>({});
+  const [pendingFetches, setPendingFetches] = useState<(PublicKey | string)[]>([]);
 
-  const fetchBalance = useCallback(
-    async (mint: PublicKey | string) => {
-      if (connection && owner) {
+  // Timeout used to btach fetches
+  const timeoutRef = useRef<NodeJS.Timeout>();
+
+  // Execute all pending requests
+  const balanceFetcher = useCallback(async () => {
+    if (connection && owner) {
+      const newFetches = dedup(pendingFetches, (e) => e.toString());
+      newFetches.map(async (mint) => {
         const account = getAssociatedTokenAddressSync(new PublicKey(mint.toString()), owner, true);
         try {
           const amount = await connection.getTokenAccountBalance(account);
@@ -58,15 +66,47 @@ export function BalancesProvider({
           );
           return defaultAmount;
         }
-      } else {
-        return defaultAmount;
-      }
+      });
+      setPendingFetches([]);
+    } else {
+      return defaultAmount;
+    }
+  }, [connection, owner, pendingFetches]);
+
+  const fetchBalance = useCallback(
+    (mint: PublicKey | string) => {
+      setPendingFetches((old) => [...old, mint]);
+
+      // Return the stale value while fetching
+      return balances[mint.toString()];
     },
-    [connection, owner],
+    [balances],
   );
 
+  // Clean timeout on unmount
+  useEffect(
+    () => () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    },
+    [],
+  );
+
+  // Fetch once there has not been requests for long enough
+  useEffect(() => {
+    if (pendingFetches.length > 0) {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
+        balanceFetcher();
+      }, MAX_REFETCH_RATE);
+    }
+  }, [timeoutRef, balanceFetcher]);
+
   const getBalance = useCallback(
-    async (mint: PublicKey | string) => {
+    (mint: PublicKey | string) => {
       if (Object.prototype.hasOwnProperty.call(balances, mint.toString())) {
         return balances[mint.toString()];
       }
