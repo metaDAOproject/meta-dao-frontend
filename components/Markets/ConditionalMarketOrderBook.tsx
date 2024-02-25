@@ -25,7 +25,7 @@ export function ConditionalMarketOrderBook({
   const [asks, setAsks] = useState<any[][]>();
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [spreadString, setSpreadString] = useState<string>();
-  const [lastSlotUpdated, setLastSlotUpdated] = useState<number>(0);
+  const [lastSlotUpdated, setLastSlotUpdated] = useState<number>();
   const openBookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
 
   // On initialization

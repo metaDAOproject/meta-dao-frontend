@@ -1,42 +1,50 @@
 import {
   ActionIcon,
   Button,
-  Center,
+  Divider,
+  Group,
   Text,
   Title,
   TextInput,
-  Divider,
 } from '@mantine/core';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { IconArrowsDownUp } from '@tabler/icons-react';
+import { IconArrowsDownUp, IconWallet } from '@tabler/icons-react';
 // import { debounce } from '@/lib/utils';
-import { VersionedTransaction } from '@solana/web3.js';
+import { VersionedTransaction, PublicKey } from '@solana/web3.js';
 import { createJupiterApiClient } from '@jup-ag/api';
 import { useProvider } from '@/hooks/useProvider';
 import poweredByJup from '../../public/poweredbyjupiter-grayscale.svg';
+import { useTransactionSender } from '@/hooks/useTransactionSender';
+import { useBalance } from '@/hooks/useBalance';
 
 const META_BASE_LOTS = 1_000_000_000;
 const USDC_BASE_LOTS = 1_000_000;
 
+const tokens = [
+  {
+    mintAddress: 'METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr',
+    name: 'meta',
+  },
+  {
+    mintAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+    name: 'usdc',
+  },
+];
+
 export function JupSwapCard() {
   const provider = useProvider();
   const [inAmount, setInAmount] = useState<number>(1);
-  const [outAmount, setOutAmount] = useState<number>(0);
+  const [outAmount, setOutAmount] = useState<number>();
   const [base, setBase] = useState<string>('meta');
   const [quote, setQuote] = useState<string>('usdc');
+  const [isSwapping, setIsSwapping] = useState(false);
   const jupiterQuoteApi = createJupiterApiClient();
-
-  const tokens = [
-    {
-      mintAddress: 'METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr',
-      name: 'meta',
-    },
-    {
-      mintAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-      name: 'usdc',
-    },
-  ];
+  const sender = useTransactionSender();
+  const balance = useBalance(
+    new PublicKey(
+      tokens.filter((token) => token.name === base)[0].mintAddress
+  ));
 
   const fetchQuote = async (amount: number, slippage: number) => {
     const baseMint: {
@@ -95,43 +103,57 @@ export function JupSwapCard() {
       );
       return quoteResponse;
     } catch (err) {
-      console.error(err);
+      // console.error(err);
     }
     return null;
   };
 
-  const handleSwap = async () => {
+  const handleSwap = useCallback(async () => {
     const quoteResponse = await updateAndFetchQuote(inAmount);
     if (!quoteResponse) return;
     const jupTransaction = await buildTransaction(quoteResponse);
     try {
+      setIsSwapping(true);
       const swapTransactionBuf = Buffer.from(jupTransaction.swapTransaction, 'base64');
       const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
 
-      const _transaction = await provider.wallet.signTransaction(transaction);
-
-      const txId = await provider.sendAndConfirm(_transaction);
-      return txId;
+      await sender.send([transaction]);
     } catch (err) {
-      console.error(err);
+      // console.error(err);
+    } finally {
+      setIsSwapping(false);
     }
     return null;
-  };
+  }, []);
 
   const swapBase = () => {
     setBase((_base) => _base === 'meta' ? 'usdc' : 'meta');
     setQuote((_quote) => _quote === 'usdc' ? 'meta' : 'usdc');
   };
 
+  useEffect(() => {
+    updateAndFetchQuote(inAmount);
+  }, [base]);
+
   return (
     <>
       <Divider />
       <Title order={5}>Swap</Title>
-      <Image
-        priority
-        src={poweredByJup}
-        alt="Powered By Jupiter"
-      />
+      <Group justify="space-between">
+        <Image
+          priority
+          src={poweredByJup}
+          alt="Powered By Jupiter"
+        />
+        {(balance && balance.amount !== undefined) &&
+          <Group p={0} m={0}>
+            <Text ml={0} size="xs">
+              <IconWallet height={12} />
+              {balance.amount.uiAmount}
+            </Text>
+          </Group>
+        }
+      </Group>
       <TextInput
         value={inAmount}
         onChange={(e) => updateAndFetchQuote(Number(e.target.value))}
@@ -143,14 +165,17 @@ export function JupSwapCard() {
           </>
         }
       />
-      <Center>
-        <ActionIcon
-          variant="outline"
-          onClick={swapBase}
-        >
-          <IconArrowsDownUp stroke={1.5} size={18} />
-        </ActionIcon>
-      </Center>
+      <Divider
+        labelPosition="right"
+        label={
+          <ActionIcon
+            variant="outline"
+            onClick={swapBase}
+          >
+            <IconArrowsDownUp stroke={1.5} size={18} />
+          </ActionIcon>
+        }
+      />
       <TextInput
         value={outAmount}
         disabled
@@ -164,9 +189,11 @@ export function JupSwapCard() {
       />
       <Button
         variant="outline"
+        loading={isSwapping}
         disabled={!provider.publicKey}
         onClick={handleSwap}
-      >Swap
+      >
+        Swap
       </Button>
     </>
   );
