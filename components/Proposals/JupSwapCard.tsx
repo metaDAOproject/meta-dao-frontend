@@ -3,13 +3,18 @@ import {
   Button,
   Center,
   Text,
+  Title,
   TextInput,
+  Divider,
 } from '@mantine/core';
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { IconArrowsDownUp } from '@tabler/icons-react';
 // import { debounce } from '@/lib/utils';
 import { VersionedTransaction } from '@solana/web3.js';
+import { createJupiterApiClient } from '@jup-ag/api';
 import { useProvider } from '@/hooks/useProvider';
+import poweredByJup from '../../public/poweredbyjupiter-grayscale.svg';
 
 const META_BASE_LOTS = 1_000_000_000;
 const USDC_BASE_LOTS = 1_000_000;
@@ -20,6 +25,7 @@ export function JupSwapCard() {
   const [outAmount, setOutAmount] = useState<number>(0);
   const [base, setBase] = useState<string>('meta');
   const [quote, setQuote] = useState<string>('usdc');
+  const jupiterQuoteApi = createJupiterApiClient();
 
   const tokens = [
     {
@@ -41,45 +47,38 @@ export function JupSwapCard() {
       mintAddress: string,
       name: string
     } = tokens.filter((token) => token.name === quote)[0];
-    const url =
-      `https://quote-api.jup.ag/v6/quote?inputMint=${baseMint.mintAddress}&` +
-      `outputMint=${quoteMint.mintAddress}&` +
-      `amount=${amount.toString()}&` +
-      `slippageBps=${slippage.toString()}&` +
-      'swapMode=ExactIn&' +
-      'onlyDirectRoutes=false&' +
-      'maxAccounts=64&' +
-      'experimentalDexes=Jupiter%20LO';
-
-    const getRoute = () =>
-      fetch(url)
-        .then((res) => res.json());
 
     // debounce(async () => {
-    const quoteResponse = await getRoute();
+    const quoteResponse = await jupiterQuoteApi.quoteGet({
+      inputMint: baseMint.mintAddress,
+      outputMint: quoteMint.mintAddress,
+      amount,
+      slippageBps: slippage,
+      swapMode: 'ExactIn',
+      onlyDirectRoutes: false,
+      maxAccounts: 64,
+    });
+
+    if (!quote) {
+      console.error('unable to quote');
+      return;
+    }
 
     return quoteResponse;
     // }, 100);
   };
 
-  const buildTransaction = async (quoteResponse: any) => {
-    const url = 'https://quote-api.jup.ag/v6/swap';
-    const swapTokenTxn = () => fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        quoteResponse: quoteResponse.data,
-        userPublicKey: provider.publicKey.toString(),
+  const buildTransaction = async (_quote: any) => {
+    const swapResult = await jupiterQuoteApi.swapPost({
+      swapRequest: {
+        quoteResponse: _quote,
+        userPublicKey: provider.publicKey.toBase58(),
         wrapAndUnwrapSol: true,
-        dynamicComputeUnitLimit: true, // allow dynamic compute limit instead of max 1,400,000
-        // custom priority fee
-        prioritizationFeeLamports: 'auto', // or custom lamports: 1000
-      }),
-    })
-      .then((res) => res.json());
-    return swapTokenTxn();
+        dynamicComputeUnitLimit: true,
+        prioritizationFeeLamports: 'auto',
+      },
+    });
+    return swapResult;
   };
 
   const convertFromJup = (amount: number, token: string) => token === 'meta' ? amount / META_BASE_LOTS : amount / USDC_BASE_LOTS;
@@ -91,6 +90,7 @@ export function JupSwapCard() {
     const jupAmount = convertToJup(amount, base);
     try {
       const quoteResponse = await fetchQuote(jupAmount, 50);
+      if (!quoteResponse) return;
       const readableAmount = convertFromJup(Number(quoteResponse.outAmount), quote);
       setOutAmount(
         (_outAmount) => _outAmount === readableAmount ? _outAmount : readableAmount
@@ -107,15 +107,12 @@ export function JupSwapCard() {
     if (!quoteResponse) return;
     const jupTransaction = await buildTransaction(quoteResponse);
     try {
-      const swapTransactionBuf = Buffer.from(jupTransaction, 'base64');
-
+      const swapTransactionBuf = Buffer.from(jupTransaction.swapTransaction, 'base64');
       const transaction = VersionedTransaction.deserialize(swapTransactionBuf);
-      console.log(transaction);
 
-      await provider.wallet.signTransaction(transaction);
+      const _transaction = await provider.wallet.signTransaction(transaction);
 
-      const txId = await provider.sendAndConfirm(transaction);
-      console.log(txId);
+      const txId = await provider.sendAndConfirm(_transaction);
       return txId;
     } catch (err) {
       console.error(err);
@@ -135,14 +132,21 @@ export function JupSwapCard() {
 
   return (
     <>
-      <Text size="md">Swap with Jupiter</Text>
+      <Divider />
+      <Title order={5}>Swap</Title>
+      <Image
+        priority
+        src={poweredByJup}
+        alt="Powered By Jupiter"
+      />
       <TextInput
         value={inAmount}
         onChange={(e) => updateAndFetchQuote(Number(e.target.value))}
-        rightSectionWidth={120}
+        rightSectionWidth={100}
         rightSection={
           <>
-          <Text>{base.toLocaleUpperCase()}</Text>
+          <Divider orientation="vertical" />
+          <Text pl={10}>{base.toLocaleUpperCase()}</Text>
           </>
         }
       />
@@ -151,16 +155,17 @@ export function JupSwapCard() {
           variant="outline"
           onClick={swapBase}
         >
-          <IconArrowsDownUp />
+          <IconArrowsDownUp stroke={1.5} size={18} />
         </ActionIcon>
       </Center>
       <TextInput
         value={outAmount}
         disabled
-        rightSectionWidth={120}
+        rightSectionWidth={100}
         rightSection={
           <>
-          <Text>{quote.toLocaleUpperCase()}</Text>
+          <Divider orientation="vertical" />
+          <Text pl={10}>{quote.toLocaleUpperCase()}</Text>
           </>
         }
       />
