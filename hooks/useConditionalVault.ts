@@ -6,10 +6,10 @@ import {
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import numeral from 'numeral';
-import { ConditionalVault, IDL as CONDITIONAL_VAULT_IDL } from '../lib/idl/conditional_vault';
+import { ConditionalVault, IDL as CONDITIONAL_VAULT_IDL } from '@themetadao/futarchy-ts/lib/idl/conditional_vault';
 import { useProvider } from './useProvider';
 import { useTokens } from './useTokens';
-import { InitializedVault, ProposalAccount, VaultAccount, VaultAccountWithKey } from '../lib/types';
+import { InitializedVault, ProposalAccount, VaultAccount, VaultAccountWithKey } from '@themetadao/futarchy-ts/lib/types';
 
 export function useConditionalVault() {
   const provider = useProvider();

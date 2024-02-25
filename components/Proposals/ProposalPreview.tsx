@@ -1,11 +1,11 @@
 import { useRouter } from 'next/navigation';
 // import Markdown from 'react-markdown';
 import { Card, Group, Stack, Text, UnstyledButton } from '@mantine/core';
+import { Proposal } from '@themetadao/futarchy-ts/lib/types';
+import { shortKey } from '@themetadao/futarchy-ts/lib/utils';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { StateBadge } from './StateBadge';
-import { Proposal } from '@/lib/types';
 import ExternalLink from '../ExternalLink';
-import { shortKey } from '../../lib/utils';
 
 export function ProposalPreview({ proposal }: { proposal: Proposal }) {
   const router = useRouter();

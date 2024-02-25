@@ -23,14 +23,15 @@ import { useMediaQuery } from '@mantine/hooks';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { SystemProgram } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
+import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '@themetadao/futarchy-ts/lib/openbook';
+import { SLOTS_PER_10_SECS } from '@themetadao/futarchy-ts/lib/constants';
+import { shortKey } from '@themetadao/futarchy-ts/lib/utils';
 import { ProposalOrdersCard } from './ProposalOrdersCard';
 import { ConditionalMarketCard } from '../Markets/ConditionalMarketCard';
 import { JupSwapCard } from './JupSwapCard';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useAutocrat } from '@/contexts/AutocratContext';
-import { shortKey } from '@/lib/utils';
 import { StateBadge } from './StateBadge';
-import { SLOTS_PER_10_SECS } from '../../lib/constants';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useConditionalVault } from '../../hooks/useConditionalVault';
 import { useProposal } from '@/contexts/ProposalContext';
@@ -39,7 +40,6 @@ import ExternalLink from '../ExternalLink';
 import MarketsBalances from './MarketsBalances';
 import classes from '../../app/globals.module.css';
 import { useTokens } from '../../hooks/useTokens';
-import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '../../lib/openbook';
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 
 export function ProposalDetailCard() {

@@ -36,14 +36,14 @@ import Image from 'next/image';
 import Link from 'next/link';
 import React, { useEffect, useRef, useState } from 'react';
 import useSWR from 'swr';
-import { Networks, useNetworkConfiguration } from '../../hooks/useNetworkConfiguration';
-import { shortKey } from '@/lib/utils';
+import { shortKey } from '@themetadao/futarchy-ts/lib/utils';
+import { NUMERAL_FORMAT } from '@themetadao/futarchy-ts/lib/constants';
+import { Networks, useNetworkConfiguration } from '@/hooks/useNetworkConfiguration';
 import icon from '@/public/meta.png';
 import _favicon from '@/public/favicon.ico';
 import { Explorers, useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import classes from '../../app/globals.module.css';
 import { usePriorityFee } from '../../hooks/usePriorityFee';
-import { NUMERAL_FORMAT } from '../../lib/constants';
 
 const links = [
   {

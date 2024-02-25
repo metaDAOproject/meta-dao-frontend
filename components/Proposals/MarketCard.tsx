@@ -18,12 +18,12 @@ import numeral from 'numeral';
 import { IconQuestionMark } from '@tabler/icons-react';
 import { Mint, getMint } from '@solana/spl-token';
 import { useConnection } from '@solana/wallet-adapter-react';
-import { NUMERAL_FORMAT } from '@/lib/constants';
+import { NUMERAL_FORMAT } from '@themetadao/futarchy-ts/lib/constants';
+import { getParsedOrders } from '@themetadao/futarchy-ts/lib/openbook';
 import { Token, useTokens } from '../../hooks/useTokens';
 import { useTokenAmount } from '../../hooks/useTokenAmount';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useAutocrat } from '../../contexts/AutocratContext';
-import { getParsedOrders } from '@/lib/openbook';
 import { useProposal } from '@/contexts/ProposalContext';
 import { useBalance } from '@/hooks/useBalance';
 

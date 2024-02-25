@@ -3,11 +3,11 @@ import { Stack, Table, Button, Group, Text } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Transaction } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { OpenOrdersAccountWithKey } from '@/lib/types';
+import { OpenOrdersAccountWithKey } from '@themetadao/futarchy-ts/lib/types';
+import { isPartiallyFilled } from '@themetadao/futarchy-ts/lib/openbook';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { useProposal } from '@/contexts/ProposalContext';
-import { isPartiallyFilled } from '@/lib/openbook';
 import { OpenOrderRow } from './OpenOrderRow';
 
 const headers = ['Order ID', 'Market', 'Status', 'Size', 'Price', 'Notional', 'Actions'];

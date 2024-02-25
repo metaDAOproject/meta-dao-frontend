@@ -4,9 +4,9 @@ import numeral from 'numeral';
 import { BN } from '@coral-xyz/anchor';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { PublicKey } from '@solana/web3.js';
+import { NUMERAL_FORMAT } from '@themetadao/futarchy-ts/lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
-import { NUMERAL_FORMAT } from '../../lib/constants';
 import { Token } from '@/hooks/useTokens';
 import useConditionalTokens from '@/hooks/useConditionalTokens';
 

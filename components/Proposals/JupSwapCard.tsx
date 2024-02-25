@@ -10,7 +10,7 @@ import {
 import { useState } from 'react';
 import Image from 'next/image';
 import { IconArrowsDownUp } from '@tabler/icons-react';
-// import { debounce } from '@/lib/utils';
+// import { debounce } from '@themetadao/futarchy-ts/lib/utils';
 import { VersionedTransaction } from '@solana/web3.js';
 import { createJupiterApiClient } from '@jup-ag/api';
 import { useProvider } from '@/hooks/useProvider';

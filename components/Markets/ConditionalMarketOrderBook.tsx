@@ -4,7 +4,7 @@ import { AnyNode, LeafNode, OpenbookV2, IDL as OPENBOOK_IDL, OPENBOOK_PROGRAM_ID
 import { Program } from '@coral-xyz/anchor';
 import { Card, Text, useMantineColorScheme } from '@mantine/core';
 import { Context, AccountInfo, PublicKey } from '@solana/web3.js';
-import { OrderBook as _OrderBook } from '@/lib/types';
+import { OrderBook as _OrderBook } from '@themetadao/futarchy-ts/lib/types';
 import { useProvider } from '@/hooks/useProvider';
 import { useProposal } from '@/contexts/ProposalContext';
 

@@ -4,12 +4,12 @@ import numeral, { Numeral } from 'numeral';
 import { BN } from '@coral-xyz/anchor';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { instructionGroups } from '@themetadao/futarchy-ts/lib/instructions';
+import { InstructionAction, ProposalInstruction } from '@themetadao/futarchy-ts/lib/types';
+import { NUMERAL_FORMAT } from '@themetadao/futarchy-ts/lib/constants';
+import { validateType } from '@themetadao/futarchy-ts/lib/utils';
 import { useAutocrat } from '@/contexts/AutocratContext';
-import { instructionGroups } from '@/lib/instructions';
-import { InstructionAction, ProposalInstruction } from '@/lib/types';
-import { NUMERAL_FORMAT } from '../../lib/constants';
 import { useInitializeProposal } from '../../hooks/useInitializeProposal';
-import { validateType } from '../../lib/utils';
 
 export function CreateProposalCard() {
   const { connection } = useConnection();

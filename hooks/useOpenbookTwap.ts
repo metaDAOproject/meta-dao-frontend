@@ -19,29 +19,29 @@ import {
   OrderType,
   SideUtils,
 } from '@openbook-dex/openbook-v2/dist/cjs/utils/utils';
-import { OpenbookTwap } from '@/lib/idl/openbook_twap';
-import { OPENBOOK_PROGRAM_ID, OPENBOOK_TWAP_PROGRAM_ID, QUOTE_LOTS } from '@/lib/constants';
+import { OpenbookTwap } from '@themetadao/futarchy-ts/lib/idl/openbook_twap';
+import { OPENBOOK_PROGRAM_ID, OPENBOOK_TWAP_PROGRAM_ID, QUOTE_LOTS } from '@themetadao/futarchy-ts/lib/constants';
 import {
   FillEvent,
   MarketAccountWithKey,
   OpenOrdersAccountWithKey,
   OutEvent,
   ProposalAccountWithKey,
-} from '@/lib/types';
-import { shortKey } from '@/lib/utils';
+} from '@themetadao/futarchy-ts/lib/types';
+import { shortKey } from '@themetadao/futarchy-ts/lib/utils';
 import { useProvider } from '@/hooks/useProvider';
 import {
   createOpenOrdersIndexerInstruction,
   createOpenOrdersInstruction,
   findOpenOrders,
   findOpenOrdersIndexer,
-} from '../lib/openbook';
+} from '@themetadao/futarchy-ts/lib/openbook';
 import { useConditionalVault } from './useConditionalVault';
 import { useOpenbook } from './useOpenbook';
 import { useTransactionSender } from './useTransactionSender';
-import { getTwapMarketKey } from '../lib/openbookTwap';
+import { getTwapMarketKey } from '@themetadao/futarchy-ts/lib/openbookTwap';
 
-const OPENBOOK_TWAP_IDL: OpenbookTwap = require('@/lib/idl/openbook_twap.json');
+const OPENBOOK_TWAP_IDL: OpenbookTwap = require('@themetadao/futarchy-ts/lib/idl/openbook_twap.json');
 
 const SYSTEM_PROGRAM: PublicKey = new PublicKey('11111111111111111111111111111111');
 
