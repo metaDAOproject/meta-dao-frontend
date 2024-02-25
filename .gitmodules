@@ -1,0 +1,3 @@
+[submodule "futarchy-ts"]
+	path = futarchy-ts
+	url = https://github.com/metaDAOproject/futarchy-ts

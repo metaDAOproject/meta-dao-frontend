@@ -20,13 +20,13 @@ import {
   IconCheck,
 } from '@tabler/icons-react';
 import { BN } from '@coral-xyz/anchor';
-import { OpenOrdersAccountWithKey } from '@/lib/types';
+import { OpenOrdersAccountWithKey } from '@themetadao/futarchy-ts/lib/types';
+import { isBid, isPartiallyFilled, isPass } from '@themetadao/futarchy-ts/lib/openbook';
+import { NUMERAL_FORMAT, BASE_FORMAT, QUOTE_LOTS } from '@themetadao/futarchy-ts/lib/constants';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
-import { NUMERAL_FORMAT, BASE_FORMAT, QUOTE_LOTS } from '@/lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
-import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 
 export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
   const { markets } = useProposal();

@@ -14,13 +14,13 @@ import {
   Proposal,
   ProposalAccountWithKey,
   LeafNode,
-} from '@/lib/types';
+} from '@themetadao/futarchy-ts/lib/types';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { useConditionalVault } from '@/hooks/useConditionalVault';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
-import { getLeafNodes } from '../lib/openbook';
-import { debounce } from '../lib/utils';
+import { getLeafNodes } from '@themetadao/futarchy-ts/lib/openbook';
+import { debounce } from '@themetadao/futarchy-ts/lib/utils';
 
 export interface ProposalInterface {
   proposal?: Proposal;

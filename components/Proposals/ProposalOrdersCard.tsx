@@ -1,14 +1,14 @@
 import { ActionIcon, Group, Loader, Stack, Tabs, Text } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { IconRefresh } from '@tabler/icons-react';
-import { useProposal } from '@/contexts/ProposalContext';
 import {
   isCompletedOrder,
   isEmptyOrder,
   isOpenOrder,
   totalMetaInOrder,
   totalUsdcInOrder,
-} from '@/lib/openbook';
+} from '@themetadao/futarchy-ts/lib/openbook';
+import { useProposal } from '@/contexts/ProposalContext';
 import { OpenOrdersTab } from '@/components/Orders/OpenOrdersTab';
 import { UnsettledOrdersTab } from '@/components/Orders/UnsettledOrdersTab';
 import { UncrankedOrdersTab } from '@/components/Orders/UncrankedOrdersTab';

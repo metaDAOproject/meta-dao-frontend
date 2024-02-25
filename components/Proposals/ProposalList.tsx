@@ -2,9 +2,9 @@
 
 import { useMemo } from 'react';
 import { Divider, Group, Loader, Stack, Text, Title, NativeSelect } from '@mantine/core';
+import { AUTOCRAT_VERSIONS } from '@themetadao/futarchy-ts/lib/constants';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { ProposalPreview } from './ProposalPreview';
-import { AUTOCRAT_VERSIONS } from '../../lib/constants';
 
 const programVersions = AUTOCRAT_VERSIONS.map((version, i) => ({
   label: version.label,

@@ -1,5 +1,5 @@
 import { Stack, Table, Text } from '@mantine/core';
-import { OpenOrdersAccountWithKey } from '@/lib/types';
+import { OpenOrdersAccountWithKey } from '@themetadao/futarchy-ts/lib/types';
 import { OpenOrderRow } from './OpenOrderRow';
 
 const headers = ['Order ID', 'Market', 'Claimable', 'Actions'];

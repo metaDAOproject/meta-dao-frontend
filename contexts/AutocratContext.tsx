@@ -12,8 +12,8 @@ import { PublicKey } from '@solana/web3.js';
 import { useLocalStorage } from '@mantine/hooks';
 import { OpenbookV2, IDL as OPENBOOK_IDL } from '@openbook-dex/openbook-v2';
 import { useProvider } from '@/hooks/useProvider';
-import { AUTOCRAT_VERSIONS, OPENBOOK_PROGRAM_ID } from '@/lib/constants';
-import { AutocratProgram, DaoState, ProgramVersion, Proposal } from '../lib/types';
+import { AUTOCRAT_VERSIONS, OPENBOOK_PROGRAM_ID } from '@themetadao/futarchy-ts/lib/constants';
+import { AutocratProgram, DaoState, ProgramVersion, Proposal } from '@themetadao/futarchy-ts/lib/types';
 import { useNetworkConfiguration } from '../hooks/useNetworkConfiguration';
 import { useOpenbookTwap } from '../hooks/useOpenbookTwap';
 

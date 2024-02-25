@@ -1,5 +1,5 @@
 import { Badge } from '@mantine/core';
-import { ProposalAccountWithKey } from '@/lib/types';
+import { ProposalAccountWithKey } from '@themetadao/futarchy-ts/lib/types';
 
 export function StateBadge({ proposal }: { proposal: ProposalAccountWithKey }) {
   if (!proposal) return null;

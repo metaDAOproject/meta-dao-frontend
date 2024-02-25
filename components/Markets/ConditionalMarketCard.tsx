@@ -16,10 +16,10 @@ import {
 } from '@mantine/core';
 import numeral from 'numeral';
 import { Icon12Hours, IconWallet, IconInfoCircle } from '@tabler/icons-react';
+import { calculateTWAP, getLastObservedAndSlot } from '@themetadao/futarchy-ts/lib/openbookTwap';
+import { BASE_FORMAT, NUMERAL_FORMAT } from '@themetadao/futarchy-ts/lib/constants';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
 import { useAutocrat } from '../../contexts/AutocratContext';
-import { calculateTWAP, getLastObservedAndSlot } from '../../lib/openbookTwap';
-import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import MarketTitle from './MarketTitle';

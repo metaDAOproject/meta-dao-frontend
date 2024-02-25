@@ -12,13 +12,13 @@ import {
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Icon3dRotate, IconWriting, Icon12Hours, IconAssemblyOff } from '@tabler/icons-react';
 import { BN } from '@coral-xyz/anchor';
-import { OpenOrdersAccountWithKey } from '@/lib/types';
+import { OpenOrdersAccountWithKey } from '@themetadao/futarchy-ts/lib/types';
+import { isBid, isPartiallyFilled, isPass } from '@themetadao/futarchy-ts/lib/openbook';
+import { BN_0 } from '@themetadao/futarchy-ts/lib/constants';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
-import { BN_0 } from '@/lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
-import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useBalances } from '../../contexts/BalancesContext';
 
 export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {

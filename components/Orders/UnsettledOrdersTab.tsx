@@ -3,11 +3,11 @@ import { Stack, Table, Button, Group, Text } from '@mantine/core';
 import { Transaction } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { OpenOrdersAccountWithKey } from '@/lib/types';
+import { OpenOrdersAccountWithKey } from '@themetadao/futarchy-ts/lib/types';
+import { isClosableOrder, isPartiallyFilled } from '@themetadao/futarchy-ts/lib/openbook';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { useProposal } from '@/contexts/ProposalContext';
-import { isClosableOrder, isPartiallyFilled } from '@/lib/openbook';
 import { UnsettledOrderRow } from './UnsettledOrderRow';
 import { useBalances } from '../../contexts/BalancesContext';
 
