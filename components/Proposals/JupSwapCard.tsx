@@ -7,7 +7,7 @@ import {
   TextInput,
   Divider,
 } from '@mantine/core';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import { IconArrowsDownUp } from '@tabler/icons-react';
 // import { debounce } from '@/lib/utils';
@@ -48,7 +48,6 @@ export function JupSwapCard() {
       name: string
     } = tokens.filter((token) => token.name === quote)[0];
 
-    // debounce(async () => {
     const quoteResponse = await jupiterQuoteApi.quoteGet({
       inputMint: baseMint.mintAddress,
       outputMint: quoteMint.mintAddress,
@@ -65,7 +64,6 @@ export function JupSwapCard() {
     }
 
     return quoteResponse;
-    // }, 100);
   };
 
   const buildTransaction = async (_quote: any) => {
@@ -124,11 +122,6 @@ export function JupSwapCard() {
     setBase((_base) => _base === 'meta' ? 'usdc' : 'meta');
     setQuote((_quote) => _quote === 'usdc' ? 'meta' : 'usdc');
   };
-
-  useEffect(() => {
-    updateAndFetchQuote(inAmount);
-    // swapBase();
-  }, [inAmount, base]);
 
   return (
     <>
