@@ -25,7 +25,7 @@ export function ConditionalMarketOrderBook({
   const [asks, setAsks] = useState<any[][]>();
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [spreadString, setSpreadString] = useState<string>();
-  const [lastSlotUpdated, setLastSlotUpdated] = useState<number>(0);
+  const [lastSlotUpdated, setLastSlotUpdated] = useState<number>();
   const openBookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
 
   // On initialization
@@ -145,9 +145,11 @@ export function ConditionalMarketOrderBook({
       } else {
         _spreadString = `${spread.toFixed(2).toString()} (${spreadPercent}%)`;
       }
-      setSpreadString(_spreadString);
+      setSpreadString(
+        (curSpreadString) => curSpreadString === _spreadString ? curSpreadString : _spreadString
+      );
 
-      setWsConnected(true);
+      setWsConnected((curConnected) => curConnected === false);
     } catch (err) {
       // console.error(err);
       // TODO: Add in call to analytics / reporting
