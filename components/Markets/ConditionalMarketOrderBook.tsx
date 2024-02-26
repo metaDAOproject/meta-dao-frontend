@@ -145,9 +145,11 @@ export function ConditionalMarketOrderBook({
       } else {
         _spreadString = `${spread.toFixed(2).toString()} (${spreadPercent}%)`;
       }
-      setSpreadString(_spreadString);
+      setSpreadString(
+        (curSpreadString) => curSpreadString === _spreadString ? curSpreadString : _spreadString
+      );
 
-      setWsConnected(true);
+      setWsConnected((curConnected) => curConnected === false);
     } catch (err) {
       // console.error(err);
       // TODO: Add in call to analytics / reporting
