@@ -284,7 +284,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                   <Text size="xs">
                     <a
                       href={generateExplorerLink(
-                        isPassMarket 
+                        isPassMarket
                           ? proposal?.account.openbookTwapPassMarket.toString()!
                           : proposal?.account.openbookTwapFailMarket.toString()!,
                         'account',
