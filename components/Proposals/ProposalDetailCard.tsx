@@ -42,6 +42,7 @@ import { useTokens } from '../../hooks/useTokens';
 import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '../../lib/openbook';
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 import { Proposal } from '../../lib/types';
+import { ProposalCountdown } from './ProposalCountdown';
 
 export function ProposalDetailCard() {
   const wallet = useWallet();
@@ -58,7 +59,6 @@ export function ProposalDetailCard() {
 
   const { generateExplorerLink } = useExplorerConfiguration();
   const [lastSlot, setLastSlot] = useState<number>();
-  const [secondsLeft, setSecondsLeft] = useState<number>(0);
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
@@ -78,32 +78,6 @@ export function ProposalDetailCard() {
 
     return Math.max(endSlot - lastSlot, 0);
   }, [proposal, lastSlot, daoState]);
-
-  useEffect(() => {
-    setSecondsLeft(((remainingSlots || 0) / SLOTS_PER_10_SECS) * 10);
-  }, [remainingSlots]);
-
-  useEffect(() => {
-    const interval = setInterval(
-      () => (secondsLeft && secondsLeft > 0 ? setSecondsLeft((old) => old - 1) : 0),
-      1000,
-    );
-
-    return () => clearInterval(interval);
-  });
-
-  const timeLeft = useMemo(() => {
-    if (!secondsLeft) return;
-    const seconds = secondsLeft;
-    const days = Math.floor(seconds / (60 * 60 * 24));
-    const hours = Math.floor((seconds % (60 * 60 * 24)) / (60 * 60));
-    const minutes = Math.floor((seconds % (60 * 60)) / 60);
-    const secLeft = Math.floor(seconds % 60);
-
-    return `${String(days).padStart(2, '0')}:${String(hours).padStart(2, '0')}:${String(
-      minutes,
-    ).padStart(2, '0')}:${String(secLeft).padStart(2, '0')}`;
-  }, [secondsLeft]);
 
   const handleFinalize = useCallback(async () => {
     if (!tokens?.meta || !daoTreasury || !wallet?.publicKey) return;
@@ -364,7 +338,7 @@ export function ProposalDetailCard() {
               </Stack>
             </Card>
           ) : null}
-          {secondsLeft !== 0 && <Text fw="bold">Ends in {timeLeft}</Text>}
+          <ProposalCountdown remainingSlots={remainingSlots} />
           <Group wrap="wrap" justify="space-between">
             <ExternalLink href={proposal.account.descriptionUrl} />
             <Text opacity={0.6} style={{ textAlign: 'right' }}>

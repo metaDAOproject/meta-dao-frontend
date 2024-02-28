@@ -26,7 +26,8 @@ export function useTokenAmount(mint?: PublicKey, owner?: PublicKey) {
         uiAmount: 0.0,
       };
       try {
-        setAmount((await connection.getTokenAccountBalance(account)).value);
+        const tokenBalance = await connection.getTokenAccountBalance(account);
+        setAmount(tokenBalance.value);
       } catch (err) {
         console.error(
           `Error with this account fetch ${account.toString()} (owner: ${(
