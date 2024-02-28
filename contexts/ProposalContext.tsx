@@ -112,11 +112,6 @@ export function ProposalProvider({
     [proposals, fromProposal, proposalNumber],
   );
 
-  useEffect(() => {
-    setMarkets(undefined);
-    fetchMarketsInfo();
-  }, [proposal])
-
   const fetchMarketsInfo = useCallback(
     debounce(async () => {
       if (!proposal || !openbook || !openbookTwap || !openbookTwap.views || !connection) {
@@ -189,6 +184,11 @@ export function ProposalProvider({
     }, 1000),
     [vaultProgram, openbook, openbookTwap, proposal, connection],
   );
+
+  useEffect(() => {
+    setMarkets(undefined);
+    fetchMarketsInfo();
+  }, [proposal]);
 
   const fetchOpenOrders = useCallback(
     debounce<[PublicKey]>(async (owner: PublicKey) => {
