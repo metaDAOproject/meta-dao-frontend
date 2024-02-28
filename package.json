@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.28.1-beta.2",
+    "@jup-ag/api": "^6.0.11",
     "@lab49/react-order-book": "https://github.com/R-K-H/react-order-book",
     "@mantine/core": "^7.5.1",
     "@mantine/hooks": "^7.5.1",
@@ -37,7 +38,8 @@
     "next": "^13.5.6",
     "numeral": "^2.0.6",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "swr": "^2.2.5"
   },
   "devDependencies": {
     "@babel/core": "^7.22.1",

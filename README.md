@@ -1,6 +1,6 @@
 # Meta-DAO Frontend
 
-![License MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+![License BSLv1.1](https://img.shields.io/badge/License-BSLv1.1-lightgray.svg)
 
 The most popular frontend for the Meta-DAO.
 
@@ -10,7 +10,7 @@ The most popular frontend for the Meta-DAO.
 
 1. `git clone https://github.com/metaDAOproject/meta-dao`
 2. `cd meta-dao`
-3. `yarn`
+3. `npm install`
 4. `anchor localnet`
 
 See Meta-DAO's repo for more details.

@@ -30,10 +30,12 @@ import {
   IconBrandTwitter,
   IconSun,
   IconMoonStars,
+  IconExternalLink,
 } from '@tabler/icons-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import React, { useEffect, useRef, useState } from 'react';
+import useSWR from 'swr';
 import { Networks, useNetworkConfiguration } from '../../hooks/useNetworkConfiguration';
 import { shortKey } from '@/lib/utils';
 import icon from '@/public/meta.png';
@@ -68,6 +70,34 @@ const explorers = [
   { label: 'Solana Explorer', value: Explorers.Solana.toString() },
 ];
 
+function getTokenPrice(data: any) {
+  const price = Math.round((Number(data.outAmount) / Number(data.inAmount)) * 1000000) / 1000;
+  return price;
+}
+
+function useTokenPrice() {
+  const url =
+    'https://quote-api.jup.ag/v6/quote?inputMint=METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr&' +
+    'outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&' +
+    'amount=100000000&' +
+    'slippageBps=50&' +
+    'swapMode=ExactIn&' +
+    'onlyDirectRoutes=false&' +
+    'maxAccounts=64&' +
+    'experimentalDexes=Jupiter%20LO';
+  const tokenPriceFetcher = () =>
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => getTokenPrice(data));
+  const { data, error, isLoading } = useSWR('metaSpotPrice', tokenPriceFetcher);
+
+  return {
+    price: data,
+    isLoading,
+    isError: error,
+  };
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const wallet = useWallet();
   const modal = useWalletModal();
@@ -86,27 +116,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }, [wallet]);
 
   useEffect(() => {
-    if (solPrice === undefined) {
-      const f = async () => {
-        try {
-          const res = await fetch(
-            'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
-          );
-          const data = await res.json();
+    const fetchData = async () => {
+      try {
+        const res = await fetch(
+          'https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd',
+        );
+        const data = await res.json();
 
-          if (data?.solana?.usd) {
-            setSolPrice(data.solana.usd);
-          } else {
-            setSolPrice(0);
-          }
-        } catch {
+        if (data?.solana?.usd) {
+          setSolPrice(data.solana.usd);
+        } else {
           setSolPrice(0);
         }
-      };
+      } catch {
+        setSolPrice(0);
+      }
+    };
 
-      f();
-    }
-  });
+    // Call fetchData immediately when component mounts
+    fetchData();
+  }, []); // Empty dependency array means this effect will only run once
+  const tokenPrice = useTokenPrice();
 
   const feesCost = (((priorityFee / 100000) * 200000) / LAMPORTS_PER_SOL) * (solPrice || 0);
 
@@ -133,6 +163,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <Title order={!isTiny ? 3 : 4}>the Meta-DAO</Title>
               </Flex>
             </Link>
+
+            <Group gap="0" justify="center" ta="center">
+              <div style={{ fontSize: 'small' }}>
+                {tokenPrice.isLoading
+                  ? 'loading...'
+                  : !tokenPrice.isError
+                  ? `1 META ≈ $${tokenPrice.price}`
+                  : ''}
+                <Link
+                  target="_blank"
+                  href="https://birdeye.so/token/METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr?chain=solana"
+                >
+                  <IconExternalLink height=".7rem" width="1rem" />
+                </Link>
+              </div>
+            </Group>
+
             <Group>
               {wallet?.publicKey ? (
                 <Menu position="bottom-end">
@@ -182,7 +229,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </Menu>
               ) : (
                 <Button
-                  variant="light"
+                  variant="outline"
                   onClick={() => modal.setVisible(true)}
                   loading={modal.visible || wallet.connecting}
                 >

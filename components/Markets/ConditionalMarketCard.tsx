@@ -13,7 +13,6 @@ import {
   NativeSelect,
   HoverCard,
   Group,
-  useMantineColorScheme,
 } from '@mantine/core';
 import numeral from 'numeral';
 import { Icon12Hours, IconWallet, IconInfoCircle } from '@tabler/icons-react';
@@ -41,7 +40,6 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   const [amountError, setAmountError] = useState<string | null>(null);
   const [orderValue, setOrderValue] = useState<string>('0');
   const { generateExplorerLink } = useExplorerConfiguration();
-  const { colorScheme } = useMantineColorScheme();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [slot, setSlot] = useState<number>(0);
   const [clusterTimestamp, setClusterTimestamp] = useState<number>(0);
@@ -427,7 +425,9 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                   <Text size="xs">
                     <a
                       href={generateExplorerLink(
-                        proposal?.account.openbookTwapPassMarket.toString()!,
+                        isPassMarket
+                          ? proposal?.account.openbookTwapPassMarket.toString()!
+                          : proposal?.account.openbookTwapFailMarket.toString()!,
                         'account',
                       )}
                       target="blank"
@@ -440,13 +440,11 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
             </HoverCard>
           </Group>
         ) : null}
-        <Card withBorder bg={colorScheme === 'dark' ? '' : '#F9F9F9'}>
-          <ConditionalMarketOrderBook
-            orderBookObject={orderBookObject}
-            isPassMarket={isPassMarket}
-            setPriceFromOrderBook={setPriceFromOrderBook}
-          />
-        </Card>
+        <ConditionalMarketOrderBook
+          orderBookObject={orderBookObject}
+          isPassMarket={isPassMarket}
+          setPriceFromOrderBook={setPriceFromOrderBook}
+        />
         <Stack>
           <SegmentedControl
             style={{ marginTop: '10px' }}
@@ -563,7 +561,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                 fullWidth
                 color={isAskSide ? 'red' : 'green'}
                 onClick={handlePlaceOrder}
-                variant="light"
+                variant="outline"
                 disabled={!amount || (isLimitOrder ? !price : false)}
                 loading={isPlacingOrder}
               >
