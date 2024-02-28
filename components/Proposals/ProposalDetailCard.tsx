@@ -41,8 +41,6 @@ import classes from '../../app/globals.module.css';
 import { useTokens } from '../../hooks/useTokens';
 import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '../../lib/openbook';
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
-import { Networks, useNetworkConfiguration } from '../../hooks/useNetworkConfiguration';
-import { useBalances } from '../../contexts/BalancesContext';
 import { Proposal } from '../../lib/types';
 
 export function ProposalDetailCard() {
