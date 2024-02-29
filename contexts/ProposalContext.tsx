@@ -223,7 +223,7 @@ export function ProposalProvider({
       const orders = await client.fetchQuery({
         queryKey: [`fetchProposalOpenOrders-${proposal?.publicKey}`],
         queryFn: () => fetchProposalOpenOrders(),
-        staleTime: 10_000,
+        staleTime: 1_000,
       });
       setOrders(orders ?? []);
     }, 1000),
