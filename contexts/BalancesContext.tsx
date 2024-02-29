@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useState } from 'react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey, TokenAmount } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const defaultAmount: TokenAmount = {
   amount: '0.0',
@@ -9,7 +10,7 @@ export const defaultAmount: TokenAmount = {
   uiAmount: 0.0,
 };
 
-type Balances = { [token: string]: TokenAmount };
+type Balances = { [token: string]: TokenAmount; };
 
 export interface BalancesInterface {
   balances: Balances;
@@ -19,7 +20,7 @@ export interface BalancesInterface {
 
 export const balancesContext = createContext<BalancesInterface>({
   balances: {},
-  fetchBalance: () => new Promise(() => {}),
+  fetchBalance: () => new Promise(() => { }),
   getBalance: () => new Promise(() => { }),
 });
 
@@ -38,15 +39,20 @@ export function BalancesProvider({
   children: React.ReactNode;
   owner?: PublicKey;
 }) {
+  const client = useQueryClient();
   const { connection } = useConnection();
-  const [balances, setBalances] = useState<{ [token: string]: TokenAmount }>({});
+  const [balances, setBalances] = useState<{ [token: string]: TokenAmount; }>({});
 
   const fetchBalance = useCallback(
     async (mint: PublicKey | string) => {
       if (connection && owner) {
         const account = getAssociatedTokenAddressSync(new PublicKey(mint.toString()), owner, true);
         try {
-          const amount = await connection.getTokenAccountBalance(account);
+          const amount = await client.fetchQuery({
+            queryKey: [`getTokenAccountBalance-${account.toString()}-undefined`],
+            queryFn: () => connection.getTokenAccountBalance(account),
+            staleTime: 10_000,
+          });
           setBalances((old) => ({
             ...old,
             [mint.toString()]: amount.value,
