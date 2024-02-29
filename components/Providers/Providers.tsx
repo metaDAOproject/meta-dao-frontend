@@ -12,11 +12,17 @@ import {
 import { MoongateWalletAdapter } from '@moongate/moongate-adapter';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { Notifications } from '@mantine/notifications';
+import {
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query';
 import { theme } from '@/theme';
 import { useNetworkConfiguration } from '@/hooks/useNetworkConfiguration';
 import { AutocratProvider } from '@/contexts/AutocratContext';
 
-export function Providers({ children }: { children: React.ReactNode }) {
+const queryClient = new QueryClient();
+
+export function Providers({ children }: { children: React.ReactNode; }) {
   const { endpoint } = useNetworkConfiguration();
 
   const wallets = useMemo(
@@ -39,7 +45,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ConnectionProvider endpoint={endpoint}>
         <WalletProvider wallets={wallets} onError={onError}>
           <WalletModalProvider>
-            <AutocratProvider>{children}</AutocratProvider>
+            <QueryClientProvider client={queryClient}>
+              <AutocratProvider>{children}</AutocratProvider>
+            </QueryClientProvider>
           </WalletModalProvider>
         </WalletProvider>
       </ConnectionProvider>

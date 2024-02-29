@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useMemo } from 'react';
 import {
   ActionIcon,
   Card,
@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import numeral from 'numeral';
 import { Icon12Hours, IconWallet, IconInfoCircle } from '@tabler/icons-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { calculateTWAP, getLastObservedAndSlot } from '../../lib/openbookTwap';
@@ -27,7 +28,8 @@ import DisableNumberInputScroll from '../Utilities/DisableNumberInputScroll';
 import { useBalance } from '../../hooks/useBalance';
 import { useProvider } from '@/hooks/useProvider';
 
-export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?: boolean }) {
+export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?: boolean; }) {
+  const queryClient = useQueryClient();
   const { daoState } = useAutocrat();
   const { proposal, orderBookObject, markets, isCranking, crankMarkets, placeOrder } =
     useProposal();
@@ -41,7 +43,6 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   const [orderValue, setOrderValue] = useState<string>('0');
   const { generateExplorerLink } = useExplorerConfiguration();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [slot, setSlot] = useState<number>(0);
   const [clusterTimestamp, setClusterTimestamp] = useState<number>(0);
   const [observedTimestamp, setObservedTimestamp] = useState<number>(0);
 
@@ -56,6 +57,13 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
       ? markets?.quoteVault.conditionalOnFinalizeTokenMint
       : markets?.quoteVault.conditionalOnRevertTokenMint,
   );
+
+  const { data: slotData } = useQuery({
+    queryKey: ['getSlot'],
+    queryFn: () => provider.connection.getSlot(),
+    staleTime: 30_000,
+  });
+  const slot = slotData ?? 0;
 
   if (!markets) return <></>;
   const passTwap = calculateTWAP(markets.passTwap.twapOracle);
@@ -156,7 +164,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
     return `${diff} seconds ago`;
   };
 
-  const lastObservedSlot = (): number => {
+  const lastObservedSlot = useMemo((): number => {
     if (passObservation && failObservation) {
       return (isPassMarket
         ? passObservation?.lastObservationSlot.toNumber()
@@ -164,7 +172,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
       );
     }
     return 0;
-  };
+  }, [isPassMarket, passObservation, failObservation]);
 
   const failMidPrice =
     (Number(orderBookObject?.failToB.topAsk) + Number(orderBookObject?.failToB.topBid)) / 2;
@@ -254,12 +262,6 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
     }
   }, [placeOrder, fetchBase, fetchQuote, amount, isLimitOrder, isPassMarket, isAskSide]);
 
-  const getSlot = async () => {
-    const _slot = await provider.connection.getSlot();
-    setSlot(_slot);
-    return _slot;
-  };
-
   const getObservableTwap = () => {
     if (isPassMarket) {
       if (passObservation) {
@@ -270,26 +272,26 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
           const evaluated = Math.min(passMidPrice, max_observation);
           return evaluated;
         }
-          const min_observation = (
-            (passObservation.lastObservationValue * (10_000 + 100)) / 10_000
-          );
-          const evaluated = Math.max(passMidPrice, min_observation);
-          return evaluated;
+        const min_observation = (
+          (passObservation.lastObservationValue * (10_000 + 100)) / 10_000
+        );
+        const evaluated = Math.max(passMidPrice, min_observation);
+        return evaluated;
       }
     } else if (failObservation) {
-        if (failMidPrice > failObservation.lastObservationValue) {
-          const max_observation = (
-            (failObservation.lastObservationValue * (10_000 + 100)) / 10_000
-          ) + 1;
-          const evaluated = Math.min(failMidPrice, max_observation);
-          return evaluated;
-        }
-          const min_observation = (
-            (failObservation.lastObservationValue * (10_000 + 100)) / 10_000
-          );
-          const evaluated = Math.max(failMidPrice, min_observation);
-          return evaluated;
+      if (failMidPrice > failObservation.lastObservationValue) {
+        const max_observation = (
+          (failObservation.lastObservationValue * (10_000 + 100)) / 10_000
+        ) + 1;
+        const evaluated = Math.min(failMidPrice, max_observation);
+        return evaluated;
       }
+      const min_observation = (
+        (failObservation.lastObservationValue * (10_000 + 100)) / 10_000
+      );
+      const evaluated = Math.max(failMidPrice, min_observation);
+      return evaluated;
+    }
   };
 
   const getTotalImpact = (): number => {
@@ -298,10 +300,10 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
       : failAggregateObservation);
     const twapObserved = getObservableTwap();
     if (twapObserved) {
-      const _slotDiffObserved = twapObserved * (slot - lastObservedSlot());
+      const _slotDiffObserved = twapObserved * (slot - lastObservedSlot);
       const newAggregate = (aggregateObservation + _slotDiffObserved);
       const startSlot = proposal?.account.slotEnqueued.toNumber();
-      const proposalTimeInSlots: number = lastObservedSlot() - startSlot;
+      const proposalTimeInSlots: number = lastObservedSlot - startSlot;
       const oldValue = aggregateObservation / proposalTimeInSlots;
       const newValue = newAggregate / proposalTimeInSlots;
       return (newValue - oldValue) / oldValue;
@@ -310,8 +312,19 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   };
 
   const getClusterTimestamp = async () => {
-    const _clusterTimestamp = await provider.connection.getBlockTime(await getSlot());
-    const _observedTimestamp = await provider.connection.getBlockTime(lastObservedSlot());
+    let _clusterTimestamp: number = 0;
+    if (slot !== 0) {
+      _clusterTimestamp = await queryClient.fetchQuery({
+        queryKey: [`getBlockTime-${slot}`],
+        queryFn: () => provider.connection.getBlockTime(slot),
+        staleTime: 30_000,
+      });
+    }
+    const _observedTimestamp = await queryClient.fetchQuery({
+      queryKey: [`getBlockTime-${lastObservedSlot}`],
+      queryFn: () => provider.connection.getBlockTime(lastObservedSlot),
+      staleTime: 30_000,
+    });
     if (_clusterTimestamp) {
       setClusterTimestamp(_clusterTimestamp);
     }
@@ -331,13 +344,10 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   }, [price]);
 
   useEffect(() => {
-    if (!slot || slot === 0) {
-      getSlot();
-    }
-    if ((!clusterTimestamp || clusterTimestamp === 0)) {
+    if (((!clusterTimestamp || clusterTimestamp === 0) && slot)) {
       getClusterTimestamp();
     }
-  }, []);
+  }, [slot]);
 
   return (
     <Card
@@ -385,25 +395,26 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                     above the fail market{' '}
                     {daoState && failTwap
                       ? `(> ${numeral(
-                          (failTwap * (10000 + daoState.passThresholdBps)) / 10000,
-                        ).format(NUMERAL_FORMAT)})`
+                        (failTwap * (10000 + daoState.passThresholdBps)) / 10000,
+                      ).format(NUMERAL_FORMAT)})`
                       : null}
                     , the proposal will pass once the countdown ends.
                   </Text>
                   <Text>
                     Last observed price (for TWAP calculation) ${numeral(
-                    isPassMarket
-                    ? passObservation?.lastObservationValue
-                    : failObservation?.lastObservationValue).format(NUMERAL_FORMAT)}
+                      isPassMarket
+                        ? passObservation?.lastObservationValue
+                        : failObservation?.lastObservationValue).format(NUMERAL_FORMAT)}
                   </Text>
                   <Text size="xs">Last observed at
                     <br />
                     slot {
-                        isPassMarket
+                      isPassMarket
                         ? passObservation?.lastObservationSlot.toNumber()
                         : failObservation?.lastObservationSlot.toNumber()
-                      }{' '}
-                    | {slot - lastObservedSlot()} slots behind cluster
+                    }{' '}
+                    | {
+                      slot - lastObservedSlot} slots behind cluster
                     <br />
                     {(new Date((observedTimestamp * 1000))).toUTCString()}{' '}
                     | {timeSinceObservation()}
@@ -412,7 +423,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                     (getTotalImpact() * 100).toLocaleString('fullwide', {
                       useGrouping: false,
                       maximumSignificantDigits: 20,
-                   })
+                    })
                   }%
                   </Text>
                   <Text c={isWinning()}>
@@ -540,12 +551,10 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
                 <IconWallet height={12} />
                 <Text size="xs">
                   {isAskSide
-                    ? `${isPassMarket ? 'p' : 'f'}META ${
-                        numeral(baseBalance?.uiAmountString || 0).format(BASE_FORMAT) || ''
-                      }`
-                    : `${isPassMarket ? 'p' : 'f'}USDC $${
-                        numeral(quoteBalance?.uiAmountString || 0).format(NUMERAL_FORMAT) || ''
-                      }`}
+                    ? `${isPassMarket ? 'p' : 'f'}META ${numeral(baseBalance?.uiAmountString || 0).format(BASE_FORMAT) || ''
+                    }`
+                    : `${isPassMarket ? 'p' : 'f'}USDC $${numeral(quoteBalance?.uiAmountString || 0).format(NUMERAL_FORMAT) || ''
+                    }`}
                 </Text>
               </Group>
             ) : (

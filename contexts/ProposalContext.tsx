@@ -21,6 +21,7 @@ import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { getLeafNodes } from '../lib/openbook';
 import { debounce } from '../lib/utils';
+import { useQueryClient } from '@tanstack/react-query';
 
 export interface ProposalInterface {
   proposal?: Proposal;
@@ -82,6 +83,7 @@ export function ProposalProvider({
   proposalNumber?: number | undefined;
   fromProposal?: ProposalAccountWithKey;
 }) {
+  const client = useQueryClient();
   const { autocratProgram, dao, daoState, daoTreasury, openbook, openbookTwap, proposals } =
     useAutocrat();
   const { connection } = useConnection();
@@ -114,73 +116,82 @@ export function ProposalProvider({
 
   const fetchMarketsInfo = useCallback(
     debounce(async () => {
-      if (!proposal || !openbook || !openbookTwap || !openbookTwap.views || !connection) {
-        return;
-      }
-      const accountInfos = await connection.getMultipleAccountsInfo([
-        proposal.account.openbookPassMarket,
-        proposal.account.openbookFailMarket,
-        proposal.account.openbookTwapPassMarket,
-        proposal.account.openbookTwapFailMarket,
-        proposal.account.baseVault,
-        proposal.account.quoteVault,
-      ]);
-      if (!accountInfos || accountInfos.indexOf(null) >= 0) return;
+      const fetchProposalMarketsInfo = async () => {
+        if (!proposal || !openbook || !openbookTwap || !openbookTwap.views || !connection) {
+          return;
+        }
+        const accountInfos = await connection.getMultipleAccountsInfo([
+          proposal.account.openbookPassMarket,
+          proposal.account.openbookFailMarket,
+          proposal.account.openbookTwapPassMarket,
+          proposal.account.openbookTwapFailMarket,
+          proposal.account.baseVault,
+          proposal.account.quoteVault,
+        ]);
+        if (!accountInfos || accountInfos.indexOf(null) >= 0) return;
 
-      const pass = await openbook.coder.accounts.decode('market', accountInfos[0]!.data);
-      const fail = await openbook.coder.accounts.decode('market', accountInfos[1]!.data);
-      const passTwap = await openbookTwap.coder.accounts.decodeUnchecked(
-        'TWAPMarket',
-        accountInfos[2]!.data,
-      );
-      const failTwap = await openbookTwap.coder.accounts.decodeUnchecked(
-        'TWAPMarket',
-        accountInfos[3]!.data,
-      );
-      const baseVault = await vaultProgram.coder.accounts.decode(
-        'conditionalVault',
-        accountInfos[4]!.data,
-      );
-      const quoteVault = await vaultProgram.coder.accounts.decode(
-        'conditionalVault',
-        accountInfos[5]!.data,
-      );
+        const pass = await openbook.coder.accounts.decode('market', accountInfos[0]!.data);
+        const fail = await openbook.coder.accounts.decode('market', accountInfos[1]!.data);
+        const passTwap = await openbookTwap.coder.accounts.decodeUnchecked(
+          'TWAPMarket',
+          accountInfos[2]!.data,
+        );
+        const failTwap = await openbookTwap.coder.accounts.decodeUnchecked(
+          'TWAPMarket',
+          accountInfos[3]!.data,
+        );
+        const baseVault = await vaultProgram.coder.accounts.decode(
+          'conditionalVault',
+          accountInfos[4]!.data,
+        );
+        const quoteVault = await vaultProgram.coder.accounts.decode(
+          'conditionalVault',
+          accountInfos[5]!.data,
+        );
 
-      const bookAccountInfos = await connection.getMultipleAccountsInfo([
-        pass.asks,
-        pass.bids,
-        fail.asks,
-        fail.bids,
-      ]);
-      const passAsks = getLeafNodes(
-        await openbook.coder.accounts.decode('bookSide', bookAccountInfos[0]!.data),
-        openbook,
-      );
-      const passBids = getLeafNodes(
-        await openbook.coder.accounts.decode('bookSide', bookAccountInfos[1]!.data),
-        openbook,
-      );
-      const failAsks = getLeafNodes(
-        await openbook.coder.accounts.decode('bookSide', bookAccountInfos[2]!.data),
-        openbook,
-      );
-      const failBids = getLeafNodes(
-        await openbook.coder.accounts.decode('bookSide', bookAccountInfos[3]!.data),
-        openbook,
-      );
+        const bookAccountInfos = await connection.getMultipleAccountsInfo([
+          pass.asks,
+          pass.bids,
+          fail.asks,
+          fail.bids,
+        ]);
+        const passAsks = getLeafNodes(
+          await openbook.coder.accounts.decode('bookSide', bookAccountInfos[0]!.data),
+          openbook,
+        );
+        const passBids = getLeafNodes(
+          await openbook.coder.accounts.decode('bookSide', bookAccountInfos[1]!.data),
+          openbook,
+        );
+        const failAsks = getLeafNodes(
+          await openbook.coder.accounts.decode('bookSide', bookAccountInfos[2]!.data),
+          openbook,
+        );
+        const failBids = getLeafNodes(
+          await openbook.coder.accounts.decode('bookSide', bookAccountInfos[3]!.data),
+          openbook,
+        );
 
-      setMarkets({
-        pass,
-        passAsks,
-        passBids,
-        fail,
-        failAsks,
-        failBids,
-        passTwap,
-        failTwap,
-        baseVault,
-        quoteVault,
+        return {
+          pass,
+          passAsks,
+          passBids,
+          fail,
+          failAsks,
+          failBids,
+          passTwap,
+          failTwap,
+          baseVault,
+          quoteVault,
+        };
+      };
+
+      const marketsInfo = await client.fetchQuery({
+        queryKey: [`fetchProposalMarketsInfo-${proposal?.publicKey}`],
+        queryFn: () => fetchProposalMarketsInfo(),
+        staleTime: 10_000,
       });
+      setMarkets(marketsInfo);
     }, 1000),
     [vaultProgram, openbook, openbookTwap, proposal, connection],
   );
@@ -192,22 +203,29 @@ export function ProposalProvider({
 
   const fetchOpenOrders = useCallback(
     debounce<[PublicKey]>(async (owner: PublicKey) => {
-      if (!openbook || !proposal) {
-        return;
-      }
-      const passOrders = await openbook.account.openOrdersAccount.all([
-        { memcmp: { offset: 8, bytes: owner.toBase58() } },
-        { memcmp: { offset: 40, bytes: proposal.account.openbookPassMarket.toBase58() } },
-      ]);
-      const failOrders = await openbook.account.openOrdersAccount.all([
-        { memcmp: { offset: 8, bytes: owner.toBase58() } },
-        { memcmp: { offset: 40, bytes: proposal.account.openbookFailMarket.toBase58() } },
-      ]);
-      setOrders(
-        passOrders
+      const fetchProposalOpenOrders = async () => {
+        if (!openbook || !proposal) {
+          return;
+        }
+        const passOrders = await openbook.account.openOrdersAccount.all([
+          { memcmp: { offset: 8, bytes: owner.toBase58() } },
+          { memcmp: { offset: 40, bytes: proposal.account.openbookPassMarket.toBase58() } },
+        ]);
+        const failOrders = await openbook.account.openOrdersAccount.all([
+          { memcmp: { offset: 8, bytes: owner.toBase58() } },
+          { memcmp: { offset: 40, bytes: proposal.account.openbookFailMarket.toBase58() } },
+        ]);
+        return passOrders
           .concat(failOrders)
-          .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1)),
-      );
+          .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1));
+      };
+
+      const orders = await client.fetchQuery({
+        queryKey: [`fetchProposalOpenOrders-${proposal?.publicKey}`],
+        queryFn: () => fetchProposalOpenOrders(),
+        staleTime: 1_000,
+      });
+      setOrders(orders ?? []);
     }, 1000),
     [openbook, proposal],
   );
@@ -263,12 +281,17 @@ export function ProposalProvider({
       const metaTokenAccount = getAssociatedTokenAddressSync(metaMint, wallet.publicKey, false);
 
       try {
-        metaBalance = await connection.getTokenAccountBalance(metaTokenAccount);
+        metaBalance = await client.fetchQuery({
+          queryKey: [`getTokenAccountBalance-${metaTokenAccount.toString()}-undefined`],
+          queryFn: () => connection.getTokenAccountBalance(metaTokenAccount),
+          staleTime: 10_000,
+        });
       } catch (err) {
         console.error('unable to fetch balance for META token account');
       }
       try {
         if (fromBase) {
+          // WHY do we fetch these but do nothing with result?
           await connection.getTokenAccountBalance(userBasePass);
         } else {
           await connection.getTokenAccountBalance(userQuotePass);

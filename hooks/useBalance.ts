@@ -1,9 +1,14 @@
 import { PublicKey } from '@solana/web3.js';
 import { useEffect } from 'react';
 import { defaultAmount, useBalances } from '../contexts/BalancesContext';
+import { getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useQuery } from '@tanstack/react-query';
 
 export function useBalance(mint?: PublicKey) {
-  const { balances, getBalance, fetchBalance } = useBalances();
+  const { fetchBalance } = useBalances();
+  const { publicKey: owner } = useWallet();
+  const { connection } = useConnection();
 
   const fetchAmount = async () => {
     if (mint) {
@@ -11,11 +16,25 @@ export function useBalance(mint?: PublicKey) {
     }
   };
 
-  useEffect(() => {
-    if (mint) {
-      getBalance(mint);
-    }
-  }, [mint, getBalance]);
+  const account = mint ? getAssociatedTokenAddressSync(new PublicKey(mint?.toString() ?? ""), owner ?? new PublicKey(""), true) : null;
 
-  return { amount: mint ? balances[mint.toString()] : defaultAmount, fetchAmount };
+  const { error, data } = useQuery({
+    queryKey: [`getTokenAccountBalance-${account?.toString()}-undefined`],
+    queryFn: () => connection.getTokenAccountBalance(account ?? new PublicKey("")),
+    staleTime: 30_000,
+    enabled: !!account,
+    refetchOnMount: false,
+  });
+
+  useEffect(() => {
+    if (error) {
+      console.error(
+        `Error with this account fetch ${account?.toString()} (owner: ${(
+          owner
+        )?.toString()}, mint: ${mint?.toString()}), please review issue and solve.`,
+      );
+    }
+  }, [error]);
+
+  return { amount: data?.value ?? defaultAmount, fetchAmount };
 }

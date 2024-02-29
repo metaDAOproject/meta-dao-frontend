@@ -16,6 +16,7 @@ import { AUTOCRAT_VERSIONS, OPENBOOK_PROGRAM_ID } from '@/lib/constants';
 import { AutocratProgram, DaoState, ProgramVersion, Proposal } from '../lib/types';
 import { useNetworkConfiguration } from '../hooks/useNetworkConfiguration';
 import { useOpenbookTwap } from '../hooks/useOpenbookTwap';
+import { useQuery } from '@tanstack/react-query';
 
 export interface AutocratContext {
   dao?: PublicKey;
@@ -26,21 +27,19 @@ export interface AutocratContext {
   proposals?: Proposal[];
   autocratProgram?: Program<AutocratProgram>;
   programVersion?: ProgramVersion;
-  fetchState: () => Promise<void>;
   fetchProposals: () => Promise<void>;
   setProgramVersion: (e: number) => void;
 }
 export const contextAutocrat = createContext<AutocratContext>({
-  fetchState: () => new Promise(() => {}),
-  fetchProposals: () => new Promise(() => {}),
-  setProgramVersion: () => {},
+  fetchProposals: () => new Promise(() => { }),
+  setProgramVersion: () => { },
 });
 export const useAutocrat = () => {
   const context = useContext<AutocratContext>(contextAutocrat);
   return context;
 };
 
-export function AutocratProvider({ children }: { children: ReactNode }) {
+export function AutocratProvider({ children }: { children: ReactNode; }) {
   const { endpoint } = useNetworkConfiguration();
   const provider = useProvider();
   const [programVersion, setProgramVersion] = useLocalStorage<ProgramVersion>({
@@ -74,12 +73,14 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
   }, [provider]);
 
   const { program: openbookTwap } = useOpenbookTwap();
-  const [daoState, setDaoState] = useState<DaoState>();
+  const { data: daoStateData } = useQuery({
+    queryKey: ['getDao'],
+    queryFn: () => autocratProgram.account.dao.fetch(dao),
+    staleTime: 30_000,
+    refetchOnMount: false,
+  });
+  const daoState = daoStateData;
   const [proposals, setProposals] = useState<Proposal[]>();
-
-  const fetchState = useCallback(async () => {
-    setDaoState(await autocratProgram.account.dao.fetch(dao));
-  }, [endpoint, autocratProgram, dao]);
 
   const fetchProposals = useCallback(async () => {
     const props = ((await autocratProgram?.account.proposal?.all()) || []).sort((a, b) =>
@@ -92,7 +93,6 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
       ...prop,
     }));
     setProposals(_proposals);
-
     _proposals = await Promise.all(
       props.map(async (prop) => {
         let resp;
@@ -113,8 +113,7 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchProposals();
-    fetchState();
-  }, [fetchState, fetchProposals]);
+  }, [fetchProposals]);
 
   return (
     <contextAutocrat.Provider
@@ -127,7 +126,6 @@ export function AutocratProvider({ children }: { children: ReactNode }) {
         proposals,
         autocratProgram,
         programVersion,
-        fetchState,
         fetchProposals,
         setProgramVersion: (n) =>
           setProgramVersion(
