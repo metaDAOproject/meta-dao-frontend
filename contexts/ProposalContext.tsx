@@ -172,7 +172,7 @@ export function ProposalProvider({
           openbook,
         );
 
-        setMarkets({
+        return {
           pass,
           passAsks,
           passBids,
@@ -183,14 +183,15 @@ export function ProposalProvider({
           failTwap,
           baseVault,
           quoteVault,
-        });
+        };
       };
 
-      await client.fetchQuery({
+      const marketsInfo = await client.fetchQuery({
         queryKey: [`fetchProposalMarketsInfo-${proposal?.publicKey}`],
         queryFn: () => fetchProposalMarketsInfo(),
         staleTime: 10_000,
       });
+      setMarkets(marketsInfo);
     }, 1000),
     [vaultProgram, openbook, openbookTwap, proposal, connection],
   );
@@ -203,7 +204,6 @@ export function ProposalProvider({
   const fetchOpenOrders = useCallback(
     debounce<[PublicKey]>(async (owner: PublicKey) => {
       const fetchProposalOpenOrders = async () => {
-
         if (!openbook || !proposal) {
           return;
         }
@@ -215,18 +215,17 @@ export function ProposalProvider({
           { memcmp: { offset: 8, bytes: owner.toBase58() } },
           { memcmp: { offset: 40, bytes: proposal.account.openbookFailMarket.toBase58() } },
         ]);
-        setOrders(
-          passOrders
-            .concat(failOrders)
-            .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1)),
-        );
+        return passOrders
+          .concat(failOrders)
+          .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1));
       };
 
-      await client.fetchQuery({
+      const orders = await client.fetchQuery({
         queryKey: [`fetchProposalOpenOrders-${proposal?.publicKey}`],
         queryFn: () => fetchProposalOpenOrders(),
         staleTime: 10_000,
       });
+      setOrders(orders ?? []);
     }, 1000),
     [openbook, proposal],
   );

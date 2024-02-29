@@ -8,7 +8,7 @@ export function useAutocratDebug() {
   const wallet = useWallet();
   const { connection } = useConnection();
   const { tokens } = useTokens();
-  const { dao, daoState, daoTreasury, autocratProgram: program, fetchState } = useAutocrat();
+  const { dao, daoState, daoTreasury, autocratProgram: program } = useAutocrat();
 
   const initializeDao = useCallback(async () => {
     if (
@@ -45,8 +45,7 @@ export function useAutocratDebug() {
     await Promise.all(
       signedTxs.map((tx) => connection.sendRawTransaction(tx.serialize(), { skipPreflight: true })),
     );
-    fetchState();
-  }, [program, dao, wallet, tokens, connection, fetchState, program]);
+  }, [program, dao, wallet, tokens, connection, program]);
 
-  return { program, dao, daoTreasury, daoState, initializeDao, fetchState };
+  return { program, dao, daoTreasury, daoState, initializeDao, };
 }

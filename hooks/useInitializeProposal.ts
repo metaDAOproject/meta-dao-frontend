@@ -20,7 +20,6 @@ export function useInitializeProposal() {
     dao,
     daoTreasury,
     daoState,
-    fetchState,
     fetchProposals,
   } = useAutocrat();
   const wallet = useWallet();
@@ -28,9 +27,9 @@ export function useInitializeProposal() {
   const { program: openbookTwap } = useOpenbookTwap();
   const { tokens } = useTokens();
   const baseNonce: BN = new BN(daoState?.proposalCount || 0);
-  const [vaults, setVaults] = useState<{ base: InitializedVault; quote: InitializedVault }>();
-  const [markets, setMarkets] = useState<{ pass: Keypair; fail: Keypair }>();
-  const [twaps, setTwaps] = useState<{ pass: PublicKey; fail: PublicKey }>();
+  const [vaults, setVaults] = useState<{ base: InitializedVault; quote: InitializedVault; }>();
+  const [markets, setMarkets] = useState<{ pass: Keypair; fail: Keypair; }>();
+  const [twaps, setTwaps] = useState<{ pass: PublicKey; fail: PublicKey; }>();
 
   useEffect(() => {
     const f = async () => {
@@ -71,7 +70,6 @@ export function useInitializeProposal() {
 
     await sender.send([vaultTx]);
     setVaults({ base: baseVault, quote: quoteVault });
-    fetchState();
     fetchProposals();
   }, [daoTreasury, tokens]);
 
@@ -168,7 +166,6 @@ export function useInitializeProposal() {
       );
     }
     setMarkets({ pass: openbookPassMarketKP, fail: openbookFailMarketKP });
-    fetchState();
     fetchProposals();
   }, [dao, program, connection, wallet, tokens, vaults]);
 
@@ -238,7 +235,6 @@ export function useInitializeProposal() {
       );
     }
     setTwaps({ pass: openbookTwapPassMarket, fail: openbookTwapFailMarket });
-    fetchState();
     fetchProposals();
   }, [dao, program, connection, wallet, tokens]);
 
@@ -304,7 +300,6 @@ export function useInitializeProposal() {
           'confirmed',
         );
       }
-      fetchState();
       fetchProposals();
     },
     [dao, program, connection, wallet, tokens],

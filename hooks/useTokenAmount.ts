@@ -1,6 +1,7 @@
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, TokenAmount } from '@solana/web3.js';
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 /**
@@ -9,6 +10,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
  * @param owner Owner of the account, defaulting to the connected wallet
  * @returns The amount of tokens in the account and tools to fetch
  */
+
+const defaultAmount: TokenAmount = {
+  amount: '0.0',
+  decimals: 0.0,
+  uiAmount: 0.0,
+};
+
 export function useTokenAmount(mint?: PublicKey, owner?: PublicKey) {
   const { connection } = useConnection();
   const wallet = useWallet();
@@ -16,32 +24,25 @@ export function useTokenAmount(mint?: PublicKey, owner?: PublicKey) {
     const realOwner = owner || wallet.publicKey;
     if (realOwner && mint) return getAssociatedTokenAddressSync(mint, realOwner, true);
   }, [mint, owner, wallet.publicKey]);
-  const [amount, setAmount] = useState<TokenAmount>();
 
-  const fetchAmount = useCallback(async () => {
-    if (account && connection && wallet) {
-      const defaultAmount: TokenAmount = {
-        amount: '0.0',
-        decimals: 0.0,
-        uiAmount: 0.0,
-      };
-      try {
-        const tokenBalance = await connection.getTokenAccountBalance(account);
-        setAmount(tokenBalance.value);
-      } catch (err) {
-        console.error(
-          `Error with this account fetch ${account.toString()} (owner: ${(
-            owner || wallet.publicKey
-          )?.toString()}, mint: ${mint?.toString()}), please review issue and solve.`,
-        );
-        setAmount(defaultAmount);
-      }
-    }
-  }, [account, connection, wallet]);
+  const { error, data } = useQuery({
+    queryKey: [`getTokenAccountBalance-${account?.toString()}-undefined`],
+    queryFn: () => connection.getTokenAccountBalance(account ?? new PublicKey("")),
+    staleTime: 10_000,
+    enabled: !!account,
+  });
 
   useEffect(() => {
-    fetchAmount();
-  }, [fetchAmount]);
+    if (error) {
+      console.error(
+        `Error with this account fetch ${account?.toString()} (owner: ${(
+          owner || wallet.publicKey
+        )?.toString()}, mint: ${mint?.toString()}), please review issue and solve.`,
+      );
+    }
+  }, [error]);
 
-  return { amount, account, fetchAmount };
+
+
+  return { amount: data?.value ?? defaultAmount, account };
 }
