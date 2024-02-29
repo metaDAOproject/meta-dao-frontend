@@ -24,6 +24,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { SystemProgram } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
+import { useQueryClient } from '@tanstack/react-query';
 import { ProposalOrdersCard } from './ProposalOrdersCard';
 import { ConditionalMarketCard } from '../Markets/ConditionalMarketCard';
 import { JupSwapCard } from './JupSwapCard';
@@ -31,7 +32,6 @@ import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { shortKey } from '@/lib/utils';
 import { StateBadge } from './StateBadge';
-import { SLOTS_PER_10_SECS } from '../../lib/constants';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { useConditionalVault } from '../../hooks/useConditionalVault';
 import { useProposal } from '@/contexts/ProposalContext';
@@ -43,7 +43,6 @@ import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '.
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 import { Proposal } from '../../lib/types';
 import { ProposalCountdown } from './ProposalCountdown';
-import { useQueryClient } from '@tanstack/react-query';
 
 export function ProposalDetailCard() {
   const queryClient = useQueryClient();
@@ -228,7 +227,7 @@ export function ProposalDetailCard() {
     if (lastSlot) return;
     async function fetchSlot() {
       const slot = await queryClient.fetchQuery({
-        queryKey: [`getSlot`],
+        queryKey: ['getSlot'],
         queryFn: () => connection.getSlot(),
         staleTime: 30_000,
       });

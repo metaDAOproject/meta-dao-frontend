@@ -16,6 +16,7 @@ import {
 } from '@mantine/core';
 import numeral from 'numeral';
 import { Icon12Hours, IconWallet, IconInfoCircle } from '@tabler/icons-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
 import { useAutocrat } from '../../contexts/AutocratContext';
 import { calculateTWAP, getLastObservedAndSlot } from '../../lib/openbookTwap';
@@ -26,7 +27,6 @@ import MarketTitle from './MarketTitle';
 import DisableNumberInputScroll from '../Utilities/DisableNumberInputScroll';
 import { useBalance } from '../../hooks/useBalance';
 import { useProvider } from '@/hooks/useProvider';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?: boolean; }) {
   const queryClient = useQueryClient();
@@ -59,7 +59,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   );
 
   const { data: slotData } = useQuery({
-    queryKey: [`getSlot`],
+    queryKey: ['getSlot'],
     queryFn: () => provider.connection.getSlot(),
     staleTime: 30_000,
   });
@@ -344,7 +344,7 @@ export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?:
   }, [price]);
 
   useEffect(() => {
-    if ((!clusterTimestamp || clusterTimestamp === 0 && slot)) {
+    if (((!clusterTimestamp || clusterTimestamp === 0) && slot)) {
       getClusterTimestamp();
     }
   }, [slot]);

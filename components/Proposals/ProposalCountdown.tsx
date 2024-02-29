@@ -1,11 +1,10 @@
-import { SLOTS_PER_10_SECS } from '@/lib/constants';
 import { Text } from '@mantine/core';
 import { useEffect, useMemo, useState } from 'react';
+import { SLOTS_PER_10_SECS } from '@/lib/constants';
 
 export const ProposalCountdown: React.FC<{
     remainingSlots: number | undefined;
 }> = ({ remainingSlots }) => {
-
     const [secondsLeft, setSecondsLeft] = useState<number>(0);
 
     const timeLeft = useMemo(() => {
@@ -36,6 +35,5 @@ export const ProposalCountdown: React.FC<{
 
     return <>
         {secondsLeft !== 0 && <Text fw="bold">Ends in {timeLeft}</Text>}
-    </>;
-
+           </>;
 };

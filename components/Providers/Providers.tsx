@@ -12,13 +12,13 @@ import {
 import { MoongateWalletAdapter } from '@moongate/moongate-adapter';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { Notifications } from '@mantine/notifications';
-import { theme } from '@/theme';
-import { useNetworkConfiguration } from '@/hooks/useNetworkConfiguration';
-import { AutocratProvider } from '@/contexts/AutocratContext';
 import {
   QueryClient,
   QueryClientProvider,
 } from '@tanstack/react-query';
+import { theme } from '@/theme';
+import { useNetworkConfiguration } from '@/hooks/useNetworkConfiguration';
+import { AutocratProvider } from '@/contexts/AutocratContext';
 
 const queryClient = new QueryClient();
 
