@@ -43,8 +43,10 @@ import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '.
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 import { Proposal } from '../../lib/types';
 import { ProposalCountdown } from './ProposalCountdown';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function ProposalDetailCard() {
+  const queryClient = useQueryClient();
   const wallet = useWallet();
   const { connection } = useConnection();
   const { fetchProposals, daoTreasury, daoState } = useAutocrat();
@@ -225,7 +227,12 @@ export function ProposalDetailCard() {
   useEffect(() => {
     if (lastSlot) return;
     async function fetchSlot() {
-      setLastSlot(await connection.getSlot());
+      const slot = await queryClient.fetchQuery({
+        queryKey: [`getSlot`],
+        queryFn: () => connection.getSlot(),
+        staleTime: 30_000,
+      });
+      setLastSlot(slot);
     }
 
     fetchSlot();
