@@ -16,7 +16,7 @@ export function useBalance(mint?: PublicKey) {
     }
   };
 
-  const account = mint ? getAssociatedTokenAddressSync(new PublicKey(mint?.toString() ?? ""), owner ?? new PublicKey(""), true) : null;
+  const account = (mint && owner) ? getAssociatedTokenAddressSync(new PublicKey(mint.toString()), owner, true) : null;
 
   const { error, data } = useQuery({
     queryKey: [`getTokenAccountBalance-${account?.toString()}-undefined`],
