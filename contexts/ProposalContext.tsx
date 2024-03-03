@@ -6,6 +6,7 @@ import {
   createAssociatedTokenAccountInstruction,
 } from '@solana/spl-token';
 import { notifications } from '@mantine/notifications';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   MarketAccountWithKey,
   Markets,
@@ -21,7 +22,6 @@ import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { getLeafNodes } from '../lib/openbook';
 import { debounce } from '../lib/utils';
-import { useQueryClient } from '@tanstack/react-query';
 
 export interface ProposalInterface {
   proposal?: Proposal;
@@ -220,12 +220,12 @@ export function ProposalProvider({
           .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1));
       };
 
-      const orders = await client.fetchQuery({
+      const _orders = await client.fetchQuery({
         queryKey: [`fetchProposalOpenOrders-${proposal?.publicKey}`],
         queryFn: () => fetchProposalOpenOrders(),
         staleTime: 1_000,
       });
-      setOrders(orders ?? []);
+      setOrders(_orders ?? []);
     }, 1000),
     [openbook, proposal],
   );
