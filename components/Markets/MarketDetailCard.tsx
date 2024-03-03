@@ -32,12 +32,25 @@ export function MarketDetailCard() {
     </Group>
   ) : (
     <>
-      <Text>
-        {utf8.decode(new Uint8Array(openBookMarket.market.market.name)).split('\x00')[0]}
-      </Text>
-      <Group>
+      <Stack>
+        <Title>
+          {utf8.decode(new Uint8Array(openBookMarket.market.market.name)).split('\x00')[0]}
+        </Title>
+        <Text>Event Heap Size: {openBookMarket.eventHeapCount}</Text>
+        <Text>Event Heap Account:
+          <a
+            href={generateExplorerLink(openBookMarket.market.market.eventHeap.toString(), 'account')}
+          >
+            {shortKey(openBookMarket.market.market.eventHeap.toString())}
+          </a>
+        </Text>
+        <Text>Taker Fee: {openBookMarket.market.market.takerFee.toString()}</Text>
+        <Text>Maker Fee: {openBookMarket.market.market.makerFee.toString()}</Text>
+      </Stack>
+      <Divider p={10} />
+      <Group justify="space-between">
         <Stack>
-          <Title order={2}>Base</Title>
+          <Title order={3}>Base</Title>
           <Text>Mint:
             <a
               href={generateExplorerLink(openBookMarket.market.market.baseMint.toString(), 'account')}
@@ -58,7 +71,7 @@ export function MarketDetailCard() {
         </Stack>
         <Divider orientation="vertical" p={10} />
         <Stack>
-          <Title order={2}>Quote</Title>
+          <Title order={3}>Quote</Title>
           <Text> Mint:
             <a
               href={generateExplorerLink(openBookMarket.market.market.quoteMint.toString(), 'account')}
@@ -79,20 +92,6 @@ export function MarketDetailCard() {
         </Stack>
       </Group>
       <Divider p={10} />
-      <Stack>
-        <Text>Event Heap Account:
-          <a
-            href={generateExplorerLink(openBookMarket.market.market.eventHeap.toString(), 'account')}
-          >
-            {shortKey(openBookMarket.market.market.eventHeap.toString())}
-          </a>
-        </Text>
-        <Text>Taker Fee: {openBookMarket.market.market.takerFee.toString()}</Text>
-        <Text>Maker Fee: {openBookMarket.market.market.makerFee.toString()}</Text>
-      </Stack>
-      <Group>
-      <Text>Event Heap Size: {openBookMarket.eventHeapCount}</Text>
-      </Group>
       <Card>
         <DisableNumberInputScroll />
         <OrderBookCard
