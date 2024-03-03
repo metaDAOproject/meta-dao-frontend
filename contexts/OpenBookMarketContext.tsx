@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, AccountMeta } from '@solana/web3.js';
 import {
-  MarketAccountWithKey,
   OpenOrdersAccountWithKey,
   LeafNode,
   OpenBookMarket,
@@ -261,8 +260,6 @@ export function OpenBookMarketProvider({
     async (amount: number, price: number, limitOrder?: boolean, ask?: boolean) => {
       if (!marketId || !market) return;
       const _market = { publicKey: new PublicKey(marketId), account: market.market };
-      console.log(amount);
-      console.log(price);
       const placeTxs = await placeOrderTransactions(
         amount,
         price,

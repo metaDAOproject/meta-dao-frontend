@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 //import { useMemo } from 'react';
-import { Group, Loader, Stack, Text, UnstyledButton } from '@mantine/core';
+import { Group, Badge, Loader, Stack, Text, UnstyledButton } from '@mantine/core';
 import { useOpenBook } from '@/contexts/OpenBookContext';
+import { shortKey } from '@/lib/utils';
 
 export default function MarketsList() {
   const router = useRouter();
@@ -23,11 +24,14 @@ export default function MarketsList() {
       {markets.length > 0 ? (
         <Stack gap="xl">
           {markets?.map((market) => (
-            <UnstyledButton onClick={() => router.push(`/market?id=${market.market}`)}>
-            <Text opacity={0.6}>
-                {market.name} {market.market}
-            </Text>
-            </UnstyledButton>
+            <Group>
+              <UnstyledButton onClick={() => router.push(`/market?id=${market.market}`)}>
+                <Badge>
+                    {market.name}
+                </Badge>
+              </UnstyledButton>
+              <Text opacity={0.6}>{shortKey(market.market)}</Text>
+            </Group>
           ))}
         </Stack>
       ) : (

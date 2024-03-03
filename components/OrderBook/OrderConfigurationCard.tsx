@@ -13,14 +13,22 @@ import {
 } from '@mantine/core';
 import { IconWallet } from '@tabler/icons-react';
 import numeral from 'numeral';
-import { OpenBookOrderBook as _OrderBook } from '@/lib/types';
+import { utf8 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
+import { MarketAccountWithKey, OpenBookMarket, OpenBookOrderBook as _OrderBook } from '@/lib/types';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
 import { useOpenBookMarket } from '@/contexts/OpenBookMarketContext';
+import { useBalance } from '../../hooks/useBalance';
 
 export function OrderConfigurationCard({
   orderBookObject,
+  market,
+  price,
+  setPrice,
 }: {
   orderBookObject: _OrderBook;
+  market: OpenBookMarket;
+  price: string;
+  setPrice: (price: string) => void;
 }) {
   const openBookMarket = useOpenBookMarket();
   // TODO: Review this as anything less than this fails to work
@@ -30,15 +38,31 @@ export function OrderConfigurationCard({
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
-  const [price, setPrice] = useState<string>('');
-  // STUBS
-  const baseBalance = 100000;
-  const quoteBalance = 100000;
+  const [orderValue, setOrderValue] = useState<string>('0');
+  // const baseBalance = 1000000;
+  // const quoteBalance = 1000000;
+
   const isAskSide = orderSide === 'Sell';
   const isLimitOrder = orderType === 'Limit';
   const [priceError, setPriceError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+  const marketInstrument = utf8.decode(new Uint8Array(market.market.name)).split('\x00')[0];
+  const _marketInstrument = marketInstrument.split('-');
+
+  const base = _marketInstrument[0];
+  const quote = _marketInstrument[1];
+
+  console.log(market);
+
+  const { amount: baseBalance, fetchAmount: fetchBase } = useBalance(
+    market.market.baseMint
+  );
+
+  const { amount: quoteBalance, fetchAmount: fetchQuote } = useBalance(
+    market.market.quoteMint
+  );
 
   const _orderPrice = () => {
     if (isLimitOrder) {
@@ -52,6 +76,15 @@ export function OrderConfigurationCard({
       return minMarketPrice;
     }
     return maxMarketPrice;
+  };
+
+  const updateOrderValue = () => {
+    if (!Number.isNaN(amount) && !Number.isNaN(+price)) {
+      const _price = parseFloat((+price * amount).toString()).toFixed(2);
+      setOrderValue(_price);
+    } else {
+      setOrderValue('0');
+    }
   };
 
   const changeOrderSide = (side: string) => {
@@ -155,120 +188,138 @@ export function OrderConfigurationCard({
   }, [openBookMarket, amount, _orderPrice(), isLimitOrder, isAskSide]);
 
   useEffect(() => {
+    updateOrderValue();
     if (amount !== 0) amountValidator(amount);
   }, [amount]);
 
   useEffect(() => {
+    updateOrderValue();
     if (price !== '') priceValidator(price);
   }, [price]);
 
   return (
     <Stack>
-        <SegmentedControl
-          style={{ marginTop: '10px' }}
-          color={isAskSide ? 'red' : 'green'}
-          classNames={{
-            label: 'label',
-          }}
-          data={['Buy', 'Sell']}
-          value={orderSide}
-          onChange={(e) => {
-            setOrderSide(e);
-            changeOrderSide(e);
-          }}
-          fullWidth
-        />
-        <NativeSelect
-          style={{ marginTop: '10px' }}
-          data={['Limit', 'Market']}
-          value={orderType}
-          onChange={(e) => {
-            setOrderType(e.target.value);
-            if (e.target.value === 'Market') {
-              if (isAskSide) {
-                setPrice(minMarketPrice.toString());
-              } else {
-                setPrice(maxMarketPrice.toString());
-              }
+      <SegmentedControl
+        style={{ marginTop: '10px' }}
+        color={isAskSide ? 'red' : 'green'}
+        classNames={{
+          label: 'label',
+        }}
+        data={['Buy', 'Sell']}
+        value={orderSide}
+        onChange={(e) => {
+          setOrderSide(e);
+          changeOrderSide(e);
+        }}
+        fullWidth
+      />
+      <NativeSelect
+        style={{ marginTop: '10px' }}
+        data={['Limit', 'Market']}
+        value={orderType}
+        onChange={(e) => {
+          setOrderType(e.target.value);
+          if (e.target.value === 'Market') {
+            if (isAskSide) {
+              setPrice(minMarketPrice.toString());
             } else {
-              setPrice('');
+              setPrice(maxMarketPrice.toString());
             }
-            setPriceError(null);
-            setAmountError(null);
-          }}
-        />
-        <TextInput
-          label="Price"
-          placeholder="Enter price..."
-          type="number"
-          value={!isLimitOrder ? '' : price}
-          disabled={!isLimitOrder}
-          error={priceError}
-          onChange={(e) => {
-            setPrice(e.target.value);
-            priceValidator(e.target.value);
-          }}
-        />
-        <TextInput
-          label={
-            <Group justify="space-between" align="center">
-              <Text>Amount QUOTE</Text>
-              <Group align="center" gap={0}>
-                  <>
-                    <IconWallet height={12} />
-                    <Text size="xs">
-                      QUOTE/BASE WALLET BALANCE
-                    </Text>
-                  </>
+          } else {
+            setPrice('');
+          }
+          setPriceError(null);
+          setAmountError(null);
+        }}
+      />
+      <Grid>
+        <Grid.Col span={6}>
+          <TextInput
+            label="Price"
+            placeholder="Enter price..."
+            type="number"
+            w="100%"
+            value={!isLimitOrder ? '' : price}
+            disabled={!isLimitOrder}
+            error={priceError}
+            onChange={(e) => {
+              setPrice(e.target.value);
+            }}
+          />
+        </Grid.Col>
+        <Grid.Col span={6}>
+          <TextInput
+            label={
+              <Group justify="space-between" align="center">
+                <Text size="sm">Amount of {base}</Text>
               </Group>
-            </Group>
-          }
-          placeholder="Enter amount..."
-          type="number"
-          value={amount || ''}
-          rightSectionWidth={100}
-          rightSection={
-            <ActionIcon
-              size={20}
-              radius="md"
-              w={80}
-              color="grey"
-              onClick={() => {
-                setAmount(maxOrderAmount()! ? maxOrderAmount()! : 0);
-                amountValidator(maxOrderAmount()! ? maxOrderAmount()! : 0);
-              }}
-              disabled={!isLimitOrder ? !!isOrderAmountNan() : !price}
-            >
-              <Text size="xs">
-                Max{' '}
-                {maxOrderAmount()
-                  ? !isOrderAmountNan()
-                    ? numeral(maxOrderAmount()).format(BASE_FORMAT)
-                    : ''
-                  : ''}
-              </Text>
-            </ActionIcon>
-          }
-          error={amountError}
-          onChange={(e) => {
-            setAmount(Number(e.target.value));
-            amountValidator(Number(e.target.value));
-          }}
-        />
-        <Grid>
-          <GridCol span={12}>
-            <Button
-              fullWidth
-              color={isAskSide ? 'red' : 'green'}
-              onClick={handlePlaceOrder}
-              variant="light"
-              disabled={!amount || (isLimitOrder ? !price : false)}
-              loading={isPlacingOrder}
-            >
-              {orderSide} QUOTE
-            </Button>
-          </GridCol>
-        </Grid>
+            }
+            placeholder="Enter amount..."
+            type="number"
+            value={amount || ''}
+            defaultValue={amount || ''}
+            rightSectionWidth={70}
+            rightSection={
+              <ActionIcon
+                w="80%"
+                radius="sm"
+                color="grey"
+                onClick={() => {
+                  setAmount(maxOrderAmount()! ? maxOrderAmount()! : 0);
+                  amountValidator(maxOrderAmount()! ? maxOrderAmount()! : 0);
+                }}
+                disabled={!isLimitOrder ? !!isOrderAmountNan() : !price}
+              >
+                <Text size="xs">
+                  Max{' '}
+                  {maxOrderAmount() && maxOrderAmount() < 1000
+                    ? !isOrderAmountNan()
+                      ? numeral(maxOrderAmount()).format(BASE_FORMAT)
+                      : ''
+                    : ''}
+                </Text>
+              </ActionIcon>
+            }
+            error={amountError}
+            onChange={(e) => {
+              setAmount(Number(e.target.value));
+            }}
+          />
+        </Grid.Col>
+      </Grid>
+      <Group align="center" justify="space-between">
+        {baseBalance?.uiAmountString || quoteBalance?.uiAmountString ? (
+          <Group gap={0}>
+            <IconWallet height={12} />
+            <Text size="xs">
+              {isAskSide
+                ? `${base} ${numeral(baseBalance?.uiAmountString || 0).format(BASE_FORMAT) || ''
+                }`
+                : `${quote} ${numeral(quoteBalance?.uiAmountString || 0).format(NUMERAL_FORMAT) || ''
+                }`}
+            </Text>
+          </Group>
+        ) : (
+          <Text> </Text>
+        )}
+        <>
+          <Text size="xs">Total Order Value ${orderValue}</Text>
+        </>
+      </Group>
+      <Grid>
+        <GridCol span={12}>
+          <Button
+            fullWidth
+            color={isAskSide ? 'red' : 'green'}
+            onClick={handlePlaceOrder}
+            variant="outline"
+            disabled={!amount || (isLimitOrder ? !price : false)}
+            loading={isPlacingOrder}
+          >
+            {orderSide} {base}
+          </Button>
+        </GridCol>
+      </Grid>
     </Stack>
   );
 }

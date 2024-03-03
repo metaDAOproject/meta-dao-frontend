@@ -18,7 +18,6 @@ import {
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import {
-  MarketAccount,
   MarketAccountWithKey,
 } from '@/lib/types';
 import { useProvider } from '@/hooks/useProvider';
@@ -104,30 +103,30 @@ export function useOpenbook() {
         return;
       }
 
-      let pubkey = wallet.publicKey;
+      const pubkey = wallet.publicKey;
 
       if (wallet.wallet?.adapter.name === 'SquadsX') {
         // If the connected wallet is "SquadsX", get the ephemeral signer Public Key, else return undefined.
-        const ephemeralSignerAddress =
-          wallet.wallet?.adapter &&
-          'standard' in wallet.wallet.adapter &&
-          'fuse:getEphemeralSigners' in wallet.wallet.adapter.wallet.features &&
-          // @ts-ignore
-          (
-            // @ts-ignore
-            // eslint-disable-next-line no-unsafe-optional-chaining
-            await wallet.wallet?.adapter.wallet.features[
-              'fuse:getEphemeralSigners'
-            ].getEphemeralSigners(1)
-          )[0];
-        pubkey = new PublicKey(ephemeralSignerAddress);
+        // const ephemeralSignerAddress =
+        //   wallet.wallet?.adapter &&
+        //   'standard' in wallet.wallet.adapter &&
+        //   'fuse:getEphemeralSigners' in wallet.wallet.adapter.wallet.features &&
+        //   // @ts-ignore
+        //   (
+        //     // @ts-ignore
+        //     // eslint-disable-next-line no-unsafe-optional-chaining
+        //     await wallet.wallet?.adapter.wallet.features[
+        //       'fuse:getEphemeralSigners'
+        //     ].getEphemeralSigners(1)
+        //   )[0];
+        // pubkey = new PublicKey(ephemeralSignerAddress);
       }
 
       // // Create an ephemeral Keypair if the connected wallet is not "SquadsX".
       // const ephemeralKeypair = Keypair.generate();
 
       const mint = ask ? market.account.baseMint : market.account.quoteMint;
-      const openOrdersIndexer = findOpenOrdersIndexer(wallet.publicKey);
+      const openOrdersIndexer = findOpenOrdersIndexer(pubkey);
       const [accountIndex, openTx] = await findOpenOrdersIndex({
         indexOffset,
         signer: pubkey,
@@ -143,10 +142,7 @@ export function useOpenbook() {
       openTx.add(...ixs);
       const _market = await openbook.deserializeMarketAccount(market.publicKey);
       const args = createPlaceOrderArgs(_market, { amount, price, limitOrder, ask, accountIndex });
-      console.log(args);
-      console.log(args.priceLots.toNumber());
-      console.log(args.maxBaseLots.toNumber());
-      console.log(args.maxQuoteLotsIncludingFees.toNumber());
+
       const placeTx = await openbook.program.methods
         .placeOrder(args)
         .accounts({
