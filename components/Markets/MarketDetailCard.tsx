@@ -9,7 +9,7 @@ import {
   Divider,
 } from '@mantine/core';
 import { utf8 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
-import { quoteLotsToUi, quantityToUiBase, baseLotsToUi } from '@openbook-dex/openbook-v2';
+import { quoteLotsToUi, baseLotsToUi } from '@openbook-dex/openbook-v2';
 import { useOpenbookMarket } from '@/contexts/OpenbookMarketContext';
 import { OrderBookCard } from '../OrderBook/OrderBookCard';
 import { OrderConfigurationCard } from '../OrderBook/OrderConfigurationCard';
