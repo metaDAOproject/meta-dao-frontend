@@ -5,7 +5,7 @@ import { Layout } from '@/components/Layout/Layout';
 import MarketsList from '@/components/Markets/MarketsList';
 import { OpenbookProvider } from '@/contexts/OpenbookContext';
 
-export default function ProposalsPage() {
+export default function MarketsPage() {
   return (
     <Layout>
       <Container p="0">
