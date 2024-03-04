@@ -18,6 +18,7 @@ import {
   OpenOrdersAccountWithKey,
   OracleConfigParams,
   ProposalAccountWithKey,
+  OpenbookMarket,
 } from './types';
 import { BASE_FORMAT, BN_0, NUMERAL_FORMAT, OPENBOOK_PROGRAM_ID } from './constants';
 
@@ -249,6 +250,34 @@ export const isClosableOrder = (order: OpenOrdersAccountWithKey): boolean =>
   order.account.position.baseFreeNative.eq(BN_0) &&
   order.account.position.quoteFreeNative.eq(BN_0);
 
+  export const _isOpenOrder = (
+    order: OpenOrdersAccountWithKey,
+    market: OpenbookMarket
+  ): boolean => {
+    if (order.account.openOrders[0].isFree === 0) {
+      const asksFilter = market.asks.filter(
+        (_order: any) => _order.owner.toString() === order.publicKey.toString(),
+      );
+      const bidsFilter = market.bids.filter(
+        (_order: any) => _order.owner.toString() === order.publicKey.toString(),
+      );
+      let _order = null;
+      if (asksFilter.length > 0) {
+        // eslint-disable-next-line prefer-destructuring
+        _order = asksFilter[0];
+      }
+      if (bidsFilter.length > 0) {
+        // eslint-disable-next-line prefer-destructuring
+        _order = bidsFilter[0];
+      }
+      if (_order !== null) {
+        return true;
+      }
+      return false;
+    }
+    return false;
+  };
+
 export const isOpenOrder = (order: OpenOrdersAccountWithKey, markets: Markets): boolean => {
   if (order.account.openOrders[0].isFree === 0) {
     const passAsksFilter = markets.passAsks.filter(
@@ -286,6 +315,17 @@ export const isOpenOrder = (order: OpenOrdersAccountWithKey, markets: Markets): 
     return false;
   }
   return false;
+};
+
+export const _isCompletedOrder = (
+  order: OpenOrdersAccountWithKey,
+  market: OpenbookMarket
+): boolean => {
+  const isOpen = _isOpenOrder(order, market);
+  const isEmpty =
+    isEmptyOrder(order) &&
+    (order.account.position.asksBaseLots.gt(BN_0) || order.account.position.bidsBaseLots.gt(BN_0));
+  return isEmpty && !isOpen;
 };
 
 export const isCompletedOrder = (order: OpenOrdersAccountWithKey, markets: Markets): boolean => {

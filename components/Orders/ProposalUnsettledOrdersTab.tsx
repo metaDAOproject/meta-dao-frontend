@@ -4,21 +4,21 @@ import { Transaction } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { OpenOrdersAccountWithKey } from '@/lib/types';
+import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
+import { useProposal } from '@/contexts/ProposalContext';
 import { isClosableOrder, isPartiallyFilled } from '@/lib/openbook';
-import { UnsettledOrderRow } from './UnsettledOrderRow';
+import { ProposalUnsettledOrderRow } from './ProposalUnsettledOrderRow';
 import { useBalances } from '../../contexts/BalancesContext';
-import { useOpenbook } from '@/hooks/useOpenbook';
-import { useOpenbookMarket } from '@/contexts/OpenbookMarketContext';
 
 const headers = ['Order ID', 'Market', 'Claimable', 'Actions'];
 
-export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }) {
+export function ProposalUnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }) {
   const sender = useTransactionSender();
   const wallet = useWallet();
+  const { proposal, markets, fetchOpenOrders } = useProposal();
   const { fetchBalance } = useBalances();
-  const { market, marketPubkey, fetchOpenOrders } = useOpenbookMarket();
-  const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbook();
+  const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
 
   const [isSettling, setIsSettling] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
@@ -30,16 +30,23 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
   const ordersToClose = useMemo(() => orders.filter((order) => isClosableOrder(order)), [orders]);
 
   const handleSettleAllFunds = useCallback(async () => {
-    if (!market || !marketPubkey || !wallet?.publicKey) return;
+    if (!proposal || !markets || !wallet?.publicKey) return;
 
     setIsSettling(true);
     try {
       const txs = (
         await Promise.all(
-          ordersToSettle.map((order) => settleFundsTransactions(
+          ordersToSettle.map((order) => {
+            const pass = order.account.market.equals(proposal.account.openbookPassMarket);
+            return settleFundsTransactions(
               order.account.accountNum,
-              { account: market.market, publicKey: marketPubkey }
-            )),
+              pass,
+              proposal,
+              pass
+                ? { account: markets.pass, publicKey: proposal.account.openbookPassMarket }
+                : { account: markets.fail, publicKey: proposal.account.openbookFailMarket },
+            );
+          }),
         )
       )
         .flat()
@@ -48,15 +55,17 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
       if (!txs) return;
       await sender.send(txs as Transaction[]);
       fetchOpenOrders(wallet.publicKey);
-      fetchBalance(market.market.baseMint);
-      fetchBalance(market.market.quoteMint);
+      fetchBalance(markets.pass.baseMint);
+      fetchBalance(markets.pass.quoteMint);
+      fetchBalance(markets.fail.baseMint);
+      fetchBalance(markets.fail.quoteMint);
     } finally {
       setIsSettling(false);
     }
   }, [
     ordersToSettle,
-    market,
-    marketPubkey,
+    markets,
+    proposal,
     sender,
     settleFundsTransactions,
     fetchOpenOrders,
@@ -64,7 +73,7 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
   ]);
 
   const handleCloseAllOrders = useCallback(async () => {
-    if (!market || !marketPubkey || !wallet?.publicKey) return;
+    if (!proposal || !markets || !wallet?.publicKey) return;
 
     setIsClosing(true);
 
@@ -85,7 +94,7 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
       fetchOpenOrders(wallet.publicKey);
       setIsClosing(false);
     }
-  }, [ordersToClose, market, marketPubkey, sender, settleFundsTransactions, fetchOpenOrders]);
+  }, [ordersToClose, markets, proposal, sender, settleFundsTransactions, fetchOpenOrders]);
 
   return (
     <Stack py="md">
@@ -131,7 +140,7 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
           </Table.Thead>
           <Table.Tbody>
             {orders.map((order) => (
-              <UnsettledOrderRow key={order.publicKey.toString()} order={order} />
+              <ProposalUnsettledOrderRow key={order.publicKey.toString()} order={order} />
             ))}
           </Table.Tbody>
         </Table>

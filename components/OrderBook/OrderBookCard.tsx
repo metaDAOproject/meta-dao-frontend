@@ -1,54 +1,39 @@
-import { useEffect, useState } from 'react';
 import { OrderBook } from '@lab49/react-order-book';
-import { AnyNode, LeafNode, OpenbookV2, IDL as OPENBOOK_IDL, OPENBOOK_PROGRAM_ID } from '@openbook-dex/openbook-v2';
-import { Program } from '@coral-xyz/anchor';
 import { Card, Text, useMantineColorScheme } from '@mantine/core';
-import { Context, AccountInfo, PublicKey } from '@solana/web3.js';
-import { OrderBook as _OrderBook } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import { Program } from '@coral-xyz/anchor';
+import { AnyNode, LeafNode, OpenbookV2, IDL as OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, priceLotsToUi, baseLotsToUi } from '@openbook-dex/openbook-v2';
+import { Context, AccountInfo } from '@solana/web3.js';
+import { OpenbookOrderBook as _OrderBook, OpenbookMarket } from '@/lib/types';
 import { useProvider } from '@/hooks/useProvider';
-import { useProposal } from '@/contexts/ProposalContext';
 
-export function ConditionalMarketOrderBook({
-  isPassMarket,
+export function OrderBookCard({
   orderBookObject,
+  market,
   setPriceFromOrderBook,
 }: {
-  isPassMarket: boolean;
   orderBookObject: _OrderBook;
+  market: OpenbookMarket;
   setPriceFromOrderBook: (price: string) => void;
 }) {
-  if (!orderBookObject) return null;
   const { colorScheme } = useMantineColorScheme();
   const provider = useProvider();
-  const proposal = useProposal();
   const [bids, setBids] = useState<any[][]>();
   const [asks, setAsks] = useState<any[][]>();
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [spreadString, setSpreadString] = useState<string>();
   const [lastSlotUpdated, setLastSlotUpdated] = useState<number>();
-  const openBookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
+  const openbookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
 
   // On initialization
-  if (isPassMarket) {
-    if (!bids) {
-      setBids(orderBookObject.passBidsArray);
-    }
-    if (!asks) {
-      setAsks(orderBookObject.passAsksArray);
-    }
-    if (!spreadString) {
-      setSpreadString(orderBookObject.passSpreadString);
-    }
-  } else {
-    if (!bids) {
-      setBids(orderBookObject.failBidsArray);
-    }
-    if (!asks) {
-      setAsks(orderBookObject.failAsksArray);
-    }
-    if (!spreadString) {
-      setSpreadString(orderBookObject.failSpreadString);
-    }
+  if (!bids && orderBookObject) {
+    setBids(orderBookObject.bidsArray);
+  }
+  if (!asks && orderBookObject) {
+    setAsks(orderBookObject.asksArray);
+  }
+  if (!spreadString && orderBookObject) {
+    setSpreadString(orderBookObject.spreadString);
   }
 
   const consumeOrderBookSide = (
@@ -57,7 +42,7 @@ export function ConditionalMarketOrderBook({
     ctx: Context
   ) => {
     try {
-      const leafNodes = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data);
+      const leafNodes = openbookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data);
       const leafNodesData = leafNodes.nodes.nodes.filter(
         (x: AnyNode) => x.tag === 2,
       );
@@ -66,13 +51,12 @@ export function ConditionalMarketOrderBook({
         size: number;
       }[] = leafNodesData
         .map((x: any) => {
-          const leafNode: LeafNode = openBookProgram.coder.types.decode(
+          const leafNode: LeafNode = openbookProgram.coder.types.decode(
             'LeafNode',
             Buffer.from([0, ...x.data]),
           );
-          // TODO: We need to pass the market to this object so we can use the priceLotsToUi and baseLotsToUi
-          const size = leafNode.quantity.toNumber();
-          const price = leafNode.key.shrn(64).toNumber() / 10_000;
+          const size = baseLotsToUi(market.market, leafNode.quantity);
+          const price = priceLotsToUi(market.market, leafNode.key.shrn(64));
           return {
             price,
             size,
@@ -106,8 +90,8 @@ export function ConditionalMarketOrderBook({
       let __side: any[][];
       if (_aggreateSide) {
         __side = Array.from(_aggreateSide.entries()).map((_side_) => [
-          (_side_[0].toFixed(4)),
-          _side_[1],
+          (_side_[0]).toFixed(4),
+          (_side_[1]).toFixed(4),
         ]);
       } else {
         // Return default values of 0
@@ -158,51 +142,40 @@ export function ConditionalMarketOrderBook({
   };
 
   const listenOrderBook = async () => {
-    if (!proposal.proposal) return;
+    if (!market) return;
 
-    let markets = [];
-
-    if (!isPassMarket) {
-      markets = [proposal.proposal?.account.openbookFailMarket];
-    } else {
-      markets = [proposal.proposal?.account.openbookPassMarket];
-    }
-
-    // Setup for pass and fail markets
-    markets.forEach(async (market: PublicKey) => {
-      if (!wsConnected) {
-        // Fetch via RPC for the openbook market
-        const _market = await openBookProgram.account.market.fetch(
-          market
+    if (!wsConnected) {
+      // Fetch via RPC for the openbook market
+      const sides = [
+        {
+          pubKey: market.market.asks,
+          side: 'asks',
+        },
+        {
+          pubKey: market.market.bids,
+          side: 'bids',
+        },
+      ];
+      // Setup Websocket subscription for the two sides
+      try {
+        const subscriptionId = sides.map((side) => provider.connection.onAccountChange(
+            side.pubKey,
+            (updatedAccountInfo, ctx) => {
+              consumeOrderBookSide(side.side, updatedAccountInfo, ctx);
+            },
+            'processed'
+          )
         );
-        const sides = [
-          {
-            pubKey: _market.asks,
-            side: 'asks',
-          },
-          {
-            pubKey: _market.bids,
-            side: 'bids',
-          },
-        ];
-        // Setup Websocket subscription for the two sides
-        try {
-          const subscriptionId = sides.map((side) => provider.connection.onAccountChange(
-              side.pubKey,
-              (updatedAccountInfo, ctx) => {
-                consumeOrderBookSide(side.side, updatedAccountInfo, ctx);
-              },
-              'processed'
-            )
-          );
-          return subscriptionId;
-        } catch (err) {
-          setWsConnected(false);
-        }
+        console.log('WS connected');
+        setWsConnected(true);
+        return subscriptionId;
+      } catch (err) {
+        console.log(err);
+        setWsConnected(false);
       }
-      // For map handling
-      return null;
-    });
+    }
+    // For map handling
+    return null;
   };
 
   useEffect(() => {

@@ -6,8 +6,8 @@ import {
   Table,
   Text,
   useMantineTheme,
-  Input,
   Tooltip,
+  Loader,
 } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import numeral from 'numeral';
@@ -15,44 +15,34 @@ import {
   IconTrash,
   Icon3dRotate,
   IconWriting,
-  IconEdit,
-  IconPencilCancel,
-  IconCheck,
 } from '@tabler/icons-react';
+import { priceLotsToUi, baseLotsToUi } from '@openbook-dex/openbook-v2';
 import { BN } from '@coral-xyz/anchor';
 import { OpenOrdersAccountWithKey } from '@/lib/types';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
-import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
-import { NUMERAL_FORMAT, BASE_FORMAT, QUOTE_LOTS } from '@/lib/constants';
-import { useProposal } from '@/contexts/ProposalContext';
-import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
+import { BASE_FORMAT } from '@/lib/constants';
+import { isBid, isPartiallyFilled } from '@/lib/openbook';
+import { useOpenbook } from '@/hooks/useOpenbook';
+import { useOpenbookMarket } from '@/contexts/OpenbookMarketContext';
 
 export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
-  const { markets } = useProposal();
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
   const { generateExplorerLink } = useExplorerConfiguration();
-  const { proposal, fetchOpenOrders } = useProposal();
-  const { settleFundsTransactions, cancelOrderTransactions, editOrderTransactions } =
-    useOpenbookTwap();
+  const { market, marketPubkey, fetchOpenOrders } = useOpenbookMarket();
+  const { cancelOrderTransactions, settleFundsTransactions } = useOpenbook();
 
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [editingOrder, setEditingOrder] = useState<OpenOrdersAccountWithKey | undefined>();
-  const [editedSize, setEditedSize] = useState<number>();
-  const [editedPrice, setEditedPrice] = useState<number>();
   const [isSettling, setIsSettling] = useState<boolean>(false);
 
   const handleCancel = useCallback(async () => {
-    if (!proposal || !markets) return;
+    if (!market || !marketPubkey) return;
 
     const txs = await cancelOrderTransactions(
       new BN(order.account.accountNum),
-      proposal.account.openbookPassMarket.equals(order.account.market)
-        ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
-        : { publicKey: proposal.account.openbookFailMarket, account: markets.fail },
+      { publicKey: marketPubkey, account: market.market }
     );
 
     if (!wallet.publicKey || !txs) return;
@@ -70,75 +60,22 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
     }
   }, [
     order,
-    proposal,
-    markets,
+    market,
+    marketPubkey,
     wallet.publicKey,
     cancelOrderTransactions,
     fetchOpenOrders,
     sender,
   ]);
 
-  const handleEdit = useCallback(async () => {
-    if (!proposal || !markets || !editingOrder) return;
-
-    const price =
-      editedPrice ||
-      numeral(order.account.openOrders[0].lockedPrice.toString()).multiply(QUOTE_LOTS).value()!;
-    const size =
-      editedSize ||
-      (isBid(order)
-        ? order.account.position.bidsBaseLots
-        : order.account.position.asksBaseLots
-      ).toNumber();
-    const txs = (
-      await editOrderTransactions({
-        order,
-        accountIndex: order.account.openOrders[0].clientId,
-        amount: size,
-        price,
-        limitOrder: true,
-        ask: !isBid(order),
-        market: isPass(order, proposal)
-          ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
-          : { publicKey: proposal.account.openbookFailMarket, account: markets.fail },
-      })
-    )
-      ?.flat()
-      .filter(Boolean);
-    if (!wallet.publicKey || !txs) return;
-    try {
-      setIsEditing(true);
-      await sender.send(txs);
-      await fetchOpenOrders(wallet.publicKey);
-      setEditingOrder(undefined);
-    } finally {
-      setIsEditing(false);
-    }
-  }, [
-    order,
-    proposal,
-    markets,
-    wallet.publicKey,
-    editedSize,
-    editedPrice,
-    editOrderTransactions,
-    fetchOpenOrders,
-    sender,
-  ]);
-
   const handleSettleFunds = useCallback(async () => {
-    if (!proposal || !markets) return;
+    if (!market || !marketPubkey) return;
 
     setIsSettling(true);
     try {
-      const pass = order.account.market.equals(proposal.account.openbookPassMarket);
       const txs = await settleFundsTransactions(
         order.account.accountNum,
-        pass,
-        proposal,
-        pass
-          ? { account: markets.pass, publicKey: proposal.account.openbookPassMarket }
-          : { account: markets.fail, publicKey: proposal.account.openbookFailMarket },
+        { account: market?.market, publicKey: marketPubkey }
       );
 
       if (!txs) return;
@@ -146,9 +83,9 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
     } finally {
       setIsSettling(false);
     }
-  }, [order, proposal, settleFundsTransactions]);
+  }, [order, market, marketPubkey, settleFundsTransactions]);
 
-  return (
+  return (!market ? (<Loader />) :
     <Table.Tr key={order.publicKey.toString()}>
       <Table.Td>
         <a
@@ -162,11 +99,10 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
       <Table.Td>
         <Group justify="flex-start" align="center" gap={10}>
           <IconWriting
-            color={isPass(order, proposal) ? theme.colors.green[9] : theme.colors.red[9]}
+            color={theme.colors.green[9]}
             scale="xs"
           />
           <Stack gap={0} justify="flex-start" align="flex-start">
-            <Text>{isPass(order, proposal) ? 'PASS' : 'FAIL'}</Text>
             <Text size="xs" c={isBid(order) ? theme.colors.green[9] : theme.colors.red[9]}>
               {isBid(order) ? 'Bid' : 'Ask'}
             </Text>
@@ -176,59 +112,28 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
       <Table.Td>{isPartiallyFilled(order) ? 'Partial Fill' : 'Open'}</Table.Td>
       <Table.Td>
         {/* Size */}
-        {editingOrder === order ? (
-          <Input
-            w="5rem"
-            variant="filled"
-            defaultValue={numeral(
-              isBid(order)
-                ? order.account.position.bidsBaseLots
-                : order.account.position.asksBaseLots,
-            ).format(BASE_FORMAT)}
-            onChange={(e) => setEditedSize(Number(e.target.value))}
-          />
-        ) : (
+        {
           numeral(
             isBid(order)
-              ? order.account.position.bidsBaseLots
-              : order.account.position.asksBaseLots,
+              ? baseLotsToUi(market.market, order.account.position.bidsBaseLots)
+              : baseLotsToUi(market.market, order.account.position.asksBaseLots),
           ).format(BASE_FORMAT)
-        )}
+        }
       </Table.Td>
       <Table.Td>
         {/* Price */}
-        {editingOrder === order ? (
-          <Input
-            w="5rem"
-            variant="filled"
-            defaultValue={numeral(order.account.openOrders[0].lockedPrice * QUOTE_LOTS).format(
-              NUMERAL_FORMAT,
-            )}
-            onChange={(e) => setEditedPrice(Number(e.target.value))}
-          />
-        ) : (
-          `$${numeral(order.account.openOrders[0].lockedPrice * QUOTE_LOTS).format(NUMERAL_FORMAT)}`
-        )}
+        {
+          `$${priceLotsToUi(market.market, order.account.openOrders[0].lockedPrice)}`
+        }
       </Table.Td>
       <Table.Td>
         {/* Notional */}$
-        {editingOrder === order
-          ? numeral(
-              (editedPrice || order.account.openOrders[0].lockedPrice * QUOTE_LOTS) *
-                (editedSize ||
-                  (isBid(order)
-                    ? order.account.position.bidsBaseLots
-                    : order.account.position.asksBaseLots)),
-            ).format(NUMERAL_FORMAT)
-          : numeral(
-              isBid(order)
-                ? order.account.position.bidsBaseLots *
-                    order.account.openOrders[0].lockedPrice *
-                    QUOTE_LOTS
-                : order.account.position.asksBaseLots *
-                    order.account.openOrders[0].lockedPrice *
-                    QUOTE_LOTS,
-            ).format(NUMERAL_FORMAT)}
+        {isBid(order)
+          ? baseLotsToUi(market.market, order.account.position.bidsBaseLots) *
+          priceLotsToUi(market.market, order.account.openOrders[0].lockedPrice)
+          : baseLotsToUi(market.market, order.account.position.asksBaseLots) *
+          priceLotsToUi(market.market, order.account.openOrders[0].lockedPrice)
+        }
       </Table.Td>
       <Table.Td>
         {isPartiallyFilled(order) && (
@@ -244,35 +149,6 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
               <IconTrash />
             </ActionIcon>
           </Tooltip>
-          {editingOrder === order ? (
-            <Group gap="0.1rem">
-              <Tooltip label="Submit" events={{ hover: true, focus: true, touch: false }}>
-                <ActionIcon
-                  c="green"
-                  variant="outline"
-                  loading={isEditing}
-                  onClick={() => handleEdit()}
-                >
-                  <IconCheck />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label="Cancel" events={{ hover: true, focus: true, touch: false }}>
-                <ActionIcon
-                  c="red"
-                  variant="outline"
-                  onClick={() => setEditingOrder(() => undefined)}
-                >
-                  <IconPencilCancel />
-                </ActionIcon>
-              </Tooltip>
-            </Group>
-          ) : (
-            <Tooltip label="Edit order" events={{ hover: true, focus: true, touch: false }}>
-              <ActionIcon variant="outline" onClick={() => setEditingOrder(() => order)}>
-                <IconEdit />
-              </ActionIcon>
-            </Tooltip>
-          )}
         </Group>
       </Table.Td>
     </Table.Tr>

@@ -3,6 +3,7 @@
 import {
   AppShell,
   Button,
+  Burger,
   Card,
   Flex,
   Group,
@@ -17,7 +18,7 @@ import {
   useMantineColorScheme,
   useMantineTheme,
 } from '@mantine/core';
-import { useFavicon, useMediaQuery } from '@mantine/hooks';
+import { useDisclosure, useFavicon, useMediaQuery } from '@mantine/hooks';
 import '@mantine/notifications/styles.css';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import numeral from 'numeral';
@@ -44,6 +45,7 @@ import { Explorers, useExplorerConfiguration } from '@/hooks/useExplorerConfigur
 import classes from '../../app/globals.module.css';
 import { usePriorityFee } from '../../hooks/usePriorityFee';
 import { NUMERAL_FORMAT } from '../../lib/constants';
+import { NavigationLinks } from './NavigationLinks';
 
 const links = [
   {
@@ -109,6 +111,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const logoRef = useRef(null);
   const { priorityFee, setPriorityFee } = usePriorityFee();
   const [solPrice, setSolPrice] = useState<number>();
+  const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
+  const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(false);
 
   useFavicon(_favicon.src);
   useEffect(() => {
@@ -154,15 +158,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div>
-      <AppShell header={{ height: 60 }} padding="md">
+      <AppShell
+        header={{ height: 60 }}
+        navbar={{ breakpoint: 'md', width: 200, collapsed: { mobile: !mobileOpened, desktop: !desktopOpened } }}
+        padding="md"
+        footer={{ height: 100 }}
+      >
         <AppShell.Header withBorder>
           <Flex justify="space-between" align="center" p="md" w="100%" h="100%">
-            <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-              <Flex justify="flex-start" align="center" gap="xs">
-                <Image src={icon} alt="App logo" width={36} height={36} ref={logoRef} />
-                <Title order={!isTiny ? 3 : 4}>the Meta-DAO</Title>
-              </Flex>
-            </Link>
+            <Group p={0} m={0}>
+              <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" />
+              <Burger opened={desktopOpened} onClick={toggleDesktop} visibleFrom="sm" size="sm" />
+              <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <Flex justify="flex-start" align="center" gap="xs">
+                  <Image src={icon} alt="App logo" width={36} height={36} ref={logoRef} />
+                  <Title order={!isTiny ? 3 : 4}>MetaDAO</Title>
+                </Flex>
+              </Link>
+            </Group>
 
             <Group gap="0" justify="center" ta="center">
               <div style={{ fontSize: 'small' }}>
@@ -240,28 +253,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </Group>
           </Flex>
         </AppShell.Header>
+        <AppShell.Navbar p="md">
+          <NavigationLinks />
+        </AppShell.Navbar>
         <AppShell.Main>{children}</AppShell.Main>
-      </AppShell>
-      <footer>
-        <Card withBorder style={{ borderRadius: '0px', borderLeft: '0px', borderRight: '0px' }}>
-          <Group justify="space-between" p="md">
-            <Title order={4}>the Meta-DAO</Title>
-            <Group justify="center" p="xs">
-              {links.map((link, i) => (
-                <Link
-                  key={`link-${i}`}
-                  href={link.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: 'inherit' }}
-                >
-                  <link.icon strokeWidth={1.3} className={classes.redHover} />
-                </Link>
-              ))}
+        <AppShell.Footer>
+          <Card withBorder style={{ borderRadius: '0px', borderLeft: '0px', borderRight: '0px' }}>
+            <Group justify="space-between" p="md">
+              <Title order={4}>MetaDAO</Title>
+              <Group justify="center" p="xs">
+                {links.map((link, i) => (
+                  <Link
+                    key={`link-${i}`}
+                    href={link.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: 'inherit' }}
+                  >
+                    <link.icon strokeWidth={1.3} className={classes.redHover} />
+                  </Link>
+                ))}
+              </Group>
             </Group>
-          </Group>
-        </Card>
-      </footer>
+          </Card>
+        </AppShell.Footer>
+      </AppShell>
+
     </div>
   );
 }

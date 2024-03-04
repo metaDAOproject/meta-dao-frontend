@@ -8,56 +8,60 @@ import {
   useMantineTheme,
   Tooltip,
   Space,
-  Loader,
 } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { Icon3dRotate, IconWriting, IconAssemblyOff } from '@tabler/icons-react';
+import { Icon3dRotate, IconWriting, Icon12Hours, IconAssemblyOff } from '@tabler/icons-react';
 import { BN } from '@coral-xyz/anchor';
-import { baseLotsToUi, quoteLotsToUi } from '@openbook-dex/openbook-v2';
 import { OpenOrdersAccountWithKey } from '@/lib/types';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
+import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { BN_0 } from '@/lib/constants';
-import { isBid, isPartiallyFilled } from '@/lib/openbook';
+import { useProposal } from '@/contexts/ProposalContext';
+import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useBalances } from '../../contexts/BalancesContext';
-import { useOpenbook } from '@/hooks/useOpenbook';
-import { useOpenbookMarket } from '@/contexts/OpenbookMarketContext';
 
-export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
+export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
+  const { markets } = useProposal();
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
-  const { market, marketPubkey, fetchOpenOrders } = useOpenbookMarket();
   const { fetchBalance } = useBalances();
   const { generateExplorerLink } = useExplorerConfiguration();
-  const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbook();
+  const { proposal, fetchOpenOrders, crankMarkets, isCranking } = useProposal();
+  const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
 
   const [isSettling, setIsSettling] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
 
   const handleSettleFunds = useCallback(async () => {
-    if (!market || !marketPubkey || !wallet?.publicKey) return;
+    if (!proposal || !markets || !wallet?.publicKey) return;
 
     setIsSettling(true);
     try {
+      const pass = order.account.market.equals(proposal.account.openbookPassMarket);
       const txs = await settleFundsTransactions(
         order.account.accountNum,
-        { account: market.market, publicKey: marketPubkey }
+        pass,
+        proposal,
+        pass
+          ? { account: markets.pass, publicKey: proposal.account.openbookPassMarket }
+          : { account: markets.fail, publicKey: proposal.account.openbookFailMarket },
       );
 
       if (!txs) return;
 
       await sender.send(txs);
       await fetchOpenOrders(wallet.publicKey);
-      fetchBalance(market.market.baseMint);
-      fetchBalance(market.market.quoteMint);
+      fetchBalance((pass ? markets.pass : markets.fail).baseMint);
+      fetchBalance((pass ? markets.pass : markets.fail).quoteMint);
     } finally {
       setIsSettling(false);
     }
-  }, [order, market, marketPubkey, settleFundsTransactions, wallet, fetchOpenOrders, fetchBalance]);
+  }, [order, proposal, settleFundsTransactions, wallet, fetchOpenOrders, fetchBalance]);
 
   const handleCloseAccount = useCallback(async () => {
-    if (!market || !marketPubkey) return;
+    if (!proposal || !markets) return;
 
     const txs = await closeOpenOrdersAccountTransactions(new BN(order.account.accountNum));
 
@@ -72,9 +76,9 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
     } finally {
       setIsClosing(false);
     }
-  }, [market, marketPubkey, sender, order, wallet]);
+  }, [proposal, sender, order, wallet]);
 
-  return !market ? (<Loader />) : (
+  return (
     <Table.Tr key={order.publicKey.toString()}>
       <Table.Td>
         <a
@@ -88,10 +92,11 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
       <Table.Td>
         <Group justify="flex-start" align="center" gap={10}>
           <IconWriting
-            color={theme.colors.green[9]}
+            color={isPass(order, proposal) ? theme.colors.green[9] : theme.colors.red[9]}
             scale="xs"
           />
           <Stack gap={0} justify="flex-start" align="flex-start">
+            <Text>{isPass(order, proposal) ? 'PASS' : 'FAIL'}</Text>
             <Text size="xs" c={isBid(order) ? theme.colors.green[9] : theme.colors.red[9]}>
               {isBid(order) ? 'Bid' : 'Ask'}
             </Text>
@@ -101,15 +106,31 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
       <Table.Td>
         <Stack gap={0}>
           <Text>
-            {`${baseLotsToUi(market.market, order.account.position.baseFreeNative)}`}
+            {`${order.account.position.baseFreeNative.toNumber() / 1_000_000_000} ${
+              isPass(order, proposal) ? 'pMETA' : 'fMETA'
+            }`}
           </Text>
           <Text>
-            {`${quoteLotsToUi(market?.market, order.account.position.quoteFreeNative)}`}
+            {`${order.account.position.quoteFreeNative / 1_000_000} ${
+              isPass(order, proposal) ? 'pUSDC' : 'fUSDC'
+            }`}
           </Text>
         </Stack>
       </Table.Td>
       <Table.Td>
         <Group>
+          {order.account.position.asksBaseLots.gt(BN_0) ||
+          order.account.position.bidsBaseLots.gt(BN_0) ? (
+            <Tooltip label="Crank the market 🐷">
+              <ActionIcon
+                variant="outline"
+                loading={isCranking}
+                onClick={() => crankMarkets(order.publicKey)}
+              >
+                <Icon12Hours />
+              </ActionIcon>
+            </Tooltip>
+          ) : null}
           <Tooltip label="Settle Funds" events={{ hover: true, focus: true, touch: false }}>
             <ActionIcon
               variant="outline"

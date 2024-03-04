@@ -4,32 +4,35 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { Transaction } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
 import { OpenOrdersAccountWithKey } from '@/lib/types';
+import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
+import { useProposal } from '@/contexts/ProposalContext';
 import { isPartiallyFilled } from '@/lib/openbook';
-import { OpenOrderRow } from './OpenOrderRow';
-import { useOpenbookMarket } from '@/contexts/OpenbookMarketContext';
-import { useOpenbook } from '@/hooks/useOpenbook';
+import { ProposalOpenOrderRow } from './ProposalOpenOrderRow';
 
 const headers = ['Order ID', 'Market', 'Status', 'Size', 'Price', 'Notional', 'Actions'];
 
-export function OpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }) {
+export function ProposalOpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }) {
+  const { markets, isCranking, crankMarkets } = useProposal();
   const sender = useTransactionSender();
   const wallet = useWallet();
-  const { market, marketPubkey, fetchOpenOrders } = useOpenbookMarket();
-  const { cancelOrderTransactions, settleFundsTransactions } = useOpenbook();
+  const { fetchOpenOrders, proposal } = useProposal();
+  const { cancelOrderTransactions, settleFundsTransactions } = useOpenbookTwap();
 
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
   const [isSettling, setIsSettling] = useState<boolean>(false);
 
   const handleCancelAll = useCallback(async () => {
-    if (!market || !marketPubkey) return;
+    if (!proposal || !markets) return;
 
     const txs = (
       await Promise.all(
         orders.map((order) =>
           cancelOrderTransactions(
             new BN(order.account.accountNum),
-            { publicKey: marketPubkey, account: market.market }
+            proposal.account.openbookPassMarket.equals(order.account.market)
+              ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
+              : { publicKey: proposal.account.openbookFailMarket, account: markets.fail },
           ),
         ),
       )
@@ -48,13 +51,15 @@ export function OpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }
     } finally {
       setIsCanceling(false);
     }
-  }, [market, marketPubkey, wallet.publicKey, cancelOrderTransactions, fetchOpenOrders, sender]);
+  }, [proposal, markets, wallet.publicKey, cancelOrderTransactions, fetchOpenOrders, sender]);
 
   const handleSettleAllFunds = useCallback(async () => {
-    if (!market || !marketPubkey) return;
+    if (!proposal || !markets) return;
 
     setIsSettling(true);
     try {
+      // HACK: Assumes all orders are for the same market
+      const pass = orders[0].account.market.equals(proposal.account.openbookPassMarket);
       const txs = (
         await Promise.all(
           orders
@@ -62,7 +67,11 @@ export function OpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }
             .map((order) =>
               settleFundsTransactions(
                 order.account.accountNum,
-                { publicKey: marketPubkey, account: market.market }
+                pass,
+                proposal,
+                pass
+                  ? { account: markets.pass, publicKey: proposal.account.openbookPassMarket }
+                  : { account: markets.fail, publicKey: proposal.account.openbookFailMarket },
               ),
             ),
         )
@@ -75,7 +84,7 @@ export function OpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }
     } finally {
       setIsSettling(false);
     }
-  }, [orders, market, marketPubkey, settleFundsTransactions]);
+  }, [orders, proposal, settleFundsTransactions]);
 
   return (
     <Stack py="md">
@@ -84,6 +93,9 @@ export function OpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }
         amount. These exist when there is a balance available within the Open Orders Account.
       </Text>
       <Group justify="space-around">
+        <Button loading={isCranking} color="blue" onClick={() => crankMarkets()}>
+          Crank 🐷
+        </Button>
         <Button loading={isCanceling} onClick={handleCancelAll}>
           Cancel all orders
         </Button>
@@ -107,7 +119,7 @@ export function OpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }
           </Table.Thead>
           <Table.Tbody>
             {orders.map((order) => (
-              <OpenOrderRow key={order.publicKey.toString()} order={order} />
+              <ProposalOpenOrderRow key={order.publicKey.toString()} order={order} />
             ))}
           </Table.Tbody>
         </Table>
