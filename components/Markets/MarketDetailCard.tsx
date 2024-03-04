@@ -9,7 +9,7 @@ import {
   Divider,
 } from '@mantine/core';
 import { utf8 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
-import { useOpenBookMarket } from '@/contexts/OpenBookMarketContext';
+import { useOpenbookMarket } from '@/contexts/OpenbookMarketContext';
 import { OrderBookCard } from '../OrderBook/OrderBookCard';
 import { OrderConfigurationCard } from '../OrderBook/OrderConfigurationCard';
 import DisableNumberInputScroll from '../Utilities/DisableNumberInputScroll';
@@ -18,7 +18,7 @@ import { shortKey } from '@/lib/utils';
 import { MarketOrdersCard } from './MarketOrdersCard';
 
 export function MarketDetailCard() {
-  const openBookMarket = useOpenBookMarket();
+  const openbookMarket = useOpenbookMarket();
   const { generateExplorerLink } = useExplorerConfiguration();
   const [price, setPrice] = useState<string>('');
 
@@ -26,7 +26,7 @@ export function MarketDetailCard() {
     setPrice(value);
   };
 
-  return openBookMarket.loading || !openBookMarket.market ? (
+  return openbookMarket.loading || !openbookMarket.market ? (
     <Group justify="center">
       <Loader />
     </Group>
@@ -34,18 +34,18 @@ export function MarketDetailCard() {
     <>
       <Stack>
         <Title>
-          {utf8.decode(new Uint8Array(openBookMarket.market.market.name)).split('\x00')[0]}
+          {utf8.decode(new Uint8Array(openbookMarket.market.market.name)).split('\x00')[0]}
         </Title>
-        <Text>Event Heap Size: {openBookMarket.eventHeapCount}</Text>
+        <Text>Event Heap Size: {openbookMarket.eventHeapCount}</Text>
         <Text>Event Heap Account:
           <a
-            href={generateExplorerLink(openBookMarket.market.market.eventHeap.toString(), 'account')}
+            href={generateExplorerLink(openbookMarket.market.market.eventHeap.toString(), 'account')}
           >
-            {shortKey(openBookMarket.market.market.eventHeap.toString())}
+            {shortKey(openbookMarket.market.market.eventHeap.toString())}
           </a>
         </Text>
-        <Text>Taker Fee: {openBookMarket.market.market.takerFee.toString()}</Text>
-        <Text>Maker Fee: {openBookMarket.market.market.makerFee.toString()}</Text>
+        <Text>Taker Fee: {openbookMarket.market.market.takerFee.toString()}</Text>
+        <Text>Maker Fee: {openbookMarket.market.market.makerFee.toString()}</Text>
       </Stack>
       <Divider p={10} />
       <Group justify="space-between">
@@ -53,19 +53,19 @@ export function MarketDetailCard() {
           <Title order={3}>Base</Title>
           <Text>Mint:
             <a
-              href={generateExplorerLink(openBookMarket.market.market.baseMint.toString(), 'account')}
+              href={generateExplorerLink(openbookMarket.market.market.baseMint.toString(), 'account')}
             >
-              {shortKey(openBookMarket.market.market.baseMint.toString())}
+              {shortKey(openbookMarket.market.market.baseMint.toString())}
             </a>
           </Text>
-          <Text>Decimals: {openBookMarket.market.market.baseDecimals.toString()}</Text>
-          <Text>Lot Size: {openBookMarket.market.market.baseLotSize.toString()}</Text>
-          <Text>Deposit Total: {openBookMarket.market.market.baseDepositTotal.toString()}</Text>
+          <Text>Decimals: {openbookMarket.market.market.baseDecimals.toString()}</Text>
+          <Text>Lot Size: {openbookMarket.market.market.baseLotSize.toString()}</Text>
+          <Text>Deposit Total: {openbookMarket.market.market.baseDepositTotal.toString()}</Text>
           <Text>Market Vault:
             <a
-              href={generateExplorerLink(openBookMarket.market.market.marketBaseVault.toString(), 'account')}
+              href={generateExplorerLink(openbookMarket.market.market.marketBaseVault.toString(), 'account')}
             >
-              {shortKey(openBookMarket.market.market.marketBaseVault.toString())}
+              {shortKey(openbookMarket.market.market.marketBaseVault.toString())}
             </a>
           </Text>
         </Stack>
@@ -74,19 +74,19 @@ export function MarketDetailCard() {
           <Title order={3}>Quote</Title>
           <Text> Mint:
             <a
-              href={generateExplorerLink(openBookMarket.market.market.quoteMint.toString(), 'account')}
+              href={generateExplorerLink(openbookMarket.market.market.quoteMint.toString(), 'account')}
             >
-              {shortKey(openBookMarket.market.market.quoteMint.toString())}
+              {shortKey(openbookMarket.market.market.quoteMint.toString())}
             </a>
           </Text>
-          <Text>Decimals: {openBookMarket.market.market.quoteDecimals.toString()}</Text>
-          <Text>Lot Size: {openBookMarket.market.market.quoteLotSize.toString()}</Text>
-          <Text>Deposit Total: {openBookMarket.market.market.quoteDepositTotal.toString()}</Text>
+          <Text>Decimals: {openbookMarket.market.market.quoteDecimals.toString()}</Text>
+          <Text>Lot Size: {openbookMarket.market.market.quoteLotSize.toString()}</Text>
+          <Text>Deposit Total: {openbookMarket.market.market.quoteDepositTotal.toString()}</Text>
           <Text>Market Vault:
             <a
-              href={generateExplorerLink(openBookMarket.market.market.marketQuoteVault.toString(), 'account')}
+              href={generateExplorerLink(openbookMarket.market.market.marketQuoteVault.toString(), 'account')}
             >
-              {shortKey(openBookMarket.market.market.marketQuoteVault.toString())}
+              {shortKey(openbookMarket.market.market.marketQuoteVault.toString())}
             </a>
           </Text>
         </Stack>
@@ -95,19 +95,19 @@ export function MarketDetailCard() {
       <Card>
         <DisableNumberInputScroll />
         <OrderBookCard
-          orderBookObject={openBookMarket.orderBookObject}
+          orderBookObject={openbookMarket.orderBookObject}
           setPriceFromOrderBook={setPriceFromOrderBook}
-          market={openBookMarket.market}
+          market={openbookMarket.market}
         />
         <OrderConfigurationCard
-          orderBookObject={openBookMarket.orderBookObject}
-          market={openBookMarket.market}
+          orderBookObject={openbookMarket.orderBookObject}
+          market={openbookMarket.market}
           setPrice={setPrice}
           price={price}
         />
       </Card>
       <MarketOrdersCard
-        market={openBookMarket.market}
+        market={openbookMarket.market}
       />
     </>
   );

@@ -14,22 +14,22 @@ interface Market {
   timestamp: number | null | undefined;
 }
 
-export interface OpenBookInterface {
+export interface OpenbookInterface {
   markets: Market[] | undefined;
 }
 
 const BATCH_TX_SIZE = 50;
-export const openBookContext = createContext<OpenBookInterface | undefined>(undefined);
+export const openbookContext = createContext<OpenbookInterface | undefined>(undefined);
 
-export const useOpenBook = () => {
-    const context = useContext(openBookContext);
+export const useOpenbook = () => {
+    const context = useContext(openbookContext);
     if (!context) {
       throw new Error('useOpenBook must be used within a OpenBookContextProvider');
     }
     return context;
   };
 
-export function OpenBookProvider({
+export function OpenbookProvider({
   children,
 }: {
   children: React.ReactNode;
@@ -121,12 +121,12 @@ export function OpenBookProvider({
   });
 
   return (
-    <openBookContext.Provider
+    <openbookContext.Provider
       value={{
         markets,
       }}
     >
       {children}
-    </openBookContext.Provider>
+    </openbookContext.Provider>
   );
 }

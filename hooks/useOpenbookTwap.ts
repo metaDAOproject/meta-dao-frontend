@@ -50,7 +50,7 @@ export function useOpenbookTwap() {
   const provider = useProvider();
   const sender = useTransactionSender();
   const { getVaultMint } = useConditionalVault();
-  const openbook = useOpenbook();
+  const openbook = useOpenbook().program;
   const openbookTwap = useMemo(() => {
     if (!provider) {
       return;

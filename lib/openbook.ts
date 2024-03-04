@@ -18,7 +18,7 @@ import {
   OpenOrdersAccountWithKey,
   OracleConfigParams,
   ProposalAccountWithKey,
-  OpenBookMarket,
+  OpenbookMarket,
 } from './types';
 import { BASE_FORMAT, BN_0, NUMERAL_FORMAT, OPENBOOK_PROGRAM_ID } from './constants';
 
@@ -252,7 +252,7 @@ export const isClosableOrder = (order: OpenOrdersAccountWithKey): boolean =>
 
   export const _isOpenOrder = (
     order: OpenOrdersAccountWithKey,
-    market: OpenBookMarket
+    market: OpenbookMarket
   ): boolean => {
     if (order.account.openOrders[0].isFree === 0) {
       const asksFilter = market.asks.filter(
@@ -319,9 +319,9 @@ export const isOpenOrder = (order: OpenOrdersAccountWithKey, markets: Markets): 
 
 export const _isCompletedOrder = (
   order: OpenOrdersAccountWithKey,
-  market: OpenBookMarket
+  market: OpenbookMarket
 ): boolean => {
-  const isOpen = isOpenOrder(order, market);
+  const isOpen = _isOpenOrder(order, market);
   const isEmpty =
     isEmptyOrder(order) &&
     (order.account.position.asksBaseLots.gt(BN_0) || order.account.position.bidsBaseLots.gt(BN_0));

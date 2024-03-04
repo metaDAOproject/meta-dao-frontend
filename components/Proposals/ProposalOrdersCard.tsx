@@ -9,9 +9,9 @@ import {
   totalMetaInOrder,
   totalUsdcInOrder,
 } from '@/lib/openbook';
-import { OpenOrdersTab } from '@/components/Orders/OpenOrdersTab';
-import { UnsettledOrdersTab } from '@/components/Orders/UnsettledOrdersTab';
-import { UncrankedOrdersTab } from '@/components/Orders/UncrankedOrdersTab';
+import { ProposalOpenOrdersTab } from '@/components/Orders/ProposalOpenOrdersTab';
+import { ProposalUnsettledOrdersTab } from '@/components/Orders/ProposalUnsettledOrdersTab';
+import { ProposalUncrankedOrdersTab } from '@/components/Orders/ProposalUncrankedOrdersTab';
 
 export function ProposalOrdersCard() {
   const wallet = useWallet();
@@ -62,13 +62,15 @@ export function ProposalOrdersCard() {
           <Tabs.Tab value="unsettled">Unsettled</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="open">
-          <OpenOrdersTab orders={orders.filter((order) => isOpenOrder(order, markets))} />
+          <ProposalOpenOrdersTab orders={orders.filter((order) => isOpenOrder(order, markets))} />
         </Tabs.Panel>
         <Tabs.Panel value="uncranked">
-          <UncrankedOrdersTab orders={orders.filter((order) => isCompletedOrder(order, markets))} />
+          <ProposalUncrankedOrdersTab
+            orders={orders.filter((order) => isCompletedOrder(order, markets))}
+          />
         </Tabs.Panel>
         <Tabs.Panel value="unsettled">
-          <UnsettledOrdersTab orders={orders.filter((order) => isEmptyOrder(order))} />
+          <ProposalUnsettledOrdersTab orders={orders.filter((order) => isEmptyOrder(order))} />
         </Tabs.Panel>
       </Tabs>
     </>

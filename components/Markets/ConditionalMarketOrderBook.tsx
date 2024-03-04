@@ -70,6 +70,7 @@ export function ConditionalMarketOrderBook({
             'LeafNode',
             Buffer.from([0, ...x.data]),
           );
+          // TODO: We need to pass the market to this object so we can use the priceLotsToUi and baseLotsToUi
           const size = leafNode.quantity.toNumber();
           const price = leafNode.key.shrn(64).toNumber() / 10_000;
           return {
@@ -135,7 +136,7 @@ export function ConditionalMarketOrderBook({
         tobBid = Number(__side[0][0]);
       }
       // Calculate spread
-      const spread: number = tobAsk - tobBid;
+      const spread: number = Math.abs(tobAsk - tobBid);
       // Calculate spread percent
       const spreadPercent: string = ((spread / tobBid) * 100).toFixed(2);
       let _spreadString: string;

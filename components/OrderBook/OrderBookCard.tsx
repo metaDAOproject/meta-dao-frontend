@@ -2,9 +2,9 @@ import { OrderBook } from '@lab49/react-order-book';
 import { Card, Text, useMantineColorScheme } from '@mantine/core';
 import { useState, useEffect } from 'react';
 import { Program } from '@coral-xyz/anchor';
-import { AnyNode, LeafNode, OpenbookV2, IDL as OPENBOOK_IDL, OPENBOOK_PROGRAM_ID } from '@openbook-dex/openbook-v2';
+import { AnyNode, LeafNode, OpenbookV2, IDL as OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, priceLotsToUi, baseLotsToUi } from '@openbook-dex/openbook-v2';
 import { Context, AccountInfo } from '@solana/web3.js';
-import { OpenBookOrderBook as _OrderBook, OpenBookMarket } from '@/lib/types';
+import { OpenbookOrderBook as _OrderBook, OpenbookMarket } from '@/lib/types';
 import { useProvider } from '@/hooks/useProvider';
 
 export function OrderBookCard({
@@ -13,7 +13,7 @@ export function OrderBookCard({
   setPriceFromOrderBook,
 }: {
   orderBookObject: _OrderBook;
-  market: OpenBookMarket;
+  market: OpenbookMarket;
   setPriceFromOrderBook: (price: string) => void;
 }) {
   const { colorScheme } = useMantineColorScheme();
@@ -23,16 +23,16 @@ export function OrderBookCard({
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [spreadString, setSpreadString] = useState<string>();
   const [lastSlotUpdated, setLastSlotUpdated] = useState<number>();
-  const openBookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
+  const openbookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
 
-   // On initialization
-  if (!bids) {
+  // On initialization
+  if (!bids && orderBookObject) {
     setBids(orderBookObject.bidsArray);
   }
-  if (!asks) {
+  if (!asks && orderBookObject) {
     setAsks(orderBookObject.asksArray);
   }
-  if (!spreadString) {
+  if (!spreadString && orderBookObject) {
     setSpreadString(orderBookObject.spreadString);
   }
 
@@ -42,7 +42,7 @@ export function OrderBookCard({
     ctx: Context
   ) => {
     try {
-      const leafNodes = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data);
+      const leafNodes = openbookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data);
       const leafNodesData = leafNodes.nodes.nodes.filter(
         (x: AnyNode) => x.tag === 2,
       );
@@ -51,12 +51,12 @@ export function OrderBookCard({
         size: number;
       }[] = leafNodesData
         .map((x: any) => {
-          const leafNode: LeafNode = openBookProgram.coder.types.decode(
+          const leafNode: LeafNode = openbookProgram.coder.types.decode(
             'LeafNode',
             Buffer.from([0, ...x.data]),
           );
-          const size = leafNode.quantity.toNumber();
-          const price = leafNode.key.shrn(64).toNumber() / 10_000;
+          const size = baseLotsToUi(market.market, leafNode.quantity);
+          const price = priceLotsToUi(market.market, leafNode.key.shrn(64));
           return {
             price,
             size,
@@ -90,8 +90,8 @@ export function OrderBookCard({
       let __side: any[][];
       if (_aggreateSide) {
         __side = Array.from(_aggreateSide.entries()).map((_side_) => [
-          ((_side_[0] / 100).toFixed(4)),
-          (_side_[1] / 10_000),
+          (_side_[0]).toFixed(4),
+          (_side_[1]).toFixed(4),
         ]);
       } else {
         // Return default values of 0
@@ -120,7 +120,7 @@ export function OrderBookCard({
         tobBid = Number(__side[0][0]);
       }
       // Calculate spread
-      const spread: number = tobAsk - tobBid;
+      const spread: number = Math.abs(tobAsk - tobBid);
       // Calculate spread percent
       const spreadPercent: string = ((spread / tobBid) * 100).toFixed(2);
       let _spreadString: string;
@@ -148,11 +148,11 @@ export function OrderBookCard({
       // Fetch via RPC for the openbook market
       const sides = [
         {
-          pubKey: market.asks,
+          pubKey: market.market.asks,
           side: 'asks',
         },
         {
-          pubKey: market.bids,
+          pubKey: market.market.bids,
           side: 'bids',
         },
       ];
@@ -166,8 +166,11 @@ export function OrderBookCard({
             'processed'
           )
         );
+        console.log('WS connected');
+        setWsConnected(true);
         return subscriptionId;
       } catch (err) {
+        console.log(err);
         setWsConnected(false);
       }
     }

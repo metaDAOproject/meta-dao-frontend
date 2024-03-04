@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, AccountMeta } from '@solana/web3.js';
+import { priceLotsToUi, baseLotsToUi } from '@openbook-dex/openbook-v2';
 import {
   OpenOrdersAccountWithKey,
   LeafNode,
-  OpenBookMarket,
-  OpenBookOrderBook,
+  OpenbookMarket,
+  OpenbookOrderBook,
   OutEvent,
   FillEvent,
 } from '@/lib/types';
@@ -14,11 +15,11 @@ import { debounce } from '../lib/utils';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { useOpenbook } from '@/hooks/useOpenbook';
 
-export interface OpenBookMarketInterface {
-  market?: OpenBookMarket;
+export interface OpenbookMarketInterface {
+  market?: OpenbookMarket;
   marketPubkey: PublicKey;
   orders?: OpenOrdersAccountWithKey[];
-  orderBookObject?: OpenBookOrderBook;
+  orderBookObject?: OpenbookOrderBook;
   loading: boolean;
   fetchOpenOrders: (owner: PublicKey) => Promise<void>;
   fetchMarketInfo: () => Promise<void>;
@@ -41,17 +42,17 @@ export interface OpenBookMarketInterface {
   eventHeapCount: number | undefined;
 }
 
-export const openBookMarketContext = createContext<OpenBookMarketInterface | undefined>(undefined);
+export const openbookMarketContext = createContext<OpenbookMarketInterface | undefined>(undefined);
 
-export const useOpenBookMarket = () => {
-  const context = useContext(openBookMarketContext);
+export const useOpenbookMarket = () => {
+  const context = useContext(openbookMarketContext);
   if (!context) {
-    throw new Error('useOpenBook must be used within a OpenBookContextProvider');
+    throw new Error('useOpenBook must be used within a OpenbookContextProvider');
   }
   return context;
 };
 
-export function OpenBookMarketProvider({
+export function OpenbookMarketProvider({
   children,
   marketId,
 }: {
@@ -62,7 +63,7 @@ export function OpenBookMarketProvider({
   const wallet = useWallet();
   const sender = useTransactionSender();
   const [loading, setLoading] = useState(false);
-  const [market, setMarket] = useState<OpenBookMarket>();
+  const [market, setMarket] = useState<OpenbookMarket>();
   const [orders, setOrders] = useState<OpenOrdersAccountWithKey[]>([]);
   const [eventHeapCount, setEventHeapCount] = useState<number>();
   const { program: _openbook, placeOrderTransactions } = useOpenbook();
@@ -181,8 +182,10 @@ export function OpenBookMarketProvider({
       }
       const parsed = side
         .map((e) => ({
-          price: e.key.shrn(64).toNumber(),
-          size: e.quantity.toNumber(),
+          // @ts-ignore
+          price: priceLotsToUi(market?.market, e.key.shrn(64)),
+          // @ts-ignore
+          size: baseLotsToUi(market?.market, e.quantity),
         }))
         .sort((a, b) => a.price - b.price);
 
@@ -211,15 +214,15 @@ export function OpenBookMarketProvider({
         const _orderBookSide = getSide(orderBookForSide, isBidSide);
         if (_orderBookSide) {
           return Array.from(_orderBookSide.deduped?.entries()).map((side) => [
-            (side[0] / 100).toFixed(4),
-            (Number(side[1]) / 10_000),
+            (side[0]).toFixed(4),
+            (side[1]).toFixed(4),
           ]);
         }
       }
       if (isBidSide) {
         return [[0, 0]];
       }
-      return [[69, 0]];
+      return [[0, 0]];
     };
 
     const getToB = (bids: LeafNode[], asks: LeafNode[]) => {
@@ -296,7 +299,7 @@ export function OpenBookMarketProvider({
   );
 
   return (
-    <openBookMarketContext.Provider
+    <openbookMarketContext.Provider
       value={{
         market,
         marketPubkey,
@@ -310,6 +313,6 @@ export function OpenBookMarketProvider({
       }}
     >
       {children}
-    </openBookMarketContext.Provider>
+    </openbookMarketContext.Provider>
   );
 }

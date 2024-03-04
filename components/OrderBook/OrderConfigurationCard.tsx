@@ -14,9 +14,9 @@ import {
 import { IconWallet } from '@tabler/icons-react';
 import numeral from 'numeral';
 import { utf8 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
-import { MarketAccountWithKey, OpenBookMarket, OpenBookOrderBook as _OrderBook } from '@/lib/types';
+import { OpenbookMarket, OpenbookOrderBook as _OrderBook } from '@/lib/types';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
-import { useOpenBookMarket } from '@/contexts/OpenBookMarketContext';
+import { useOpenbookMarket } from '@/contexts/OpenbookMarketContext';
 import { useBalance } from '../../hooks/useBalance';
 
 export function OrderConfigurationCard({
@@ -26,11 +26,11 @@ export function OrderConfigurationCard({
   setPrice,
 }: {
   orderBookObject: _OrderBook;
-  market: OpenBookMarket;
+  market: OpenbookMarket;
   price: string;
   setPrice: (price: string) => void;
 }) {
-  const openBookMarket = useOpenBookMarket();
+  const openbookMarket = useOpenbookMarket();
   // TODO: Review this as anything less than this fails to work
   const minMarketPrice = 10;
   // TODO: Review this number as max safe doesn't work
@@ -54,13 +54,11 @@ export function OrderConfigurationCard({
   const base = _marketInstrument[0];
   const quote = _marketInstrument[1];
 
-  console.log(market);
-
-  const { amount: baseBalance, fetchAmount: fetchBase } = useBalance(
+  const { amount: baseBalance } = useBalance(
     market.market.baseMint
   );
 
-  const { amount: quoteBalance, fetchAmount: fetchQuote } = useBalance(
+  const { amount: quoteBalance } = useBalance(
     market.market.quoteMint
   );
 
@@ -166,13 +164,13 @@ export function OrderConfigurationCard({
   };
 
   const handlePlaceOrder = useCallback(async () => {
-    if (!openBookMarket) return;
+    if (!openbookMarket) return;
     try {
       console.log('in try');
       console.log(amount);
       console.log(_orderPrice());
       setIsPlacingOrder(true);
-      await openBookMarket.placeOrder(
+      await openbookMarket.placeOrder(
         amount,
         _orderPrice(),
         isLimitOrder,
@@ -185,7 +183,7 @@ export function OrderConfigurationCard({
       console.log('finally');
       setIsPlacingOrder(false);
     }
-  }, [openBookMarket, amount, _orderPrice(), isLimitOrder, isAskSide]);
+  }, [openbookMarket, amount, _orderPrice(), isLimitOrder, isAskSide]);
 
   useEffect(() => {
     updateOrderValue();

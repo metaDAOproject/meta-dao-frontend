@@ -1,10 +1,10 @@
 import { Stack, Table, Text } from '@mantine/core';
 import { OpenOrdersAccountWithKey } from '@/lib/types';
-import { OpenOrderRow } from './OpenOrderRow';
+import { ProposalOpenOrderRow } from './ProposalOpenOrderRow';
 
 const headers = ['Order ID', 'Market', 'Claimable', 'Actions'];
 
-export function UncrankedOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }) {
+export function ProposalUncrankedOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }) {
   return (
     <Stack py="md">
       <Text size="sm">
@@ -22,7 +22,7 @@ export function UncrankedOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
           </Table.Thead>
           <Table.Tbody>
             {orders.map((order) => (
-              <OpenOrderRow order={order} />
+              <ProposalOpenOrderRow order={order} />
             ))}
           </Table.Tbody>
         </Table>

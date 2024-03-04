@@ -111,7 +111,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const logoRef = useRef(null);
   const { priorityFee, setPriorityFee } = usePriorityFee();
   const [solPrice, setSolPrice] = useState<number>();
-  const [opened, { toggle }] = useDisclosure();
+  const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
+  const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
 
   useFavicon(_favicon.src);
   useEffect(() => {
@@ -159,18 +160,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div>
       <AppShell
         header={{ height: 60 }}
-        navbar={{ breakpoint: 'md', width: 200 }}
+        navbar={{ breakpoint: 'md', width: 200, collapsed: { mobile: !mobileOpened, desktop: !desktopOpened } }}
         padding="md"
         footer={{ height: 100 }}
       >
         <AppShell.Header withBorder>
           <Flex justify="space-between" align="center" p="md" w="100%" h="100%">
-            <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-              <Flex justify="flex-start" align="center" gap="xs">
-                <Image src={icon} alt="App logo" width={36} height={36} ref={logoRef} />
-                <Title order={!isTiny ? 3 : 4}>the Meta-DAO</Title>
-              </Flex>
-            </Link>
+            <Group h="100%" px="md">
+              <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" />
+              <Burger opened={desktopOpened} onClick={toggleDesktop} visibleFrom="sm" size="sm" />
+              <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+                <Flex justify="flex-start" align="center" gap="xs">
+                  <Image src={icon} alt="App logo" width={36} height={36} ref={logoRef} />
+                  <Title order={!isTiny ? 3 : 4}>MetaDAO</Title>
+                </Flex>
+              </Link>
+            </Group>
 
             <Group gap="0" justify="center" ta="center">
               <div style={{ fontSize: 'small' }}>
@@ -247,12 +252,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               {!isTiny ? <ThemeSwitch /> : null}
             </Group>
           </Flex>
-          <Burger
-            opened={opened}
-            onClick={toggle}
-            hiddenFrom="sm"
-            size="sm"
-          />
         </AppShell.Header>
         <AppShell.Navbar p="md">
           <NavigationLinks />

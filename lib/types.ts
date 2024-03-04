@@ -44,6 +44,19 @@ export type OrderBookSide = {
   };
   deduped: Map<any, any>;
 };
+export type OpenbookOrderBook =
+  | {
+      bidsProcessed: OrderBookSide | null;
+      asksProcessed: OrderBookSide | null;
+      bidsArray: any[][];
+      asksArray: any[][];
+      toB: {
+        topAsk: number;
+        topBid: number;
+      };
+      spreadString: string;
+    }
+  | undefined;
 export type OrderBook =
   | {
       passBidsProcessed: OrderBookSide | null;
@@ -66,6 +79,11 @@ export type OrderBook =
       failSpreadString: string;
     }
   | undefined;
+export type OpenbookMarket = {
+  market: MarketAccount;
+  asks: LeafNode[];
+  bids: LeafNode[];
+};
 export type Markets = {
   pass: MarketAccount;
   passAsks: LeafNode[];
