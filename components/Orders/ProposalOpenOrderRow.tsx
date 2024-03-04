@@ -28,6 +28,7 @@ import { NUMERAL_FORMAT, BASE_FORMAT, QUOTE_LOTS } from '@/lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
 import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
+import { useBalances } from '@/contexts/BalancesContext';
 
 export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKey; }) {
   const theme = useMantineTheme();
@@ -38,6 +39,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
   const { markets, fetchOpenOrders } = useProposalMarkets();
   const { settleFundsTransactions, cancelOrderTransactions, editOrderTransactions } =
     useOpenbookTwap();
+  const { fetchBalance } = useBalances();
 
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);

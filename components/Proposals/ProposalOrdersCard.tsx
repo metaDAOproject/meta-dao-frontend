@@ -18,8 +18,7 @@ import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 export function ProposalOrdersCard() {
   const wallet = useWallet();
   const { proposal } = useProposal();
-  const { fetchOpenOrders, markets } = useProposalMarkets();
-  const { orders } = useProposalMarkets();
+  const { fetchOpenOrders, markets, orders } = useProposalMarkets();
 
   if (!orders || !markets) return <></>;
   const openOrders = useMemo(

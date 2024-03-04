@@ -192,34 +192,31 @@ export function ProposalMarketsProvider({
         fetchMarketsInfo();
     }, [proposal]);
 
-    const fetchOpenOrders = useCallback(
-        debounce<[PublicKey]>(async (owner: PublicKey) => {
-            const fetchProposalOpenOrders = async () => {
-                if (!openbook || !proposal) {
-                    return;
-                }
-                const passOrders = await openbook.account.openOrdersAccount.all([
-                    { memcmp: { offset: 8, bytes: owner.toBase58() } },
-                    { memcmp: { offset: 40, bytes: proposal.account.openbookPassMarket.toBase58() } },
-                ]);
-                const failOrders = await openbook.account.openOrdersAccount.all([
-                    { memcmp: { offset: 8, bytes: owner.toBase58() } },
-                    { memcmp: { offset: 40, bytes: proposal.account.openbookFailMarket.toBase58() } },
-                ]);
-                return passOrders
-                    .concat(failOrders)
-                    .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1));
-            };
+    const fetchOpenOrders = useCallback(async (owner: PublicKey) => {
+        const fetchProposalOpenOrders = async () => {
+            if (!openbook || !proposal) {
+                return;
+            }
+            const passOrders = await openbook.account.openOrdersAccount.all([
+                { memcmp: { offset: 8, bytes: owner.toBase58() } },
+                { memcmp: { offset: 40, bytes: proposal.account.openbookPassMarket.toBase58() } },
+            ]);
+            const failOrders = await openbook.account.openOrdersAccount.all([
+                { memcmp: { offset: 8, bytes: owner.toBase58() } },
+                { memcmp: { offset: 40, bytes: proposal.account.openbookFailMarket.toBase58() } },
+            ]);
+            return passOrders
+                .concat(failOrders)
+                .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1));
+        };
 
-            const orders = await client.fetchQuery({
-                queryKey: [`fetchProposalOpenOrders-${proposal?.publicKey}`],
-                queryFn: () => fetchProposalOpenOrders(),
-                staleTime: 1_000,
-            });
-            setOrders(orders ?? []);
-        }, 1000),
-        [openbook, proposal],
-    );
+        const orders = await client.fetchQuery({
+            queryKey: [`fetchProposalOpenOrders-${proposal?.publicKey}`],
+            queryFn: () => fetchProposalOpenOrders(),
+            staleTime: 1_000,
+        });
+        setOrders(orders ?? []);
+    }, [openbook, proposal]);
 
     useEffect(() => {
         if (proposal && wallet.publicKey) {
@@ -555,7 +552,7 @@ export function ProposalMarketsProvider({
             placeOrderTransactions,
             placeOrder,
         };
-    }, [orders.length, loading]);
+    }, [orders.length, loading, orderBookObject]);
 
     return (
         <ProposalMarketsContext.Provider
