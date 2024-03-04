@@ -23,7 +23,7 @@ export function useInitializeProposal() {
     fetchProposals,
   } = useAutocrat();
   const wallet = useWallet();
-  const openbook = useOpenbook();
+  const openbook = useOpenbook().program;
   const { program: openbookTwap } = useOpenbookTwap();
   const { tokens } = useTokens();
   const baseNonce: BN = new BN(daoState?.proposalCount || 0);
