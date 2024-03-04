@@ -28,7 +28,7 @@ import { NUMERAL_FORMAT, BASE_FORMAT, QUOTE_LOTS } from '@/lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
 import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 
-export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
+export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKey; }) {
   const { markets } = useProposal();
   const theme = useMantineTheme();
   const sender = useTransactionSender();
@@ -48,19 +48,29 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
   const handleCancel = useCallback(async () => {
     if (!proposal || !markets) return;
 
+    const marketAccount = proposal.account.openbookPassMarket.equals(order.account.market)
+      ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
+      : { publicKey: proposal.account.openbookFailMarket, account: markets.fail };
     const txs = await cancelOrderTransactions(
       new BN(order.account.accountNum),
-      proposal.account.openbookPassMarket.equals(order.account.market)
-        ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
-        : { publicKey: proposal.account.openbookFailMarket, account: markets.fail },
+      marketAccount,
     );
 
     if (!wallet.publicKey || !txs) return;
 
     try {
       setIsCanceling(true);
-      // Filtered undefined already
-      await sender.send(txs);
+
+      //settle funds
+      const pass = order.account.market.equals(proposal.account.openbookPassMarket);
+      const settleTxs = await settleFundsTransactions(
+        order.account.accountNum,
+        pass,
+        proposal,
+        marketAccount,
+      );
+
+      await sender.send([...txs, ...settleTxs]);
       // We already return above if the wallet doesn't have a public key
       await fetchOpenOrders(wallet.publicKey!);
     } catch (err) {
@@ -214,21 +224,21 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
         {/* Notional */}$
         {editingOrder === order
           ? numeral(
-              (editedPrice || order.account.openOrders[0].lockedPrice * QUOTE_LOTS) *
-                (editedSize ||
-                  (isBid(order)
-                    ? order.account.position.bidsBaseLots
-                    : order.account.position.asksBaseLots)),
-            ).format(NUMERAL_FORMAT)
+            (editedPrice || order.account.openOrders[0].lockedPrice * QUOTE_LOTS) *
+            (editedSize ||
+              (isBid(order)
+                ? order.account.position.bidsBaseLots
+                : order.account.position.asksBaseLots)),
+          ).format(NUMERAL_FORMAT)
           : numeral(
-              isBid(order)
-                ? order.account.position.bidsBaseLots *
-                    order.account.openOrders[0].lockedPrice *
-                    QUOTE_LOTS
-                : order.account.position.asksBaseLots *
-                    order.account.openOrders[0].lockedPrice *
-                    QUOTE_LOTS,
-            ).format(NUMERAL_FORMAT)}
+            isBid(order)
+              ? order.account.position.bidsBaseLots *
+              order.account.openOrders[0].lockedPrice *
+              QUOTE_LOTS
+              : order.account.position.asksBaseLots *
+              order.account.openOrders[0].lockedPrice *
+              QUOTE_LOTS,
+          ).format(NUMERAL_FORMAT)}
       </Table.Td>
       <Table.Td>
         {isPartiallyFilled(order) && (
