@@ -27,14 +27,15 @@ import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { NUMERAL_FORMAT, BASE_FORMAT, QUOTE_LOTS } from '@/lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
 import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
+import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 
 export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKey; }) {
-  const { markets } = useProposal();
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
   const { generateExplorerLink } = useExplorerConfiguration();
-  const { proposal, fetchOpenOrders } = useProposal();
+  const { proposal } = useProposal();
+  const { markets, fetchOpenOrders } = useProposalMarkets();
   const { settleFundsTransactions, cancelOrderTransactions, editOrderTransactions } =
     useOpenbookTwap();
 

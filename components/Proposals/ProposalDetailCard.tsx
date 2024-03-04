@@ -43,6 +43,7 @@ import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '.
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 import { Proposal } from '../../lib/types';
 import { ProposalCountdown } from './ProposalCountdown';
+import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 
 export function ProposalDetailCard() {
   const queryClient = useQueryClient();
@@ -51,8 +52,9 @@ export function ProposalDetailCard() {
   const { fetchProposals, daoTreasury, daoState } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
   const { tokens } = useTokens();
-  const { proposal, markets, orders, finalizeProposalTransactions, fetchOpenOrders } =
+  const { proposal, finalizeProposalTransactions } =
     useProposal();
+  const { markets, orders, fetchOpenOrders } = useProposalMarkets();
   const { cancelOrderTransactions, settleFundsTransactions, closeOpenOrdersAccountTransactions } =
     useOpenbookTwap();
   const sender = useTransactionSender();

@@ -22,20 +22,16 @@ import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { getLeafNodes } from '../lib/openbook';
 import { debounce } from '../lib/utils';
+import { useProposalMarkets } from './ProposalMarketsContext';
 
 export interface ProposalInterface {
   proposal?: Proposal;
   proposalNumber?: number;
-  markets?: Markets;
-  orders?: OpenOrdersAccountWithKey[];
-  orderBookObject?: OrderBook;
   loading: boolean;
   isCranking: boolean;
   metaDisabled: boolean;
   usdcDisabled: boolean;
   crankMarkets: (individualEvent?: PublicKey) => Promise<void>;
-  fetchOpenOrders: (owner: PublicKey) => Promise<void>;
-  fetchMarketsInfo: () => Promise<void>;
   createTokenAccounts: (fromBase?: boolean) => Promise<void>;
   createTokenAccountsTransactions: (fromBase?: boolean) => Promise<Transaction[] | undefined>;
   finalizeProposalTransactions: (
@@ -46,22 +42,6 @@ export interface ProposalInterface {
     fromBase?: boolean,
   ) => Promise<Transaction[] | undefined>;
   mintTokens: (amount: number, fromBase?: boolean) => Promise<void>;
-  placeOrderTransactions: (
-    amount: number,
-    price: number,
-    market: MarketAccountWithKey,
-    limitOrder?: boolean | undefined,
-    ask?: boolean | undefined,
-    pass?: boolean | undefined,
-    indexOffset?: number | undefined,
-  ) => Promise<any>;
-  placeOrder: (
-    amount: number,
-    price: number,
-    limitOrder?: boolean,
-    ask?: boolean,
-    pass?: boolean,
-  ) => Promise<void>;
 }
 
 export const proposalContext = createContext<ProposalInterface | undefined>(undefined);
@@ -84,12 +64,12 @@ export function ProposalProvider({
   fromProposal?: ProposalAccountWithKey;
 }) {
   const client = useQueryClient();
-  const { autocratProgram, dao, daoState, daoTreasury, openbook, openbookTwap, proposals } =
+  const { autocratProgram, dao, daoState, daoTreasury, proposals } =
     useAutocrat();
   const { connection } = useConnection();
+  const { markets, fetchMarketsInfo, fetchOpenOrders } = useProposalMarkets();
   const wallet = useWallet();
   const sender = useTransactionSender();
-  const { placeOrderTransactions } = useOpenbookTwap();
   const {
     program: vaultProgram,
     mintConditionalTokens,
@@ -99,8 +79,6 @@ export function ProposalProvider({
   const [loading, setLoading] = useState(false);
   const [metaDisabled, setMetaDisabled] = useState(false);
   const [usdcDisabled, setUsdcDisabled] = useState(false);
-  const [markets, setMarkets] = useState<Markets>();
-  const [orders, setOrders] = useState<OpenOrdersAccountWithKey[]>([]);
   const [isCranking, setIsCranking] = useState<boolean>(false);
   const { crankMarketTransactions } = useOpenbookTwap();
 
@@ -113,134 +91,6 @@ export function ProposalProvider({
       )[0],
     [proposals, fromProposal, proposalNumber],
   );
-
-  const fetchMarketsInfo = useCallback(
-    debounce(async () => {
-      const fetchProposalMarketsInfo = async () => {
-        if (!proposal || !openbook || !openbookTwap || !openbookTwap.views || !connection) {
-          return;
-        }
-        const accountInfos = await connection.getMultipleAccountsInfo([
-          proposal.account.openbookPassMarket,
-          proposal.account.openbookFailMarket,
-          proposal.account.openbookTwapPassMarket,
-          proposal.account.openbookTwapFailMarket,
-          proposal.account.baseVault,
-          proposal.account.quoteVault,
-        ]);
-        if (!accountInfos || accountInfos.indexOf(null) >= 0) return;
-
-        const pass = await openbook.coder.accounts.decode('market', accountInfos[0]!.data);
-        const fail = await openbook.coder.accounts.decode('market', accountInfos[1]!.data);
-        const passTwap = await openbookTwap.coder.accounts.decodeUnchecked(
-          'TWAPMarket',
-          accountInfos[2]!.data,
-        );
-        const failTwap = await openbookTwap.coder.accounts.decodeUnchecked(
-          'TWAPMarket',
-          accountInfos[3]!.data,
-        );
-        const baseVault = await vaultProgram.coder.accounts.decode(
-          'conditionalVault',
-          accountInfos[4]!.data,
-        );
-        const quoteVault = await vaultProgram.coder.accounts.decode(
-          'conditionalVault',
-          accountInfos[5]!.data,
-        );
-
-        const bookAccountInfos = await connection.getMultipleAccountsInfo([
-          pass.asks,
-          pass.bids,
-          fail.asks,
-          fail.bids,
-        ]);
-        const passAsks = getLeafNodes(
-          await openbook.coder.accounts.decode('bookSide', bookAccountInfos[0]!.data),
-          openbook,
-        );
-        const passBids = getLeafNodes(
-          await openbook.coder.accounts.decode('bookSide', bookAccountInfos[1]!.data),
-          openbook,
-        );
-        const failAsks = getLeafNodes(
-          await openbook.coder.accounts.decode('bookSide', bookAccountInfos[2]!.data),
-          openbook,
-        );
-        const failBids = getLeafNodes(
-          await openbook.coder.accounts.decode('bookSide', bookAccountInfos[3]!.data),
-          openbook,
-        );
-
-        return {
-          pass,
-          passAsks,
-          passBids,
-          fail,
-          failAsks,
-          failBids,
-          passTwap,
-          failTwap,
-          baseVault,
-          quoteVault,
-        };
-      };
-
-      const marketsInfo = await client.fetchQuery({
-        queryKey: [`fetchProposalMarketsInfo-${proposal?.publicKey}`],
-        queryFn: () => fetchProposalMarketsInfo(),
-        staleTime: 10_000,
-      });
-      setMarkets(marketsInfo);
-    }, 1000),
-    [vaultProgram, openbook, openbookTwap, proposal, connection],
-  );
-
-  useEffect(() => {
-    setMarkets(undefined);
-    fetchMarketsInfo();
-  }, [proposal]);
-
-  const fetchOpenOrders = useCallback(
-    debounce<[PublicKey]>(async (owner: PublicKey) => {
-      const fetchProposalOpenOrders = async () => {
-        if (!openbook || !proposal) {
-          return;
-        }
-        const passOrders = await openbook.account.openOrdersAccount.all([
-          { memcmp: { offset: 8, bytes: owner.toBase58() } },
-          { memcmp: { offset: 40, bytes: proposal.account.openbookPassMarket.toBase58() } },
-        ]);
-        const failOrders = await openbook.account.openOrdersAccount.all([
-          { memcmp: { offset: 8, bytes: owner.toBase58() } },
-          { memcmp: { offset: 40, bytes: proposal.account.openbookFailMarket.toBase58() } },
-        ]);
-        return passOrders
-          .concat(failOrders)
-          .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1));
-      };
-
-      const _orders = await client.fetchQuery({
-        queryKey: [`fetchProposalOpenOrders-${proposal?.publicKey}`],
-        queryFn: () => fetchProposalOpenOrders(),
-        staleTime: 1_000,
-      });
-      setOrders(_orders ?? []);
-    }, 1000),
-    [openbook, proposal],
-  );
-
-  useEffect(() => {
-    if (proposal && wallet.publicKey) {
-      fetchOpenOrders(wallet.publicKey);
-    }
-  }, [markets, fetchOpenOrders, proposal]);
-
-  useEffect(() => {
-    if (!markets && proposal) {
-      fetchMarketsInfo();
-    }
-  }, [markets, fetchMarketsInfo, proposal]);
 
   const createTokenAccountsTransactions = useCallback(
     async (fromBase?: boolean) => {
@@ -492,42 +342,6 @@ export function ProposalProvider({
     return undefined;
   }, [markets]);
 
-  const placeOrder = useCallback(
-    async (amount: number, price: number, limitOrder?: boolean, ask?: boolean, pass?: boolean) => {
-      if (!proposal || !markets) return;
-      const market = pass
-        ? { publicKey: proposal?.account.openbookPassMarket, account: markets?.pass }
-        : { publicKey: proposal?.account.openbookFailMarket, account: markets?.fail };
-      const placeTxs = await placeOrderTransactions(amount, price, market, limitOrder, ask, pass);
-
-      if (!placeTxs || !wallet.publicKey) {
-        return;
-      }
-
-      try {
-        setLoading(true);
-
-        await sender.send(placeTxs);
-        await fetchMarketsInfo();
-        await fetchOpenOrders(wallet.publicKey);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [
-      wallet,
-      proposal,
-      markets,
-      connection,
-      sender,
-      placeOrderTransactions,
-      fetchMarketsInfo,
-      fetchOpenOrders,
-    ],
-  );
-
   const crankMarkets = useCallback(
     async (individualEvent?: PublicKey) => {
       if (!proposal || !markets || !wallet?.publicKey) return;
@@ -564,23 +378,16 @@ export function ProposalProvider({
       value={{
         proposal,
         proposalNumber,
-        markets,
-        orders,
-        orderBookObject,
         loading,
         isCranking,
         metaDisabled,
         usdcDisabled,
-        fetchOpenOrders,
-        fetchMarketsInfo,
         createTokenAccounts,
         createTokenAccountsTransactions,
         crankMarkets,
         finalizeProposalTransactions,
         mintTokensTransactions,
         mintTokens,
-        placeOrderTransactions,
-        placeOrder,
       }}
     >
       {children}

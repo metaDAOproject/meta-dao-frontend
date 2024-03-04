@@ -27,12 +27,14 @@ import MarketTitle from './MarketTitle';
 import DisableNumberInputScroll from '../Utilities/DisableNumberInputScroll';
 import { useBalance } from '../../hooks/useBalance';
 import { useProvider } from '@/hooks/useProvider';
+import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 
 export function ConditionalMarketCard({ isPassMarket = false }: { isPassMarket?: boolean; }) {
   const queryClient = useQueryClient();
   const { daoState } = useAutocrat();
-  const { proposal, orderBookObject, markets, isCranking, crankMarkets, placeOrder } =
+  const { proposal, isCranking, crankMarkets } =
     useProposal();
+  const { orderBookObject, markets, placeOrder } = useProposalMarkets();
   const provider = useProvider();
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');

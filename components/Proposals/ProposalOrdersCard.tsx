@@ -13,10 +13,13 @@ import {
 import { ProposalOpenOrdersTab } from '@/components/Orders/ProposalOpenOrdersTab';
 import { ProposalUnsettledOrdersTab } from '@/components/Orders/ProposalUnsettledOrdersTab';
 import { ProposalUncrankedOrdersTab } from '@/components/Orders/ProposalUncrankedOrdersTab';
+import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 
 export function ProposalOrdersCard() {
   const wallet = useWallet();
-  const { fetchOpenOrders, proposal, orders, markets } = useProposal();
+  const { proposal } = useProposal();
+  const { fetchOpenOrders, markets } = useProposalMarkets();
+  const { orders } = useProposalMarkets();
 
   if (!orders || !markets) return <></>;
   const openOrders = useMemo(

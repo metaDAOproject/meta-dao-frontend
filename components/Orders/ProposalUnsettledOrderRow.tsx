@@ -20,15 +20,16 @@ import { BN_0 } from '@/lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
 import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useBalances } from '../../contexts/BalancesContext';
+import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 
-export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
-  const { markets } = useProposal();
+export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey; }) {
+  const { markets, fetchOpenOrders } = useProposalMarkets();
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
   const { fetchBalance } = useBalances();
   const { generateExplorerLink } = useExplorerConfiguration();
-  const { proposal, fetchOpenOrders, crankMarkets, isCranking } = useProposal();
+  const { proposal, crankMarkets, isCranking } = useProposal();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
 
   const [isSettling, setIsSettling] = useState<boolean>(false);
@@ -106,21 +107,19 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
       <Table.Td>
         <Stack gap={0}>
           <Text>
-            {`${order.account.position.baseFreeNative.toNumber() / 1_000_000_000} ${
-              isPass(order, proposal) ? 'pMETA' : 'fMETA'
-            }`}
+            {`${order.account.position.baseFreeNative.toNumber() / 1_000_000_000} ${isPass(order, proposal) ? 'pMETA' : 'fMETA'
+              }`}
           </Text>
           <Text>
-            {`${order.account.position.quoteFreeNative / 1_000_000} ${
-              isPass(order, proposal) ? 'pUSDC' : 'fUSDC'
-            }`}
+            {`${order.account.position.quoteFreeNative / 1_000_000} ${isPass(order, proposal) ? 'pUSDC' : 'fUSDC'
+              }`}
           </Text>
         </Stack>
       </Table.Td>
       <Table.Td>
         <Group>
           {order.account.position.asksBaseLots.gt(BN_0) ||
-          order.account.position.bidsBaseLots.gt(BN_0) ? (
+            order.account.position.bidsBaseLots.gt(BN_0) ? (
             <Tooltip label="Crank the market 🐷">
               <ActionIcon
                 variant="outline"

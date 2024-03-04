@@ -9,6 +9,7 @@ import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { NUMERAL_FORMAT } from '../../lib/constants';
 import { Token } from '@/hooks/useTokens';
 import useConditionalTokens from '@/hooks/useConditionalTokens';
+import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 
 interface Balance {
   token: Token;
@@ -16,16 +17,17 @@ interface Balance {
   balanceSpot: BN;
   balancePass: BN;
   balanceFail: BN;
-  fetchUnderlying: () => Promise<void>
+  fetchUnderlying: () => Promise<void>;
   fetchPass: () => Promise<void>,
-  fetchFail: () => Promise<void>
+  fetchFail: () => Promise<void>;
   finalize: PublicKey;
   revert: PublicKey;
 }
 
 export function MintConditionalTokenCard() {
   const sender = useTransactionSender();
-  const { markets, mintTokensTransactions } = useProposal();
+  const { mintTokensTransactions } = useProposal();
+  const { markets } = useProposalMarkets();
   const [mintAmount, setMintAmount] = useState<number>();
   const [isMinting, setIsMinting] = useState(false);
   if (!markets) return null;
