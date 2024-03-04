@@ -1,6 +1,7 @@
 import { ActionIcon, Group, Loader, Stack, Tabs, Text } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { IconRefresh } from '@tabler/icons-react';
+import { useMemo } from 'react';
 import { useOpenbookMarket } from '@/contexts/OpenbookMarketContext';
 import {
   isEmptyOrder,
@@ -19,6 +20,12 @@ export function MarketOrdersCard({
   const { fetchOpenOrders, orders } = useOpenbookMarket();
 
   if (!wallet || !orders) return <></>;
+  const openOrders = useMemo(
+    () => orders.filter((order) => _isOpenOrder(order, market)), [orders.length]
+  );
+  const unsettledOrders = useMemo(
+    () => orders.filter((order) => isEmptyOrder(order)), [orders.length]
+  );
 
   return !wallet || !orders ? (
     <Group justify="center" w="100%" h="100%">
@@ -48,10 +55,10 @@ export function MarketOrdersCard({
           <Tabs.Tab value="unsettled">Unsettled</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="open">
-          <OpenOrdersTab orders={orders.filter((order) => _isOpenOrder(order, market))} />
+          <OpenOrdersTab orders={openOrders} />
         </Tabs.Panel>
         <Tabs.Panel value="unsettled">
-          <UnsettledOrdersTab orders={orders.filter((order) => isEmptyOrder(order))} />
+          <UnsettledOrdersTab orders={unsettledOrders} />
         </Tabs.Panel>
       </Tabs>
     :

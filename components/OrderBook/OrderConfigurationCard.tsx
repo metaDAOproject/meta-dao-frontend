@@ -166,9 +166,6 @@ export function OrderConfigurationCard({
   const handlePlaceOrder = useCallback(async () => {
     if (!openbookMarket) return;
     try {
-      console.log('in try');
-      console.log(amount);
-      console.log(_orderPrice());
       setIsPlacingOrder(true);
       await openbookMarket.placeOrder(
         amount,
@@ -177,10 +174,8 @@ export function OrderConfigurationCard({
         isAskSide
       );
     } catch (err) {
-      console.log('error placing');
-      console.error(err);
+      // TODO: Stub for app reporting
     } finally {
-      console.log('finally');
       setIsPlacingOrder(false);
     }
   }, [openbookMarket, amount, _orderPrice(), isLimitOrder, isAskSide]);

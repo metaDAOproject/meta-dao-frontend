@@ -1,6 +1,7 @@
 import { ActionIcon, Group, Loader, Stack, Tabs, Text } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { IconRefresh } from '@tabler/icons-react';
+import { useMemo } from 'react';
 import { useProposal } from '@/contexts/ProposalContext';
 import {
   isCompletedOrder,
@@ -18,6 +19,15 @@ export function ProposalOrdersCard() {
   const { fetchOpenOrders, proposal, orders, markets } = useProposal();
 
   if (!orders || !markets) return <></>;
+  const openOrders = useMemo(
+    () => orders.filter((order) => isOpenOrder(order, markets)), [orders.length]
+  );
+  const unCrankedOrders = useMemo(
+    () => orders.filter((order) => isCompletedOrder(order, markets)), [orders.length]
+  );
+  const unsettledOrders = useMemo(
+    () => orders.filter((order) => isEmptyOrder(order)), [orders.length]
+  );
 
   return !proposal || !markets || !orders ? (
     <Group justify="center" w="100%" h="100%">
@@ -62,15 +72,15 @@ export function ProposalOrdersCard() {
           <Tabs.Tab value="unsettled">Unsettled</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="open">
-          <ProposalOpenOrdersTab orders={orders.filter((order) => isOpenOrder(order, markets))} />
+          <ProposalOpenOrdersTab orders={openOrders} />
         </Tabs.Panel>
         <Tabs.Panel value="uncranked">
           <ProposalUncrankedOrdersTab
-            orders={orders.filter((order) => isCompletedOrder(order, markets))}
+            orders={unCrankedOrders}
           />
         </Tabs.Panel>
         <Tabs.Panel value="unsettled">
-          <ProposalUnsettledOrdersTab orders={orders.filter((order) => isEmptyOrder(order))} />
+          <ProposalUnsettledOrdersTab orders={unsettledOrders} />
         </Tabs.Panel>
       </Tabs>
     </>
