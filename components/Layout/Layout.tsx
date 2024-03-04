@@ -112,7 +112,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { priorityFee, setPriorityFee } = usePriorityFee();
   const [solPrice, setSolPrice] = useState<number>();
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
-  const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(true);
+  const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(false);
 
   useFavicon(_favicon.src);
   useEffect(() => {
@@ -166,7 +166,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       >
         <AppShell.Header withBorder>
           <Flex justify="space-between" align="center" p="md" w="100%" h="100%">
-            <Group h="100%" px="md">
+            <Group p={0} m={0}>
               <Burger opened={mobileOpened} onClick={toggleMobile} hiddenFrom="sm" size="sm" />
               <Burger opened={desktopOpened} onClick={toggleDesktop} visibleFrom="sm" size="sm" />
               <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
@@ -260,7 +260,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <AppShell.Footer>
           <Card withBorder style={{ borderRadius: '0px', borderLeft: '0px', borderRight: '0px' }}>
             <Group justify="space-between" p="md">
-              <Title order={4}>the Meta-DAO</Title>
+              <Title order={4}>MetaDAO</Title>
               <Group justify="center" p="xs">
                 {links.map((link, i) => (
                   <Link

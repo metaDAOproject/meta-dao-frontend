@@ -9,6 +9,7 @@ import {
   Divider,
 } from '@mantine/core';
 import { utf8 } from '@coral-xyz/anchor/dist/cjs/utils/bytes';
+import { quoteLotsToUi, quantityToUiBase, baseLotsToUi } from '@openbook-dex/openbook-v2';
 import { useOpenbookMarket } from '@/contexts/OpenbookMarketContext';
 import { OrderBookCard } from '../OrderBook/OrderBookCard';
 import { OrderConfigurationCard } from '../OrderBook/OrderConfigurationCard';
@@ -37,7 +38,7 @@ export function MarketDetailCard() {
           {utf8.decode(new Uint8Array(openbookMarket.market.market.name)).split('\x00')[0]}
         </Title>
         <Text>Event Heap Size: {openbookMarket.eventHeapCount}</Text>
-        <Text>Event Heap Account:
+        <Text>Event Heap Account:{' '}
           <a
             href={generateExplorerLink(openbookMarket.market.market.eventHeap.toString(), 'account')}
           >
@@ -51,7 +52,7 @@ export function MarketDetailCard() {
       <Group justify="space-between">
         <Stack>
           <Title order={3}>Base</Title>
-          <Text>Mint:
+          <Text>Mint:{' '}
             <a
               href={generateExplorerLink(openbookMarket.market.market.baseMint.toString(), 'account')}
             >
@@ -60,8 +61,15 @@ export function MarketDetailCard() {
           </Text>
           <Text>Decimals: {openbookMarket.market.market.baseDecimals.toString()}</Text>
           <Text>Lot Size: {openbookMarket.market.market.baseLotSize.toString()}</Text>
-          <Text>Deposit Total: {openbookMarket.market.market.baseDepositTotal.toString()}</Text>
-          <Text>Market Vault:
+          <Text>Deposit Total:{' '}
+            {
+              (baseLotsToUi(
+                openbookMarket.market.market,
+                openbookMarket.market.market.baseDepositTotal
+              ) / openbookMarket.market.market.baseLotSize.toNumber()).toFixed(4)
+            }
+          </Text>
+          <Text>Market Vault:{' '}
             <a
               href={generateExplorerLink(openbookMarket.market.market.marketBaseVault.toString(), 'account')}
             >
@@ -72,7 +80,7 @@ export function MarketDetailCard() {
         <Divider orientation="vertical" p={10} />
         <Stack>
           <Title order={3}>Quote</Title>
-          <Text> Mint:
+          <Text>Mint:{' '}
             <a
               href={generateExplorerLink(openbookMarket.market.market.quoteMint.toString(), 'account')}
             >
@@ -81,8 +89,15 @@ export function MarketDetailCard() {
           </Text>
           <Text>Decimals: {openbookMarket.market.market.quoteDecimals.toString()}</Text>
           <Text>Lot Size: {openbookMarket.market.market.quoteLotSize.toString()}</Text>
-          <Text>Deposit Total: {openbookMarket.market.market.quoteDepositTotal.toString()}</Text>
-          <Text>Market Vault:
+          <Text>Deposit Total:{' '}
+            {
+              (quoteLotsToUi(
+                openbookMarket.market.market,
+                openbookMarket.market.market.quoteDepositTotal
+              ) / openbookMarket.market.market.quoteLotSize.toNumber()).toFixed(4)
+            }
+          </Text>
+          <Text>Market Vault:{' '}
             <a
               href={generateExplorerLink(openbookMarket.market.market.marketQuoteVault.toString(), 'account')}
             >
