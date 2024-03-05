@@ -629,7 +629,7 @@ export function ProposalMarketsProvider({
       placeOrder,
       cancelOrder,
     };
-  }, [orders, loading, passAsks.length, passBids.length, failAsks.length, failBids.length, passSpreadString, failSpreadString]);
+  }, [markets, orders, loading, passAsks.length, passBids.length, failAsks.length, failBids.length, passSpreadString, failSpreadString]);
 
   return (
     <ProposalMarketsContext.Provider
