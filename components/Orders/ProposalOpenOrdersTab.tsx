@@ -9,14 +9,15 @@ import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { useProposal } from '@/contexts/ProposalContext';
 import { isPartiallyFilled } from '@/lib/openbook';
 import { ProposalOpenOrderRow } from './ProposalOpenOrderRow';
+import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 
 const headers = ['Order ID', 'Market', 'Status', 'Size', 'Price', 'Notional', 'Actions'];
 
-export function ProposalOpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }) {
-  const { markets, isCranking, crankMarkets } = useProposal();
+export function ProposalOpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[]; }) {
+  const { isCranking, crankMarkets, proposal } = useProposal();
+  const { markets, fetchOpenOrders } = useProposalMarkets();
   const sender = useTransactionSender();
   const wallet = useWallet();
-  const { fetchOpenOrders, proposal } = useProposal();
   const { cancelOrderTransactions, settleFundsTransactions } = useOpenbookTwap();
 
   const [isCanceling, setIsCanceling] = useState<boolean>(false);

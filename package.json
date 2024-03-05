@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
+    "lint:errors": "next lint --quiet",
     "jest": "jest",
     "jest:watch": "jest --watch",
     "prettier:check": "prettier --check \"**/*.{ts,tsx}\"",

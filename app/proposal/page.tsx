@@ -6,6 +6,7 @@ import { Layout } from '@/components/Layout/Layout';
 import { ProposalDetailCard } from '@/components/Proposals/ProposalDetailCard';
 import { ProposalProvider } from '@/contexts/ProposalContext';
 import { BalancesProvider } from '../../contexts/BalancesContext';
+import { ProposalMarketsProvider } from '@/contexts/ProposalMarketsContext';
 
 export default function ProposalsPage() {
   const params = useSearchParams();
@@ -14,11 +15,13 @@ export default function ProposalsPage() {
 
   return (
     <Layout>
-      <ProposalProvider proposalNumber={proposalNumber}>
-        <BalancesProvider owner={publicKey || undefined}>
-          <ProposalDetailCard />
-        </BalancesProvider>
-      </ProposalProvider>
+      <ProposalMarketsProvider proposalNumber={proposalNumber}>
+        <ProposalProvider proposalNumber={proposalNumber}>
+          <BalancesProvider owner={publicKey || undefined}>
+            <ProposalDetailCard />
+          </BalancesProvider>
+        </ProposalProvider>
+      </ProposalMarketsProvider>
     </Layout>
   );
 }

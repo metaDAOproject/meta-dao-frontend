@@ -43,6 +43,7 @@ import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '.
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 import { Proposal } from '../../lib/types';
 import { ProposalCountdown } from './ProposalCountdown';
+import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 
 export function ProposalDetailCard() {
   const queryClient = useQueryClient();
@@ -51,8 +52,19 @@ export function ProposalDetailCard() {
   const { fetchProposals, daoTreasury, daoState } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
   const { tokens } = useTokens();
-  const { proposal, markets, orders, finalizeProposalTransactions, fetchOpenOrders } =
+  const { proposal, finalizeProposalTransactions } =
     useProposal();
+  const { orders,
+    fetchOpenOrders,
+    markets,
+    passAsks,
+    passBids,
+    failAsks,
+    failBids,
+    lastPassSlotUpdated,
+    lastFailSlotUpdated,
+    passSpreadString,
+    failSpreadString } = useProposalMarkets();
   const { cancelOrderTransactions, settleFundsTransactions, closeOpenOrdersAccountTransactions } =
     useOpenbookTwap();
   const sender = useTransactionSender();
@@ -397,8 +409,20 @@ export function ProposalDetailCard() {
         <Stack style={{ flex: 1 }}>
           {markets ? (
             <Group gap="md" justify="space-around" mt="xl" p="0">
-              <ConditionalMarketCard isPassMarket />
-              <ConditionalMarketCard />
+              <ConditionalMarketCard
+                asks={passAsks ?? []}
+                bids={passBids ?? []}
+                lastSlotUpdated={lastPassSlotUpdated}
+                spreadString={passSpreadString}
+                isPassMarket
+              />
+              <ConditionalMarketCard
+                asks={failAsks ?? []}
+                bids={failBids ?? []}
+                lastSlotUpdated={lastFailSlotUpdated}
+                spreadString={failSpreadString}
+                isPassMarket={false}
+              />
             </Group>
           ) : null}
           <ProposalOrdersCard />
