@@ -56,7 +56,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
 
     try {
       setIsCanceling(true);
-      await cancelOrder(order);
+      await cancelOrder(order, marketAccount.publicKey);
       await fetchBalance(marketAccount.account.baseMint);
       await fetchBalance(marketAccount.account.quoteMint);
     } catch (err) {
