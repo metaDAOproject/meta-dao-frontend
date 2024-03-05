@@ -468,7 +468,7 @@ export function ProposalMarketsProvider({
                 tobBid = Number(__side[0][0]);
             }
             // Calculate spread
-            const spread: number = tobAsk - tobBid;
+            const spread: number = Math.abs(tobAsk - tobBid);
             // Calculate spread percent
             const spreadPercent: string = ((spread / tobBid) * 100).toFixed(2);
             let _spreadString: string;
