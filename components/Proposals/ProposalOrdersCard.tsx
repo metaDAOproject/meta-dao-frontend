@@ -1,7 +1,6 @@
 import { ActionIcon, Group, Loader, Stack, Tabs, Text } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { IconRefresh } from '@tabler/icons-react';
-import { useMemo } from 'react';
 import { useProposal } from '@/contexts/ProposalContext';
 import {
   isCompletedOrder,
@@ -13,21 +12,17 @@ import {
 import { ProposalOpenOrdersTab } from '@/components/Orders/ProposalOpenOrdersTab';
 import { ProposalUnsettledOrdersTab } from '@/components/Orders/ProposalUnsettledOrdersTab';
 import { ProposalUncrankedOrdersTab } from '@/components/Orders/ProposalUncrankedOrdersTab';
+import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 
 export function ProposalOrdersCard() {
   const wallet = useWallet();
-  const { fetchOpenOrders, proposal, orders, markets } = useProposal();
+  const { proposal } = useProposal();
+  const { fetchOpenOrders, markets, orders } = useProposalMarkets();
 
   if (!orders || !markets) return <></>;
-  const openOrders = useMemo(
-    () => orders.filter((order) => isOpenOrder(order, markets)), [orders.length]
-  );
-  const unCrankedOrders = useMemo(
-    () => orders.filter((order) => isCompletedOrder(order, markets)), [orders.length]
-  );
-  const unsettledOrders = useMemo(
-    () => orders.filter((order) => isEmptyOrder(order)), [orders.length]
-  );
+  const openOrders = orders.filter((order) => isOpenOrder(order, markets));
+  const unCrankedOrders = orders.filter((order) => isCompletedOrder(order, markets));
+  const unsettledOrders = orders.filter((order) => isEmptyOrder(order));
 
   return !proposal || !markets || !orders ? (
     <Group justify="center" w="100%" h="100%">
