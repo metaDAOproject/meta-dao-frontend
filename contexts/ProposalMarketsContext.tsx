@@ -1,6 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { AccountInfo, Context, PublicKey } from '@solana/web3.js';
+import { useQueryClient } from '@tanstack/react-query';
+import { BN, Program } from '@coral-xyz/anchor';
+import { AnyNode, LeafNode, OpenbookV2, IDL as OPENBOOK_IDL, OPENBOOK_PROGRAM_ID } from '@openbook-dex/openbook-v2';
 import {
   MarketAccountWithKey,
   Markets,
@@ -15,9 +18,6 @@ import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { getLeafNodes } from '../lib/openbook';
 import { debounce } from '../lib/utils';
-import { useQueryClient } from '@tanstack/react-query';
-import { BN, Program } from '@coral-xyz/anchor';
-import { AnyNode, LeafNode, OpenbookV2, IDL as OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, MarketAccount } from '@openbook-dex/openbook-v2';
 import { useProvider } from '@/hooks/useProvider';
 
 export interface ProposalInterface {
@@ -64,8 +64,6 @@ export const useProposalMarkets = () => {
   return context;
 };
 
-
-
 export function ProposalMarketsProvider({
   children,
   proposalNumber,
@@ -95,8 +93,8 @@ export function ProposalMarketsProvider({
   const [passAsks, setPassAsks] = useState<any[][]>([]);
   const [failBids, setFailBids] = useState<any[][]>([]);
   const [failAsks, setFailAsks] = useState<any[][]>([]);
-  const [passSpreadString, setPassSpreadString] = useState<string>("");
-  const [failSpreadString, setFailSpreadString] = useState<string>("");
+  const [passSpreadString, setPassSpreadString] = useState<string>('');
+  const [failSpreadString, setFailSpreadString] = useState<string>('');
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [lastPassSlotUpdated, setLastPassSlotUpdated] = useState<number>(0);
   const [lastFailSlotUpdated, setLastFailSlotUpdated] = useState<number>(0);
@@ -153,18 +151,22 @@ export function ProposalMarketsProvider({
           fail.asks,
           fail.bids,
         ]);
+        // eslint-disable-next-line @typescript-eslint/no-shadow
         const passAsks = getLeafNodes(
           await openbook.coder.accounts.decode('bookSide', bookAccountInfos[0]!.data),
           openbook,
         );
+        // eslint-disable-next-line @typescript-eslint/no-shadow
         const passBids = getLeafNodes(
           await openbook.coder.accounts.decode('bookSide', bookAccountInfos[1]!.data),
           openbook,
         );
+        // eslint-disable-next-line @typescript-eslint/no-shadow
         const failAsks = getLeafNodes(
           await openbook.coder.accounts.decode('bookSide', bookAccountInfos[2]!.data),
           openbook,
         );
+        // eslint-disable-next-line @typescript-eslint/no-shadow
         const failBids = getLeafNodes(
           await openbook.coder.accounts.decode('bookSide', bookAccountInfos[3]!.data),
           openbook,
@@ -218,12 +220,12 @@ export function ProposalMarketsProvider({
         .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1));
     };
 
-    const orders = await client.fetchQuery({
+    const _orders = await client.fetchQuery({
       queryKey: [`fetchProposalOpenOrders-${proposal?.publicKey}`],
       queryFn: () => fetchProposalOpenOrders(),
       staleTime: 1_000,
     });
-    setOrders(orders ?? []);
+    setOrders(_orders ?? []);
   }, [openbook, proposal]);
 
   useEffect(() => {
@@ -363,9 +365,9 @@ export function ProposalMarketsProvider({
   );
 
   /**
-   * `consumeOrderBookSide` is our reactive consumer of OpenBook WS updates that will populate our proposal market's 
+   * `consumeOrderBookSide` is our reactive consumer of OpenBook WS updates that will populate our proposal market's
    * orderbook state for ask and bid sides. We will also use this to update the user orders(soon).
-   * 
+   *
    */
   const consumeOrderBookSide = (
     side: string,
@@ -374,7 +376,7 @@ export function ProposalMarketsProvider({
     ctx: Context,
   ): number[][] | undefined => {
     try {
-      const isPassMarket = market == proposal?.account.openbookPassMarket;
+      const isPassMarket = market === proposal?.account.openbookPassMarket;
       const leafNodes = openBookProgram.coder.accounts.decode('bookSide', updatedAccountInfo.data);
       const leafNodesData: AnyNode[] = leafNodes.nodes.nodes.filter(
         (x: AnyNode) => x.tag === 2,
@@ -391,10 +393,10 @@ export function ProposalMarketsProvider({
           return {
             price,
             size,
-            market: market,
+            market,
             owner: leafNode.owner,
             ownerSlot: leafNode.ownerSlot,
-            side: side === "asks" ? "asks" : "bids",
+            side: side === 'asks' ? 'asks' : 'bids',
             timestamp: leafNode.timestamp,
             clientOrderId: leafNode.clientOrderId,
           };
@@ -434,6 +436,7 @@ export function ProposalMarketsProvider({
         // Return default values of 0
         return [[0, 0]];
       }
+
       // Update our values for the orderbook and order list
       if (isPassMarket) {
         if (side === 'asks') {
@@ -452,7 +455,6 @@ export function ProposalMarketsProvider({
       }
 
       // Check that we have books
-
       let tobAsk: number;
       let tobBid: number;
 
@@ -486,7 +488,6 @@ export function ProposalMarketsProvider({
           (curSpreadString) => curSpreadString === _spreadString ? curSpreadString : _spreadString
         );
       }
-
       setWsConnected((curConnected) => curConnected === false);
     } catch (err) {
       // console.error(err);
@@ -521,11 +522,11 @@ export function ProposalMarketsProvider({
   const listenOrderBooks = async () => {
     if (!proposal) return;
 
-    let markets = [proposal?.account.openbookFailMarket, proposal?.account.openbookPassMarket];
+    const _markets = [proposal?.account.openbookFailMarket, proposal?.account.openbookPassMarket];
 
     // Setup for pass and fail markets
     // bubble down what the market is you are getting the update for
-    markets.forEach(async (market: PublicKey) => {
+    _markets.forEach(async (market: PublicKey) => {
       if (!wsConnected) {
         // Fetch via RPC for the openbook market
         const _market = await openBookProgram.account.market.fetch(
@@ -551,6 +552,7 @@ export function ProposalMarketsProvider({
             'processed'
           )
           );
+
           return subscriptionId;
         } catch (err) {
           setWsConnected(false);
@@ -561,7 +563,8 @@ export function ProposalMarketsProvider({
     });
   };
 
-  const cancelOrder = useCallback(async (order: OpenOrdersAccountWithKey, marketAddress: PublicKey) => {
+  const cancelOrder = useCallback(
+    async (order: OpenOrdersAccountWithKey, marketAddress: PublicKey) => {
     if (!proposal || !markets) return;
 
     const isPassMarket = marketAddress === proposal?.account.openbookPassMarket;
@@ -587,7 +590,9 @@ export function ProposalMarketsProvider({
       const txsSent = await sender.send([...txs, ...settleTxs]);
       if (txsSent.length !== 0) {
         //update order in state
-        const cancelledOrderIndex = orders.findIndex(o => o.account.accountNum == order.account.accountNum);
+        const cancelledOrderIndex = orders.findIndex(
+          o => o.account.accountNum === order.account.accountNum
+        );
         orders[cancelledOrderIndex].account.openOrders[0].isFree = 1;
         orders[cancelledOrderIndex].account.position.baseFreeNative = new BN(0);
         orders[cancelledOrderIndex].account.position.quoteFreeNative = new BN(0);
@@ -609,8 +614,7 @@ export function ProposalMarketsProvider({
     fetchMarketsInfo();
   }, [proposal]);
 
-  const memoValue = useMemo(() => {
-    return {
+  const memoValue = useMemo(() => ({
       markets,
       orders,
       orderBookObject,
@@ -628,8 +632,13 @@ export function ProposalMarketsProvider({
       placeOrderTransactions,
       placeOrder,
       cancelOrder,
-    };
-  }, [markets, orders, loading, passAsks.length, passBids.length, failAsks.length, failBids.length, passSpreadString, failSpreadString]);
+    }), [
+      markets, orders, loading, passAsks.length,
+      passBids.length, failAsks.length, failBids.length,
+      passSpreadString, failSpreadString, lastFailSlotUpdated,
+      lastPassSlotUpdated,
+    ]
+  );
 
   return (
     <ProposalMarketsContext.Provider
