@@ -1,9 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useConnection } from '@solana/wallet-adapter-react';
-import { AccountInfo, LAMPORTS_PER_SOL, PublicKey, TokenAmount } from '@solana/web3.js';
-import { AccountLayout, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { AccountInfo, PublicKey, TokenAmount } from '@solana/web3.js';
+import { AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { useQueryClient } from '@tanstack/react-query';
 import { BN } from '@coral-xyz/anchor';
+import { META_BASE_LOTS, USDC_BASE_LOTS, useTokens } from '@/hooks/useTokens';
+import { useProposalMarkets } from './ProposalMarketsContext';
 
 export const defaultAmount: TokenAmount = {
   amount: '0.0',
@@ -40,10 +42,12 @@ export function BalancesProvider({
   children: React.ReactNode;
   owner?: PublicKey;
 }) {
+  const { markets } = useProposalMarkets();
   const client = useQueryClient();
   const { connection } = useConnection();
   const [balances, setBalances] = useState<{ [ata: string]: TokenAmount }>({});
   const [websocketConnected, setWebsocketConnected] = useState<boolean>(false);
+  const { tokens } = useTokens();
 
   const fetchBalance = useCallback(
     async (mint: PublicKey | string) => {
@@ -73,34 +77,68 @@ export function BalancesProvider({
     [connection, owner],
   );
 
-  async function findTokenAccountsByOwner(walletPublicKey: PublicKey): Promise<PublicKey[]> {
-    const { value } = await connection.getTokenAccountsByOwner(walletPublicKey, {
-      programId: new PublicKey(TOKEN_PROGRAM_ID),
-    });
-
-    return value.map(({ pubkey }) => pubkey);
+  function findTokenAccountsForOwner(
+    walletPublicKey: PublicKey,
+    mints: PublicKey[],
+  ): { ata: PublicKey; mint: PublicKey }[] {
+    return mints
+      .map((mint: PublicKey) => {
+        if (!mint) return;
+        return {
+          ata: getAssociatedTokenAddressSync(mint, walletPublicKey),
+          mint,
+        };
+      })
+      .filter((p): p is { ata: PublicKey; mint: PublicKey } => !!p);
   }
 
   async function subscribeToTokenBalances() {
     if (!owner) return;
-    const tokenAccountPubkeys = await findTokenAccountsByOwner(owner);
+    // token WS for tokens we care about
+    const metaMints = [
+      tokens.meta?.publicKey,
+      markets?.baseVault.conditionalOnFinalizeTokenMint,
+      markets?.baseVault.conditionalOnRevertTokenMint,
+    ];
+    const usdcMints = [
+      tokens.usdc?.publicKey,
+      markets?.quoteVault.conditionalOnRevertTokenMint,
+      markets?.quoteVault.conditionalOnRevertTokenMint,
+    ];
 
-    for (const pubkey of tokenAccountPubkeys) {
-      connection.onAccountChange(pubkey, (accountInfo: AccountInfo<Buffer>) => {
+    const mints = [...metaMints, ...usdcMints].filter((m): m is PublicKey => !!m);
+    const atasWithMints = findTokenAccountsForOwner(owner, mints);
+
+    for (const pubkeys of atasWithMints) {
+      connection.onAccountChange(pubkeys.ata, (accountInfo: AccountInfo<Buffer>) => {
         const accountData = AccountLayout.decode(accountInfo.data);
 
-        const dividedTokenAmount = new BN(accountData.amount) / new BN(LAMPORTS_PER_SOL);
+        const relatedToken = metaMints.includes(pubkeys.mint)
+          ? { decimals: tokens.meta?.decimals, baseLots: META_BASE_LOTS }
+          : { decimals: tokens.usdc?.decimals, baseLots: USDC_BASE_LOTS };
+        if (!relatedToken) {
+          return;
+        }
+        const dividedTokenAmount = new BN(accountData.amount) / new BN(relatedToken.baseLots);
         const tokenVal: TokenAmount = {
           amount: dividedTokenAmount.toString(),
-          decimals: 9,
+          decimals: relatedToken?.decimals ?? 0,
           uiAmount: dividedTokenAmount,
           uiAmountString: dividedTokenAmount.toString(),
         };
 
-        setBalances((old) => ({
-          ...old,
-          [pubkey.toString()]: tokenVal,
-        }));
+        // compare the difference before triggering state update, if it's the same don't update
+        if (!balances[pubkeys.ata.toString()]) {
+          setBalances((old) => ({
+            ...old,
+            [pubkeys.ata.toString()]: tokenVal,
+          }));
+        } else if (balances[pubkeys.ata.toString()].amount !== tokenVal.amount) {
+          setBalances((old) => ({
+            ...old,
+            [pubkeys.ata.toString()]: tokenVal,
+          }));
+        }
       });
     }
 
@@ -108,10 +146,10 @@ export function BalancesProvider({
   }
 
   useEffect(() => {
-    if (!websocketConnected && owner) {
+    if (!websocketConnected && owner && markets) {
       subscribeToTokenBalances();
     }
-  }, [owner]);
+  }, [owner, markets]);
 
   const getBalance = useCallback(
     async (mint: PublicKey | string) => {
