@@ -21,7 +21,7 @@ import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { getLeafNodes } from '../lib/openbook';
 import { debounce } from '../lib/utils';
 import { useQueryClient } from '@tanstack/react-query';
-import { Program } from '@coral-xyz/anchor';
+import { BN, Program } from '@coral-xyz/anchor';
 import { AnyNode, LeafNode, OpenbookV2, IDL as OPENBOOK_IDL, OPENBOOK_PROGRAM_ID } from '@openbook-dex/openbook-v2';
 import { useProvider } from '@/hooks/useProvider';
 
@@ -48,6 +48,7 @@ export interface ProposalInterface {
         ask?: boolean,
         pass?: boolean,
     ) => Promise<void>;
+    cancelOrder: (order: OpenOrdersAccountWithKey) => Promise<void>;
 }
 
 export const ProposalMarketsContext = createContext<ProposalInterface | undefined>(undefined);
@@ -79,7 +80,8 @@ export function ProposalMarketsProvider({
     const { connection } = useConnection();
     const wallet = useWallet();
     const sender = useTransactionSender();
-    const { placeOrderTransactions } = useOpenbookTwap();
+    const { placeOrderTransactions, settleFundsTransactions,
+        cancelOrderTransactions } = useOpenbookTwap();
     const {
         program: vaultProgram,
     } = useConditionalVault();
@@ -532,6 +534,41 @@ export function ProposalMarketsProvider({
         });
     };
 
+    const cancelOrder = useCallback(async (order: OpenOrdersAccountWithKey) => {
+        if (!proposal || !markets) return;
+        const marketAccount = isPassMarket
+            ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
+            : { publicKey: proposal.account.openbookFailMarket, account: markets.fail };
+        const txs = await cancelOrderTransactions(
+            new BN(order.account.accountNum),
+            marketAccount,
+        );
+
+        if (!wallet.publicKey || !txs) return;
+
+        try {
+            //settle it right away
+            const settleTxs = await settleFundsTransactions(
+                order.account.accountNum,
+                isPassMarket,
+                proposal,
+                marketAccount
+            );
+
+            if (!txs) return;
+
+            const txsSent = await sender.send([...txs, ...settleTxs]);
+            if (txsSent.length !== 0) {
+                //update order in state
+                const cancelledOrderIndex = orders.findIndex(o => o.account.accountNum == order.account.accountNum);
+                orders[cancelledOrderIndex].account.openOrders[0].isFree = 1;
+                setOrders(orders);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }, [markets, proposal]);
+
     useEffect(() => {
         if (!wsConnected) {
             listenOrderBook();
@@ -551,8 +588,9 @@ export function ProposalMarketsProvider({
             fetchMarketsInfo,
             placeOrderTransactions,
             placeOrder,
+            cancelOrder,
         };
-    }, [orders.length, loading, orderBookObject]);
+    }, [orders, loading, orderBookObject]);
 
     return (
         <ProposalMarketsContext.Provider

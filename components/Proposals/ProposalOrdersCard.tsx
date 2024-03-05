@@ -21,15 +21,9 @@ export function ProposalOrdersCard() {
   const { fetchOpenOrders, markets, orders } = useProposalMarkets();
 
   if (!orders || !markets) return <></>;
-  const openOrders = useMemo(
-    () => orders.filter((order) => isOpenOrder(order, markets)), [orders.length]
-  );
-  const unCrankedOrders = useMemo(
-    () => orders.filter((order) => isCompletedOrder(order, markets)), [orders.length]
-  );
-  const unsettledOrders = useMemo(
-    () => orders.filter((order) => isEmptyOrder(order)), [orders.length]
-  );
+  const openOrders = orders.filter((order) => isOpenOrder(order, markets));
+  const unCrankedOrders = orders.filter((order) => isCompletedOrder(order, markets));
+  const unsettledOrders = orders.filter((order) => isEmptyOrder(order));
 
   return !proposal || !markets || !orders ? (
     <Group justify="center" w="100%" h="100%">

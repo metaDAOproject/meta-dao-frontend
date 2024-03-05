@@ -36,7 +36,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
   const wallet = useWallet();
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal } = useProposal();
-  const { markets, fetchOpenOrders } = useProposalMarkets();
+  const { markets, fetchOpenOrders, cancelOrder } = useProposalMarkets();
   const { settleFundsTransactions, cancelOrderTransactions, editOrderTransactions } =
     useOpenbookTwap();
   const { fetchBalance } = useBalances();
@@ -48,34 +48,19 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
   const [editedPrice, setEditedPrice] = useState<number>();
   const [isSettling, setIsSettling] = useState<boolean>(false);
 
+
   const handleCancel = useCallback(async () => {
-    if (!proposal || !markets) return;
+    if (!markets || !proposal) return;
 
     const marketAccount = proposal.account.openbookPassMarket.equals(order.account.market)
       ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
       : { publicKey: proposal.account.openbookFailMarket, account: markets.fail };
-    const txs = await cancelOrderTransactions(
-      new BN(order.account.accountNum),
-      marketAccount,
-    );
-
-    if (!wallet.publicKey || !txs) return;
 
     try {
       setIsCanceling(true);
-
-      //settle funds
-      const pass = order.account.market.equals(proposal.account.openbookPassMarket);
-      const settleTxs = await settleFundsTransactions(
-        order.account.accountNum,
-        pass,
-        proposal,
-        marketAccount,
-      );
-
-      await sender.send([...txs, ...settleTxs]);
-      // We already return above if the wallet doesn't have a public key
-      await fetchOpenOrders(wallet.publicKey!);
+      await cancelOrder(order);
+      await fetchBalance(marketAccount.account.baseMint);
+      await fetchBalance(marketAccount.account.quoteMint);
     } catch (err) {
       console.error(err);
     } finally {
