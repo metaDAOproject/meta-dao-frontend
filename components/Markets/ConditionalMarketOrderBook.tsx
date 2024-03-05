@@ -114,7 +114,7 @@ export function ConditionalMarketOrderBook({
           stylePrefix="MakeItNice"
         />
       </Card>
-      {lastSlotUpdated && <Text size="xs">Book last updated {lastSlotUpdated} (slot)</Text>}
+      {(lastSlotUpdated !== 0) ? <Text size="xs">Book last updated {lastSlotUpdated} (slot)</Text> : <Text>{' '}</Text>}
     </>
   );
 }
