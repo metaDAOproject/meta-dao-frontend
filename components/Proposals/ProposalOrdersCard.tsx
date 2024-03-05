@@ -1,7 +1,6 @@
 import { ActionIcon, Group, Loader, Stack, Tabs, Text } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { IconRefresh } from '@tabler/icons-react';
-import { useMemo } from 'react';
 import { useProposal } from '@/contexts/ProposalContext';
 import {
   isCompletedOrder,

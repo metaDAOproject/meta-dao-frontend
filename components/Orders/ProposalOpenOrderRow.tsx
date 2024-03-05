@@ -19,7 +19,6 @@ import {
   IconPencilCancel,
   IconCheck,
 } from '@tabler/icons-react';
-import { BN } from '@coral-xyz/anchor';
 import { OpenOrdersAccountWithKey } from '@/lib/types';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
@@ -47,7 +46,6 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
   const [editedSize, setEditedSize] = useState<number>();
   const [editedPrice, setEditedPrice] = useState<number>();
   const [isSettling, setIsSettling] = useState<boolean>(false);
-
 
   const handleCancel = useCallback(async () => {
     if (!markets || !proposal) return;
