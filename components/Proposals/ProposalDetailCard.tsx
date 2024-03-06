@@ -4,6 +4,7 @@ import {
   ActionIcon,
   Button,
   Card,
+  Code,
   Container,
   Divider,
   Flex,
@@ -357,7 +358,34 @@ export function ProposalDetailCard() {
             </Card>
           ) : null}
           <ProposalCountdown remainingSlots={remainingSlots} />
-          <Group wrap="wrap" justify="space-between">
+          <Text>Account:{' '}
+            <a
+              href={generateExplorerLink(proposal.publicKey.toString(), 'account')}
+              target="blank"
+            >
+              {shortKey(proposal.publicKey)}
+            </a>
+          </Text>
+          {proposal.account.instruction.data
+            &&
+            <>
+            <Text>Instruction:</Text>
+            <Stack pl={15}>
+              {(proposal.account.instruction.accounts.length > 0)
+              &&
+              <>
+              <Text size="xs">Accounts</Text>
+              {proposal.account.instruction.accounts.map((account) =>
+                <Code>{account.pubkey.toString()}</Code>
+              )}
+              </>
+              }
+              <Text size="xs">Data</Text><Code>[{Uint8Array.from(proposal.account.instruction.data).toString()}]</Code>
+              <Text size="xs">Program</Text><Code>{proposal.account.instruction.programId.toString()}</Code>
+            </Stack>
+            </>
+          }
+          <Group wrap="wrap" justify="space-between" pt={10}>
             <ExternalLink href={proposal.account.descriptionUrl} />
             <Text opacity={0.6} style={{ textAlign: 'right' }}>
               Proposed by{' '}
