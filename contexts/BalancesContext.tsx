@@ -102,7 +102,7 @@ export function BalancesProvider({
     ];
     const usdcMints = [
       tokens.usdc?.publicKey,
-      markets?.quoteVault.conditionalOnRevertTokenMint,
+      markets?.quoteVault.conditionalOnFinalizeTokenMint,
       markets?.quoteVault.conditionalOnRevertTokenMint,
     ];
 

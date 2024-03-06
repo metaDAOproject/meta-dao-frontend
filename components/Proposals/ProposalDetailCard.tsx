@@ -376,7 +376,7 @@ export function ProposalDetailCard() {
               <>
               <Text size="xs">Accounts</Text>
               {proposal.account.instruction.accounts.map((account) =>
-                <Code>{account.pubkey.toString()}</Code>
+                <Code key={account.pubkey.toString()}>{account.pubkey.toString()}</Code>
               )}
               </>
               }
