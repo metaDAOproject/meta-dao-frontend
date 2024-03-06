@@ -11,7 +11,7 @@ export function useBalance(mint?: PublicKey) {
   const account = (mint && owner)
     ? getAssociatedTokenAddressSync(new PublicKey(mint.toString()), owner, true) : null;
 
-  const balance = balances[account?.toString() ?? ""];
+  const balance = balances[account?.toString() ?? ''];
 
   useEffect(() => {
     if (mint) {

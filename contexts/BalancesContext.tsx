@@ -109,6 +109,7 @@ export function BalancesProvider({
     const mints = [...metaMints, ...usdcMints].filter((m): m is PublicKey => !!m);
     const atasWithMints = findTokenAccountsForOwner(owner, mints);
 
+    // eslint-disable-next-line no-restricted-syntax
     for (const pubkeys of atasWithMints) {
       connection.onAccountChange(pubkeys.ata, (accountInfo: AccountInfo<Buffer>) => {
         const accountData = AccountLayout.decode(accountInfo.data);
