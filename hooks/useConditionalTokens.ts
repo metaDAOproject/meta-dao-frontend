@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { useProposal } from '@/contexts/ProposalContext';
 import { useBalance } from './useBalance';
 import { Token, useTokens } from './useTokens';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
@@ -13,9 +12,6 @@ export interface ConditionalToken {
   balanceSpot: BN;
   balancePass: BN;
   balanceFail: BN;
-  fetchUnderlying: () => Promise<void>;
-  fetchPass: () => Promise<void>,
-  fetchFail: () => Promise<void>;
   finalize: PublicKey;
   revert: PublicKey;
 }
@@ -41,28 +37,22 @@ export default function useConditionalTokens() {
 
   const {
     amount: usdcBalance,
-    fetchAmount: fetchUnderlyingUsdc,
   } = useBalance(quote.underlyingTokenMint);
   const {
     amount: metaBalance,
-    fetchAmount: fetchUnderlyingMeta,
   } = useBalance(base.underlyingTokenMint);
   const {
     amount: pMetaBalance,
-    fetchAmount: fetchPassMeta,
   } = useBalance(base.conditionalOnFinalizeTokenMint);
   const {
     amount: fMetaBalance,
-    fetchAmount: fetchFailMeta,
   } = useBalance(base.conditionalOnRevertTokenMint);
 
   const {
     amount: pUsdcBalance,
-    fetchAmount: fetchPassUsdc,
   } = useBalance(quote.conditionalOnFinalizeTokenMint);
   const {
     amount: fUsdcBalance,
-    fetchAmount: fetchFailUsdc,
   } = useBalance(quote.conditionalOnRevertTokenMint);
 
   const [metaToken, setMetaToken] = useState<ConditionalToken | undefined>();
@@ -76,9 +66,6 @@ export default function useConditionalTokens() {
         balanceSpot: metaBalance,
         balancePass: pMetaBalance,
         balanceFail: fMetaBalance,
-        fetchUnderlying: fetchUnderlyingMeta,
-        fetchPass: fetchPassMeta,
-        fetchFail: fetchFailMeta,
         finalize: base.conditionalOnFinalizeTokenMint,
         revert: base.conditionalOnRevertTokenMint,
       });
@@ -88,9 +75,6 @@ export default function useConditionalTokens() {
         balanceSpot: usdcBalance,
         balancePass: pUsdcBalance,
         balanceFail: fUsdcBalance,
-        fetchUnderlying: fetchUnderlyingUsdc,
-        fetchPass: fetchPassUsdc,
-        fetchFail: fetchFailUsdc,
         finalize: quote.conditionalOnFinalizeTokenMint,
         revert: quote.conditionalOnRevertTokenMint,
       });

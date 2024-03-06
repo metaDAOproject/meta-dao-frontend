@@ -4,6 +4,9 @@ import { useLocalStorage } from '@mantine/hooks';
 import { useMemo } from 'react';
 import { Networks, useNetworkConfiguration } from './useNetworkConfiguration';
 
+export const META_BASE_LOTS = 1_000_000_000;
+export const USDC_BASE_LOTS = 1_000_000;
+
 export interface Token {
   name: string;
   symbol: string;
@@ -68,7 +71,7 @@ type TokensDict = Partial<{ [key in TokenKeys]: Token }>;
 export function useTokens() {
   const { network } = useNetworkConfiguration();
 
-  const defaultTokens = useMemo(() => {
+  const defaultTokens: TokensDict = useMemo(() => {
     switch (network) {
       case Networks.Devnet:
         return { ...staticTokens, ...devnetTokens };

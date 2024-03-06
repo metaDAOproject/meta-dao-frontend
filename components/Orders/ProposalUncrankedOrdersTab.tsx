@@ -22,7 +22,7 @@ export function ProposalUncrankedOrdersTab({ orders }: { orders: OpenOrdersAccou
           </Table.Thead>
           <Table.Tbody>
             {orders.map((order) => (
-              <ProposalOpenOrderRow order={order} />
+              <ProposalOpenOrderRow key={order.account.accountNum} order={order} />
             ))}
           </Table.Tbody>
         </Table>

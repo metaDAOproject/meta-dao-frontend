@@ -27,7 +27,7 @@ import { NUMERAL_FORMAT, BASE_FORMAT, QUOTE_LOTS } from '@/lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
 import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
-import { useBalances } from '@/contexts/BalancesContext';
+// import { useBalances } from '@/contexts/BalancesContext';
 
 export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKey; }) {
   const theme = useMantineTheme();
@@ -35,10 +35,10 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
   const wallet = useWallet();
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal } = useProposal();
-  const { markets, fetchOpenOrders, cancelOrder } = useProposalMarkets();
-  const { settleFundsTransactions, cancelOrderTransactions, editOrderTransactions } =
+  const { markets, fetchOpenOrders, cancelAndSettleOrder } = useProposalMarkets();
+  const { settleFundsTransactions, editOrderTransactions } =
     useOpenbookTwap();
-  const { fetchBalance } = useBalances();
+  // const { fetchBalance } = useBalances();
 
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -56,9 +56,11 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
 
     try {
       setIsCanceling(true);
-      await cancelOrder(order, marketAccount.publicKey);
-      await fetchBalance(marketAccount.account.baseMint);
-      await fetchBalance(marketAccount.account.quoteMint);
+      await cancelAndSettleOrder(order, marketAccount.publicKey);
+      // TODO: Commenting out so we have a reference point for the future
+      // which will allow for failover for WS issues or account issues.
+      // await fetchBalance(marketAccount.account.baseMint);
+      // await fetchBalance(marketAccount.account.quoteMint);
     } catch (err) {
       console.error(err);
     } finally {
@@ -69,7 +71,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
     proposal,
     markets,
     wallet.publicKey,
-    cancelOrderTransactions,
+    cancelAndSettleOrder,
     fetchOpenOrders,
     sender,
   ]);

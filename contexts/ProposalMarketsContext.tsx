@@ -3,7 +3,7 @@ import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { AccountInfo, Context, PublicKey } from '@solana/web3.js';
 import { useQueryClient } from '@tanstack/react-query';
 import { BN, Program } from '@coral-xyz/anchor';
-import { AnyNode, LeafNode, OpenbookV2, IDL as OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, MarketAccount } from '@openbook-dex/openbook-v2';
+import { AnyNode, LeafNode, OpenbookV2, IDL as OPENBOOK_IDL, OPENBOOK_PROGRAM_ID } from '@openbook-dex/openbook-v2';
 import {
   MarketAccountWithKey,
   Markets,
@@ -51,7 +51,7 @@ export interface ProposalInterface {
     ask?: boolean,
     pass?: boolean,
   ) => Promise<void>;
-  cancelOrder: (order: OpenOrdersAccountWithKey, marketKey: PublicKey) => Promise<void>;
+  cancelAndSettleOrder: (order: OpenOrdersAccountWithKey, marketKey: PublicKey) => Promise<void>;
 }
 
 export const ProposalMarketsContext = createContext<ProposalInterface | undefined>(undefined);
@@ -63,8 +63,6 @@ export const useProposalMarkets = () => {
   }
   return context;
 };
-
-
 
 export function ProposalMarketsProvider({
   children,
@@ -83,8 +81,8 @@ export function ProposalMarketsProvider({
   const { connection } = useConnection();
   const wallet = useWallet();
   const sender = useTransactionSender();
-  const { placeOrderTransactions, settleFundsTransactions,
-    cancelOrderTransactions } = useOpenbookTwap();
+  const { placeOrderTransactions,
+    cancelAndSettleFundsTransactions } = useOpenbookTwap();
   const {
     program: vaultProgram,
   } = useConditionalVault();
@@ -363,9 +361,9 @@ export function ProposalMarketsProvider({
   );
 
   /**
-   * `consumeOrderBookSide` is our reactive consumer of OpenBook WS updates that will populate our proposal market's 
+   * `consumeOrderBookSide` is our reactive consumer of OpenBook WS updates that will populate our proposal market's
    * orderbook state for ask and bid sides. We will also use this to update the user orders(soon).
-   * 
+   *
    */
   const consumeOrderBookSide = (
     side: string,
@@ -391,7 +389,7 @@ export function ProposalMarketsProvider({
           return {
             price,
             size,
-            market: market,
+            market,
             owner: leafNode.owner,
             ownerSlot: leafNode.ownerSlot,
             side: side === 'asks' ? 'asks' : 'bids',
@@ -521,7 +519,7 @@ export function ProposalMarketsProvider({
   const listenOrderBooks = async () => {
     if (!proposal) return;
 
-    let _markets = [proposal?.account.openbookFailMarket, proposal?.account.openbookPassMarket];
+    const _markets = [proposal?.account.openbookFailMarket, proposal?.account.openbookPassMarket];
 
     // Setup for pass and fail markets
     // bubble down events from the market for the orders
@@ -561,7 +559,7 @@ export function ProposalMarketsProvider({
     });
   };
 
-  const cancelOrder = useCallback(
+  const cancelAndSettleOrder = useCallback(
     async (order: OpenOrdersAccountWithKey, marketAddress: PublicKey) => {
       if (!proposal || !markets) return;
 
@@ -571,25 +569,21 @@ export function ProposalMarketsProvider({
         : { publicKey: proposal.account.openbookFailMarket, account: markets.fail };
 
       try {
-        const txs = await cancelOrderTransactions(
-          new BN(order.account.accountNum),
-          marketAccount,
-        );
         //settle it right away
-        const settleTxs = await settleFundsTransactions(
+        const cancelAndSettleTxs = await cancelAndSettleFundsTransactions(
           order.account.accountNum,
           isPassMarket,
           proposal,
           marketAccount
         );
 
-        if (!txs || !settleTxs) return;
+        if (!cancelAndSettleTxs) return;
 
-        const txsSent = await sender.send([...txs, ...settleTxs]);
+        const txsSent = await sender.send([...cancelAndSettleTxs]);
         if (txsSent.length !== 0) {
           //update order in state
           const cancelledOrderIndex = orders.findIndex(
-            o => o.account.accountNum == order.account.accountNum
+            o => o.account.accountNum === order.account.accountNum
           );
           orders[cancelledOrderIndex].account.openOrders[0].isFree = 1;
           orders[cancelledOrderIndex].account.position.baseFreeNative = new BN(0);
@@ -629,7 +623,7 @@ export function ProposalMarketsProvider({
     fetchMarketsInfo,
     placeOrderTransactions,
     placeOrder,
-    cancelOrder,
+    cancelAndSettleOrder,
   }), [
     markets, orders, loading, passAsks.length,
     passBids.length, failAsks.length, failBids.length,
