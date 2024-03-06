@@ -71,7 +71,7 @@ type TokensDict = Partial<{ [key in TokenKeys]: Token }>;
 export function useTokens() {
   const { network } = useNetworkConfiguration();
 
-  const defaultTokens = useMemo(() => {
+  const defaultTokens: TokensDict = useMemo(() => {
     switch (network) {
       case Networks.Devnet:
         return { ...staticTokens, ...devnetTokens };

@@ -276,7 +276,7 @@ export function useOpenbookTwap() {
       proposal: ProposalAccountWithKey,
       market: MarketAccountWithKey,
     ) => {
-      if (!wallet.publicKey || !openbook || !openbookTwap) {
+      if (!wallet.publicKey || !openbook) {
         throw new Error('Some variables are not initialized yet...');
       }
 
