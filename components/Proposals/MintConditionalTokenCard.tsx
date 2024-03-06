@@ -78,7 +78,7 @@ export function MintConditionalTokenCard() {
       <Loader />
     </Group>
   ) : (
-    <Fieldset legend="Mint Conditional Tokens" miw="350px" w="100%" pos="relative">
+    <Fieldset legend="Deposit" miw="350px" w="100%" pos="relative">
       <HoverCard position="top">
         <HoverCard.Target>
           <Group pos="absolute" top="-10px" right="0" justify="center" align="flex-start">
