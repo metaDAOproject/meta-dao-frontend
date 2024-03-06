@@ -113,7 +113,7 @@ export function JupSwapCard() {
       setIsSwapping(false);
     }
     return null;
-  }, []);
+  }, [updateAndFetchQuote, buildTransaction, inAmount]);
 
   const swapBase = () => {
     setBase((_base) => (_base === 'meta' ? 'usdc' : 'meta'));
