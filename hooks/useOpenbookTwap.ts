@@ -276,7 +276,7 @@ export function useOpenbookTwap() {
       proposal: ProposalAccountWithKey,
       market: MarketAccountWithKey,
     ) => {
-      if (!wallet.publicKey || !openbook) {
+      if (!wallet.publicKey || !openbook || !openbookTwap) {
         throw new Error('Some variables are not initialized yet...');
       }
 
@@ -324,6 +324,94 @@ export function useOpenbookTwap() {
           systemProgram: SYSTEM_PROGRAM,
         })
         .preInstructions([
+          createAssociatedTokenAccountIdempotentInstruction(
+            wallet.publicKey,
+            userBaseAccount,
+            wallet.publicKey,
+            market.account.baseMint,
+          ),
+          createAssociatedTokenAccountIdempotentInstruction(
+            wallet.publicKey,
+            userQuoteAccount,
+            wallet.publicKey,
+            market.account.quoteMint,
+          ),
+        ])
+        .transaction();
+      return [placeTx];
+    },
+    [wallet, openbook],
+  );
+
+  const cancelAndSettleFundsTransactions = useCallback(
+    async (
+      orderId: BN | number,
+      passMarket: boolean,
+      proposal: ProposalAccountWithKey,
+      market: MarketAccountWithKey,
+    ) => {
+      if (!wallet.publicKey || !openbook || !openbookTwap) {
+        throw new Error('Some variables are not initialized yet...');
+      }
+
+      const quoteVault = await getVaultMint(proposal.account.quoteVault);
+      const baseVault = await getVaultMint(proposal.account.baseVault);
+      const openOrdersAccount = findOpenOrders(new BN(orderId), wallet.publicKey);
+      // TODO: Determine if order is on pass or fail market?
+      const userBasePass = getAssociatedTokenAddressSync(
+        baseVault.conditionalOnFinalizeTokenMint,
+        wallet.publicKey,
+      );
+      const userQuotePass = getAssociatedTokenAddressSync(
+        quoteVault.conditionalOnFinalizeTokenMint,
+        wallet.publicKey,
+      );
+      const userBaseFail = getAssociatedTokenAddressSync(
+        baseVault.conditionalOnRevertTokenMint,
+        wallet.publicKey,
+      );
+      const userQuoteFail = getAssociatedTokenAddressSync(
+        quoteVault.conditionalOnRevertTokenMint,
+        wallet.publicKey,
+      );
+      let userBaseAccount = userBaseFail;
+      let userQuoteAccount = userQuoteFail;
+      if (passMarket) {
+        userBaseAccount = userBasePass;
+        userQuoteAccount = userQuotePass;
+      }
+      // TODO: 2x Txns for each side..
+      const placeTx = await openbook.program.methods
+        .settleFunds()
+        .accounts({
+          owner: wallet.publicKey,
+          penaltyPayer: wallet.publicKey,
+          openOrdersAccount,
+          market: market.publicKey,
+          marketAuthority: market.account.marketAuthority,
+          marketBaseVault: market.account.marketBaseVault,
+          marketQuoteVault: market.account.marketQuoteVault,
+          userBaseAccount,
+          userQuoteAccount,
+          referrerAccount: null,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SYSTEM_PROGRAM,
+        })
+        .preInstructions([
+          await openbookTwap.methods
+            .cancelOrderByClientId(new BN(orderId))
+            .accounts({
+              openOrdersAccount,
+              asks: market.account.asks,
+              bids: market.account.bids,
+              market: market.publicKey,
+              twapMarket: PublicKey.findProgramAddressSync(
+                [Buffer.from('twap_market'), market.publicKey.toBuffer()],
+                OPENBOOK_TWAP_PROGRAM_ID,
+              )[0],
+              openbookProgram: openbook.programId,
+            })
+            .instruction(),
           createAssociatedTokenAccountIdempotentInstruction(
             wallet.publicKey,
             userBaseAccount,
@@ -528,6 +616,7 @@ export function useOpenbookTwap() {
   return {
     placeOrderTransactions,
     cancelOrderTransactions,
+    cancelAndSettleFundsTransactions,
     closeOpenOrdersAccountTransactions,
     cancelAndPlaceOrdersTransactions,
     editOrderTransactions,

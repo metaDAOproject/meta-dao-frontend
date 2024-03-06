@@ -35,8 +35,8 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
   const wallet = useWallet();
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal } = useProposal();
-  const { markets, fetchOpenOrders, cancelOrder } = useProposalMarkets();
-  const { settleFundsTransactions, cancelOrderTransactions, editOrderTransactions } =
+  const { markets, fetchOpenOrders, cancelAndSettleOrder } = useProposalMarkets();
+  const { settleFundsTransactions, editOrderTransactions } =
     useOpenbookTwap();
   const { fetchBalance } = useBalances();
 
@@ -56,7 +56,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
 
     try {
       setIsCanceling(true);
-      await cancelOrder(order, marketAccount.publicKey);
+      await cancelAndSettleOrder(order, marketAccount.publicKey);
       await fetchBalance(marketAccount.account.baseMint);
       await fetchBalance(marketAccount.account.quoteMint);
     } catch (err) {
@@ -69,7 +69,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
     proposal,
     markets,
     wallet.publicKey,
-    cancelOrderTransactions,
+    cancelAndSettleOrder,
     fetchOpenOrders,
     sender,
   ]);
