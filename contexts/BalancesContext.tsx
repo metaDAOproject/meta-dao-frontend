@@ -1,8 +1,11 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useConnection } from '@solana/wallet-adapter-react';
-import { PublicKey, TokenAmount } from '@solana/web3.js';
-import { getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { AccountInfo, PublicKey, TokenAmount } from '@solana/web3.js';
+import { AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { useQueryClient } from '@tanstack/react-query';
+import { BN } from '@coral-xyz/anchor';
+import { META_BASE_LOTS, USDC_BASE_LOTS, useTokens } from '@/hooks/useTokens';
+import { useProposalMarkets } from './ProposalMarketsContext';
 
 export const defaultAmount: TokenAmount = {
   amount: '0.0',
@@ -10,7 +13,7 @@ export const defaultAmount: TokenAmount = {
   uiAmount: 0.0,
 };
 
-type Balances = { [token: string]: TokenAmount; };
+type Balances = { [token: string]: TokenAmount };
 
 export interface BalancesInterface {
   balances: Balances;
@@ -20,8 +23,8 @@ export interface BalancesInterface {
 
 export const balancesContext = createContext<BalancesInterface>({
   balances: {},
-  fetchBalance: () => new Promise(() => { }),
-  getBalance: () => new Promise(() => { }),
+  fetchBalance: () => new Promise(() => {}),
+  getBalance: () => new Promise(() => {}),
 });
 
 export const useBalances = () => {
@@ -39,28 +42,31 @@ export function BalancesProvider({
   children: React.ReactNode;
   owner?: PublicKey;
 }) {
+  const { markets } = useProposalMarkets();
   const client = useQueryClient();
   const { connection } = useConnection();
-  const [balances, setBalances] = useState<{ [token: string]: TokenAmount; }>({});
+  const [balances, setBalances] = useState<{ [ata: string]: TokenAmount }>({});
+  const [websocketConnected, setWebsocketConnected] = useState<boolean>(false);
+  const { tokens } = useTokens();
 
   const fetchBalance = useCallback(
     async (mint: PublicKey | string) => {
       if (connection && owner) {
-        const account = getAssociatedTokenAddressSync(new PublicKey(mint.toString()), owner, true);
+        const ata = getAssociatedTokenAddressSync(new PublicKey(mint.toString()), owner, true);
         try {
           const amount = await client.fetchQuery({
-            queryKey: [`getTokenAccountBalance-${account.toString()}-undefined`],
-            queryFn: () => connection.getTokenAccountBalance(account),
+            queryKey: [`getTokenAccountBalance-${ata.toString()}-undefined`],
+            queryFn: () => connection.getTokenAccountBalance(ata),
             staleTime: 10_000,
           });
           setBalances((old) => ({
             ...old,
-            [mint.toString()]: amount.value,
+            [ata.toString()]: amount.value,
           }));
           return amount.value;
         } catch (err) {
           console.error(
-            `Error with this account fetch ${account.toString()} (owner: ${owner.toString()}, mint: ${mint?.toString()}), please review issue and solve.`,
+            `Error with this account fetch ${ata.toString()} (owner: ${owner.toString()}, mint: ${mint?.toString()}), please review issue and solve.`,
           );
           return defaultAmount;
         }
@@ -70,6 +76,80 @@ export function BalancesProvider({
     },
     [connection, owner],
   );
+
+  function findTokenAccountsForOwner(
+    walletPublicKey: PublicKey,
+    mints: PublicKey[],
+  ): { ata: PublicKey; mint: PublicKey }[] {
+    return mints
+      .map((mint: PublicKey) => {
+        if (!mint) return;
+        return {
+          ata: getAssociatedTokenAddressSync(mint, walletPublicKey),
+          mint,
+        };
+      })
+      .filter((p): p is { ata: PublicKey; mint: PublicKey } => !!p);
+  }
+
+  async function subscribeToTokenBalances() {
+    if (!owner) return;
+    // token WS for tokens we care about
+    const metaMints = [
+      tokens.meta?.publicKey,
+      markets?.baseVault.conditionalOnFinalizeTokenMint,
+      markets?.baseVault.conditionalOnRevertTokenMint,
+    ];
+    const usdcMints = [
+      tokens.usdc?.publicKey,
+      markets?.quoteVault.conditionalOnRevertTokenMint,
+      markets?.quoteVault.conditionalOnRevertTokenMint,
+    ];
+
+    const mints = [...metaMints, ...usdcMints].filter((m): m is PublicKey => !!m);
+    const atasWithMints = findTokenAccountsForOwner(owner, mints);
+
+    for (const pubkeys of atasWithMints) {
+      connection.onAccountChange(pubkeys.ata, (accountInfo: AccountInfo<Buffer>) => {
+        const accountData = AccountLayout.decode(accountInfo.data);
+
+        const relatedToken = metaMints.includes(pubkeys.mint)
+          ? { decimals: tokens.meta?.decimals, baseLots: META_BASE_LOTS }
+          : { decimals: tokens.usdc?.decimals, baseLots: USDC_BASE_LOTS };
+        if (!relatedToken) {
+          return;
+        }
+        const dividedTokenAmount = new BN(accountData.amount) / new BN(relatedToken.baseLots);
+        const tokenVal: TokenAmount = {
+          amount: dividedTokenAmount.toString(),
+          decimals: relatedToken?.decimals ?? 0,
+          uiAmount: dividedTokenAmount,
+          uiAmountString: dividedTokenAmount.toString(),
+        };
+
+        // compare the difference before triggering state update, if it's the same don't update
+        if (!balances[pubkeys.ata.toString()]) {
+          setBalances((old) => ({
+            ...old,
+            [pubkeys.ata.toString()]: tokenVal,
+          }));
+        } else if (balances[pubkeys.ata.toString()].amount !== tokenVal.amount) {
+          setBalances((old) => ({
+            ...old,
+            [pubkeys.ata.toString()]: tokenVal,
+          }));
+        }
+      });
+    }
+
+    setWebsocketConnected(true);
+  }
+
+  useEffect(() => {
+    if (!websocketConnected && owner && markets) {
+      subscribeToTokenBalances();
+    }
+  }, [owner, markets]);
 
   const getBalance = useCallback(
     async (mint: PublicKey | string) => {
