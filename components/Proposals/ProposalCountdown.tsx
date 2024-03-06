@@ -34,6 +34,6 @@ export const ProposalCountdown: React.FC<{
     });
 
     return <>
-        {secondsLeft !== 0 && <Text fw="bold">Ends in {timeLeft}</Text>}
+        {secondsLeft !== 0 && <Text fw="bold">{timeLeft} remaining</Text>}
            </>;
 };
