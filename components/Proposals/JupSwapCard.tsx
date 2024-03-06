@@ -130,7 +130,7 @@ export function JupSwapCard() {
       <Title order={5}>Swap</Title>
       <Group justify="space-between">
         <Image priority src={poweredByJup} alt="Powered By Jupiter" />
-        {balance && balance.amount !== undefined && (
+        {balance && balance.amount && (
           <Group p={0} m={0}>
             <Text ml={0} size="xs">
               <IconWallet height={12} />
