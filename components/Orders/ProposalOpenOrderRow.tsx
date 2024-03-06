@@ -57,8 +57,10 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
     try {
       setIsCanceling(true);
       await cancelAndSettleOrder(order, marketAccount.publicKey);
-      await fetchBalance(marketAccount.account.baseMint);
-      await fetchBalance(marketAccount.account.quoteMint);
+      // TODO: Commenting out so we have a reference point for the future
+      // which will allow for failover for WS issues or account issues.
+      // await fetchBalance(marketAccount.account.baseMint);
+      // await fetchBalance(marketAccount.account.quoteMint);
     } catch (err) {
       console.error(err);
     } finally {
