@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo } from 'react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { AccountInfo, PublicKey, TokenAmount } from '@solana/web3.js';
 import { AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token';
@@ -79,11 +79,7 @@ export function BalancesProvider({
     async (ata: PublicKey | undefined) => {
       if (connection && owner && ata) {
         try {
-          const amount = await client.fetchQuery({
-            queryKey: [`getTokenAccountBalance-${ata.toString()}-undefined`],
-            queryFn: () => connection.getTokenAccountBalance(ata),
-            staleTime: 10_000,
-          });
+          const amount = await connection.getTokenAccountBalance(ata);
           return amount.value;
         } catch (err) {
           console.error(
