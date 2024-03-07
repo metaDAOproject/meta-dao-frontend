@@ -27,10 +27,14 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
-  const { fetchBalanceByMint } = useBalances();
+  const { setBalanceByMint } = useBalances();
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal, crankMarkets, isCranking } = useProposal();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
+  const isBidSide = isBid(order);
+  const balance = isBidSide
+    ? order.account.position.bidsBaseLots
+    : order.account.position.asksBaseLots;
 
   const [isSettling, setIsSettling] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
@@ -41,21 +45,32 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
     setIsSettling(true);
     try {
       const pass = order.account.market.equals(proposal.account.openbookPassMarket);
+      const marketAccount = pass
+        ? { account: markets.pass, publicKey: proposal.account.openbookPassMarket }
+        : { account: markets.fail, publicKey: proposal.account.openbookFailMarket };
       const txs = await settleFundsTransactions(
         order.account.accountNum,
         pass,
         proposal,
-        pass
-          ? { account: markets.pass, publicKey: proposal.account.openbookPassMarket }
-          : { account: markets.fail, publicKey: proposal.account.openbookFailMarket },
+        marketAccount,
       );
 
       if (!txs) return;
 
       await sender.send(txs);
       await fetchOpenOrders(wallet.publicKey);
-      fetchBalanceByMint((pass ? markets.pass : markets.fail).baseMint);
-      fetchBalanceByMint((pass ? markets.pass : markets.fail).quoteMint);
+      const relevantMint = isBidSide
+        ? marketAccount.account.quoteMint
+        : marketAccount.account.baseMint;
+      setBalanceByMint(relevantMint, (oldBalance) => {
+        const newAmount = oldBalance.uiAmount + balance.toNumber();
+        return {
+          ...oldBalance,
+          amount: newAmount.toString(),
+          uiAmount: newAmount,
+          uiAmountString: newAmount.toString(),
+        };
+      });
     } finally {
       setIsSettling(false);
     }

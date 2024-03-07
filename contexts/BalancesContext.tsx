@@ -19,10 +19,7 @@ type Balances = { [token: string]: TokenAmount };
 export interface BalancesInterface {
   balances: Balances;
   setBalance(publicKey: PublicKey, amount: TokenAmount): void;
-  setBalanceByMint(
-    mintPublicKey: PublicKey,
-    stateUpdater: (oldAmount: TokenAmount) => TokenAmount,
-  ): void;
+  setBalanceByMint(mint: PublicKey, stateUpdater: (oldAmount: TokenAmount) => TokenAmount): void;
   /**
    * @deprecated
    * Manually refetch
@@ -73,11 +70,26 @@ export function BalancesProvider({
     markets?.baseVault.conditionalOnRevertTokenMint,
   ];
 
+  const metaMintsString = useMemo(
+    () => metaMints.map((m) => m?.toString()).filter((m): m is string => !!m),
+    [metaMints],
+  );
+
+  const getAta = useCallback(
+    (publicKey: PublicKey | undefined) => {
+      if (publicKey && owner) {
+        return getAssociatedTokenAddressSync(publicKey, owner);
+      }
+    },
+    [owner],
+  );
+
   const accountSubscriptionCallback = useCallback(
     (accountInfo: AccountInfo<Buffer>) => {
       const accountData = AccountLayout.decode(accountInfo.data);
+      const isMeta = metaMintsString.includes(accountData.mint.toString());
 
-      const relatedToken = metaMints.includes(accountData.mint)
+      const relatedToken = isMeta
         ? { decimals: tokens.meta?.decimals, baseLots: META_BASE_LOTS }
         : { decimals: tokens.usdc?.decimals, baseLots: USDC_BASE_LOTS };
       if (!relatedToken) {
@@ -141,15 +153,6 @@ export function BalancesProvider({
       }
     },
     [connection, owner],
-  );
-
-  const getAta = useCallback(
-    (publicKey: PublicKey | undefined) => {
-      if (publicKey && owner) {
-        return getAssociatedTokenAddressSync(publicKey, owner);
-      }
-    },
-    [owner],
   );
 
   const metaAta = useMemo(() => getAta(tokens.meta?.publicKey), [tokens.meta?.publicKey, owner]);
@@ -230,90 +233,15 @@ export function BalancesProvider({
     balanceSetters[publicKey.toString()](amount);
   }
   function setBalanceByMint(
-    publicKey: PublicKey,
+    mint: PublicKey,
     stateUpdater: (oldAmount: TokenAmount) => TokenAmount,
   ) {
-    const ata = getAta(publicKey);
+    const ata = getAta(mint);
     if (ata) {
       const newAmount = stateUpdater(balances[ata.toString()]);
-      balanceSetters[publicKey.toString()](newAmount);
+      balanceSetters[ata.toString()](newAmount);
     }
   }
-
-  // function findTokenAccountsForOwner(
-  //   walletPublicKey: PublicKey,
-  //   mints: PublicKey[],
-  // ): { ata: PublicKey; mint: PublicKey }[] {
-  //   return mints
-  //     .map((mint: PublicKey) => {
-  //       if (!mint) return;
-  //       return {
-  //         ata: getAssociatedTokenAddressSync(mint, walletPublicKey),
-  //         mint,
-  //       };
-  //     })
-  //     .filter((p): p is { ata: PublicKey; mint: PublicKey } => !!p);
-  // }
-
-  // async function subscribeToTokenBalances() {
-  //   if (!owner) return;
-  //   // token WS for tokens we care about
-  //   const metaMints = [
-  //     tokens.meta?.publicKey,
-  //     markets?.baseVault.conditionalOnFinalizeTokenMint,
-  //     markets?.baseVault.conditionalOnRevertTokenMint,
-  //   ];
-  //   const usdcMints = [
-  //     tokens.usdc?.publicKey,
-  //     markets?.quoteVault.conditionalOnFinalizeTokenMint,
-  //     markets?.quoteVault.conditionalOnRevertTokenMint,
-  //   ];
-
-  //   const mints = [...metaMints, ...usdcMints].filter((m): m is PublicKey => !!m);
-  //   const atasWithMints = findTokenAccountsForOwner(owner, mints);
-
-  //   // eslint-disable-next-line no-restricted-syntax
-  //   for (const pubkeys of atasWithMints) {
-  //     connection.onAccountChange(pubkeys.ata, (accountInfo: AccountInfo<Buffer>) => {
-  //       const accountData = AccountLayout.decode(accountInfo.data);
-
-  //       const relatedToken = metaMints.includes(pubkeys.mint)
-  //         ? { decimals: tokens.meta?.decimals, baseLots: META_BASE_LOTS }
-  //         : { decimals: tokens.usdc?.decimals, baseLots: USDC_BASE_LOTS };
-  //       if (!relatedToken) {
-  //         return;
-  //       }
-  //       const dividedTokenAmount = new BN(accountData.amount) / new BN(relatedToken.baseLots);
-  //       const tokenVal: TokenAmount = {
-  //         amount: dividedTokenAmount.toString(),
-  //         decimals: relatedToken?.decimals ?? 0,
-  //         uiAmount: dividedTokenAmount,
-  //         uiAmountString: dividedTokenAmount.toString(),
-  //       };
-
-  //       // compare the difference before triggering state update, if it's the same don't update
-  //       if (!balances[pubkeys.ata.toString()]) {
-  //         setBalances((old) => ({
-  //           ...old,
-  //           [pubkeys.ata.toString()]: tokenVal,
-  //         }));
-  //       } else if (balances[pubkeys.ata.toString()]?.amount !== tokenVal.amount) {
-  //         setBalances((old) => ({
-  //           ...old,
-  //           [pubkeys.ata.toString()]: tokenVal,
-  //         }));
-  //       }
-  //     });
-  //   }
-
-  //   setWebsocketConnected(true);
-  // }
-
-  // useEffect(() => {
-  //   if (!websocketConnected && owner && markets) {
-  //     subscribeToTokenBalances();
-  //   }
-  // }, [owner, markets]);
 
   return (
     <balancesContext.Provider

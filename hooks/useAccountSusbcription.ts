@@ -47,6 +47,7 @@ export default function useAccountSubscription<T>(
     if (publicKey) {
       const subscription = connection.onAccountChange(publicKey, (accountInfo) => {
         const processedData = handler(accountInfo);
+        //TODO check for difference before setting query data
         queryClient.setQueryData(['accountData', publicKey], () => processedData);
         // clear any timeout that was running so we don't refetch
         if (fallbackTimeout) {

@@ -27,7 +27,8 @@ import { NUMERAL_FORMAT, BASE_FORMAT, QUOTE_LOTS } from '@/lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
 import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
-// import { useBalances } from '@/contexts/BalancesContext';
+import { useBalances } from '@/contexts/BalancesContext';
+import { BN } from '@coral-xyz/anchor';
 
 export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
   const theme = useMantineTheme();
@@ -37,7 +38,11 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
   const { proposal } = useProposal();
   const { markets, fetchOpenOrders, cancelAndSettleOrder } = useProposalMarkets();
   const { settleFundsTransactions, editOrderTransactions } = useOpenbookTwap();
-  // const { fetchBalance } = useBalances();
+  const { setBalanceByMint } = useBalances();
+  const isBidSide = isBid(order);
+  const balance = isBidSide
+    ? order.account.position.bidsBaseLots
+    : order.account.position.asksBaseLots;
 
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -56,10 +61,18 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
     try {
       setIsCanceling(true);
       await cancelAndSettleOrder(order, marketAccount.publicKey);
-      // TODO: Commenting out so we have a reference point for the future
-      // which will allow for failover for WS issues or account issues.
-      // await fetchBalance(marketAccount.account.baseMint);
-      // await fetchBalance(marketAccount.account.quoteMint);
+      const relevantMint = isBidSide
+        ? marketAccount.account.quoteMint
+        : marketAccount.account.baseMint;
+      setBalanceByMint(relevantMint, (oldBalance) => {
+        const newAmount = oldBalance.uiAmount + balance.toNumber();
+        return {
+          ...oldBalance,
+          amount: newAmount.toString(),
+          uiAmount: newAmount,
+          uiAmountString: newAmount.toString(),
+        };
+      });
     } catch (err) {
       console.error(err);
     } finally {
@@ -75,7 +88,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
       numeral(order.account.openOrders[0].lockedPrice.toString()).multiply(QUOTE_LOTS).value()!;
     const size =
       editedSize ||
-      (isBid(order)
+      (isBidSide
         ? order.account.position.bidsBaseLots
         : order.account.position.asksBaseLots
       ).toNumber();
@@ -86,7 +99,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
         amount: size,
         price,
         limitOrder: true,
-        ask: !isBid(order),
+        ask: !isBidSide,
         market: isPass(order, proposal)
           ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
           : { publicKey: proposal.account.openbookFailMarket, account: markets.fail },
@@ -156,8 +169,8 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
           />
           <Stack gap={0} justify="flex-start" align="flex-start">
             <Text>{isPass(order, proposal) ? 'PASS' : 'FAIL'}</Text>
-            <Text size="xs" c={isBid(order) ? theme.colors.green[9] : theme.colors.red[9]}>
-              {isBid(order) ? 'Bid' : 'Ask'}
+            <Text size="xs" c={isBidSide ? theme.colors.green[9] : theme.colors.red[9]}>
+              {isBidSide ? 'Bid' : 'Ask'}
             </Text>
           </Stack>
         </Group>
@@ -170,17 +183,13 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
             w="5rem"
             variant="filled"
             defaultValue={numeral(
-              isBid(order)
-                ? order.account.position.bidsBaseLots
-                : order.account.position.asksBaseLots,
+              isBidSide ? order.account.position.bidsBaseLots : order.account.position.asksBaseLots,
             ).format(BASE_FORMAT)}
             onChange={(e) => setEditedSize(Number(e.target.value))}
           />
         ) : (
           numeral(
-            isBid(order)
-              ? order.account.position.bidsBaseLots
-              : order.account.position.asksBaseLots,
+            isBidSide ? order.account.position.bidsBaseLots : order.account.position.asksBaseLots,
           ).format(BASE_FORMAT)
         )}
       </Table.Td>
@@ -205,12 +214,12 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
           ? numeral(
               (editedPrice || order.account.openOrders[0].lockedPrice * QUOTE_LOTS) *
                 (editedSize ||
-                  (isBid(order)
+                  (isBidSide
                     ? order.account.position.bidsBaseLots
                     : order.account.position.asksBaseLots)),
             ).format(NUMERAL_FORMAT)
           : numeral(
-              isBid(order)
+              isBidSide
                 ? order.account.position.bidsBaseLots *
                     order.account.openOrders[0].lockedPrice *
                     QUOTE_LOTS
