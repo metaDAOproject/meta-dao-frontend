@@ -3,8 +3,9 @@ import { AccountInfo, PublicKey } from '@solana/web3.js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 
-type Data<T> = {
+type Response<T> = {
   data: T | undefined;
+  status: 'error' | 'success' | 'pending';
 };
 /**
  * This handler will update the state directly and will also trigger a timeout to check for a websocket event or execute fallback
@@ -30,36 +31,23 @@ type AccountSubscriptionOptions<T> = {
 
 export default function useAccountSubscription<T>(
   options: AccountSubscriptionOptions<T>,
-): [Data<T>, directStateUpdate<T>] {
+): [Response<T>, directStateUpdate<T>] {
   const { publicKey, handler, fetch, globalTimeout = 45000 } = options;
   const queryClient = useQueryClient();
-  const [isFallbackTriggered, setIsFallbackTriggered] = useState(false);
-  //   const [data, setData] = useState<Data<T>>({ data: undefined });
   const [fallbackTimeout, setFallbackTimeout] = useState<NodeJS.Timeout | undefined>();
   const { connection } = useConnection();
 
   // Using React Query's useQuery to fetch and cache the initial data
-  const { data, status } = useQuery<Data<T>>({
+  const { data, status } = useQuery<T | undefined>({
     queryKey: ['accountData', publicKey],
-    queryFn: () => fetch(publicKey),
-    onSuccess: (data: T) => {
-      // Call the handler with the fetched data
-      queryClient.setQueryData(['accountData', publicKey], data);
-    },
+    queryFn: async () => fetch(publicKey),
   });
 
   useEffect(() => {
     if (publicKey) {
-      // Initial fetch of the data
-      const fetchData = async () => {
-        const initialData = await fetch(publicKey);
-        setData({ data: initialData });
-      };
-      fetchData();
-
       const subscription = connection.onAccountChange(publicKey, (accountInfo) => {
         const processedData = handler(accountInfo);
-        setData({ data: processedData });
+        queryClient.setQueryData(['accountData', publicKey], () => processedData);
         // clear any timeout that was running
         if (fallbackTimeout) {
           clearTimeout(fallbackTimeout);
@@ -74,19 +62,16 @@ export default function useAccountSubscription<T>(
         }
       };
     }
-  }, [publicKey, handler, fetch, globalTimeout]);
+  }, [publicKey, handler, fetch, globalTimeout, data]);
 
-  const updateData = (data: T) => {
-    setData({ data });
+  const updateData = (updatedData: T) => {
+    queryClient.setQueryData(['accountData', publicKey], () => updatedData);
     // Set up a fallback mechanism with timeout
-    if (fetch) {
-      const timeoutId = setTimeout(async () => {
-        const fallbackData = await fetch(publicKey);
-        setData({ data: fallbackData });
-      }, globalTimeout);
-      setFallbackTimeout(timeoutId);
-    }
+    const timeoutId = setTimeout(async () => {
+      queryClient.refetchQueries({ queryKey: ['accountData', publicKey] });
+    }, globalTimeout);
+    setFallbackTimeout(timeoutId);
   };
 
-  return [data, updateData];
+  return [{ data, status }, updateData];
 }
