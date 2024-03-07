@@ -4,7 +4,7 @@ import { AccountInfo, PublicKey, TokenAmount } from '@solana/web3.js';
 import { AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { useQueryClient } from '@tanstack/react-query';
 import { BN } from '@coral-xyz/anchor';
-import { META_BASE_LOTS, USDC_BASE_LOTS, useTokens } from '@/hooks/useTokens';
+import { META_BASE_LOTS, Token, USDC_BASE_LOTS, useTokens } from '@/hooks/useTokens';
 import { useProposalMarkets } from './ProposalMarketsContext';
 import useAccountSubscription from '@/hooks/useAccountSusbcription';
 
@@ -19,11 +19,32 @@ type Balances = { [token: string]: TokenAmount };
 export interface BalancesInterface {
   balances: Balances;
   setBalance(publicKey: PublicKey, amount: TokenAmount): void;
+  setBalanceByMint(
+    mintPublicKey: PublicKey,
+    stateUpdater: (oldAmount: TokenAmount) => TokenAmount,
+  ): void;
+  /**
+   * @deprecated
+   * Manually refetch
+   * This function is deprecated and we should replace this with a direct update to the state to avoid expensive refetches.
+   * @param publicKey address of the associated token account to be fetched
+   */
+  fetchBalance(publicKey: PublicKey): void;
+  /**
+   * @deprecated
+   * Manually refetch
+   * This function is deprecated and we should replace this with a direct update to the state to avoid expensive refetches.
+   * @param publicKey address of the associated token account to be fetched
+   */
+  fetchBalanceByMint(publicKey: PublicKey): void;
 }
 
 export const balancesContext = createContext<BalancesInterface>({
   balances: {},
   setBalance: () => {},
+  setBalanceByMint: () => {},
+  fetchBalance: () => {},
+  fetchBalanceByMint: () => {},
 });
 
 export const useBalances = () => {
@@ -42,7 +63,7 @@ export function BalancesProvider({
   owner?: PublicKey;
 }) {
   const { markets } = useProposalMarkets();
-  const client = useQueryClient();
+  const queryClient = useQueryClient();
   const { connection } = useConnection();
   const { tokens } = useTokens();
 
@@ -79,11 +100,39 @@ export function BalancesProvider({
     async (ata: PublicKey | undefined) => {
       if (connection && owner && ata) {
         try {
-          const amount = await connection.getTokenAccountBalance(ata);
+          const amount = await queryClient.fetchQuery({
+            queryKey: ['accountData', ata],
+            queryFn: async () => connection.getTokenAccountBalance(ata),
+          });
           return amount.value;
         } catch (err) {
           console.error(
             `Error with this account fetch ${ata.toString()} (owner: ${owner.toString()}), please review issue and solve.`,
+          );
+          return defaultAmount;
+        }
+      } else {
+        return defaultAmount;
+      }
+    },
+    [connection, owner],
+  );
+  const fetchBalanceByMint = useCallback(
+    async (mint: PublicKey | undefined) => {
+      if (connection && owner && mint) {
+        try {
+          const ata = getAta(mint);
+          if (ata) {
+            const amount = await queryClient.fetchQuery({
+              queryKey: ['accountData', ata],
+              queryFn: async () => connection.getTokenAccountBalance(ata),
+            });
+            return amount.value;
+          }
+          throw new Error(`Associated token address could not be found from mint: ${mint}`);
+        } catch (err) {
+          console.error(
+            `Error with this account fetch. (owner: ${owner.toString()}), please review issue and solve.`,
           );
           return defaultAmount;
         }
@@ -180,6 +229,16 @@ export function BalancesProvider({
   function setBalance(publicKey: PublicKey, amount: TokenAmount) {
     balanceSetters[publicKey.toString()](amount);
   }
+  function setBalanceByMint(
+    publicKey: PublicKey,
+    stateUpdater: (oldAmount: TokenAmount) => TokenAmount,
+  ) {
+    const ata = getAta(publicKey);
+    if (ata) {
+      const newAmount = stateUpdater(balances[ata.toString()]);
+      balanceSetters[publicKey.toString()](newAmount);
+    }
+  }
 
   // function findTokenAccountsForOwner(
   //   walletPublicKey: PublicKey,
@@ -261,6 +320,9 @@ export function BalancesProvider({
       value={{
         balances,
         setBalance,
+        setBalanceByMint,
+        fetchBalance,
+        fetchBalanceByMint,
       }}
     >
       {children}

@@ -29,15 +29,14 @@ import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 // import { useBalances } from '@/contexts/BalancesContext';
 
-export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKey; }) {
+export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal } = useProposal();
   const { markets, fetchOpenOrders, cancelAndSettleOrder } = useProposalMarkets();
-  const { settleFundsTransactions, editOrderTransactions } =
-    useOpenbookTwap();
+  const { settleFundsTransactions, editOrderTransactions } = useOpenbookTwap();
   // const { fetchBalance } = useBalances();
 
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
@@ -66,15 +65,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
     } finally {
       setIsCanceling(false);
     }
-  }, [
-    order,
-    proposal,
-    markets,
-    wallet.publicKey,
-    cancelAndSettleOrder,
-    fetchOpenOrders,
-    sender,
-  ]);
+  }, [order, proposal, markets, wallet.publicKey, cancelAndSettleOrder, fetchOpenOrders, sender]);
 
   const handleEdit = useCallback(async () => {
     if (!proposal || !markets || !editingOrder) return;
@@ -212,21 +203,21 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
         {/* Notional */}$
         {editingOrder === order
           ? numeral(
-            (editedPrice || order.account.openOrders[0].lockedPrice * QUOTE_LOTS) *
-            (editedSize ||
-              (isBid(order)
-                ? order.account.position.bidsBaseLots
-                : order.account.position.asksBaseLots)),
-          ).format(NUMERAL_FORMAT)
+              (editedPrice || order.account.openOrders[0].lockedPrice * QUOTE_LOTS) *
+                (editedSize ||
+                  (isBid(order)
+                    ? order.account.position.bidsBaseLots
+                    : order.account.position.asksBaseLots)),
+            ).format(NUMERAL_FORMAT)
           : numeral(
-            isBid(order)
-              ? order.account.position.bidsBaseLots *
-              order.account.openOrders[0].lockedPrice *
-              QUOTE_LOTS
-              : order.account.position.asksBaseLots *
-              order.account.openOrders[0].lockedPrice *
-              QUOTE_LOTS,
-          ).format(NUMERAL_FORMAT)}
+              isBid(order)
+                ? order.account.position.bidsBaseLots *
+                    order.account.openOrders[0].lockedPrice *
+                    QUOTE_LOTS
+                : order.account.position.asksBaseLots *
+                    order.account.openOrders[0].lockedPrice *
+                    QUOTE_LOTS,
+            ).format(NUMERAL_FORMAT)}
       </Table.Td>
       <Table.Td>
         {isPartiallyFilled(order) && (

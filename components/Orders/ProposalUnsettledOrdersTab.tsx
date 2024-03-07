@@ -14,12 +14,12 @@ import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 
 const headers = ['Order ID', 'Market', 'Claimable', 'Actions'];
 
-export function ProposalUnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[]; }) {
+export function ProposalUnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }) {
   const sender = useTransactionSender();
   const wallet = useWallet();
   const { proposal } = useProposal();
   const { markets, fetchOpenOrders } = useProposalMarkets();
-  const { fetchBalance } = useBalances();
+  const { fetchBalanceByMint } = useBalances();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
 
   const [isSettling, setIsSettling] = useState<boolean>(false);
@@ -57,10 +57,10 @@ export function ProposalUnsettledOrdersTab({ orders }: { orders: OpenOrdersAccou
       if (!txs) return;
       await sender.send(txs as Transaction[]);
       fetchOpenOrders(wallet.publicKey);
-      fetchBalance(markets.pass.baseMint);
-      fetchBalance(markets.pass.quoteMint);
-      fetchBalance(markets.fail.baseMint);
-      fetchBalance(markets.fail.quoteMint);
+      fetchBalanceByMint(markets.pass.baseMint);
+      fetchBalanceByMint(markets.pass.quoteMint);
+      fetchBalanceByMint(markets.fail.baseMint);
+      fetchBalanceByMint(markets.fail.quoteMint);
     } finally {
       setIsSettling(false);
     }
@@ -71,7 +71,7 @@ export function ProposalUnsettledOrdersTab({ orders }: { orders: OpenOrdersAccou
     sender,
     settleFundsTransactions,
     fetchOpenOrders,
-    fetchBalance,
+    fetchBalanceByMint,
   ]);
 
   const handleCloseAllOrders = useCallback(async () => {

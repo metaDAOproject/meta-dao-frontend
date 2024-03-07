@@ -28,7 +28,7 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
   const sender = useTransactionSender();
   const wallet = useWallet();
   const { market, marketPubkey, fetchOpenOrders } = useOpenbookMarket();
-  const { fetchBalance } = useBalances();
+  const { fetchBalanceByMint } = useBalances();
   const { generateExplorerLink } = useExplorerConfiguration();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbook();
 
@@ -40,21 +40,29 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
 
     setIsSettling(true);
     try {
-      const txs = await settleFundsTransactions(
-        order.account.accountNum,
-        { account: market.market, publicKey: marketPubkey }
-      );
+      const txs = await settleFundsTransactions(order.account.accountNum, {
+        account: market.market,
+        publicKey: marketPubkey,
+      });
 
       if (!txs) return;
 
       await sender.send(txs);
       await fetchOpenOrders(wallet.publicKey);
-      fetchBalance(market.market.baseMint);
-      fetchBalance(market.market.quoteMint);
+      fetchBalanceByMint(market.market.baseMint);
+      fetchBalanceByMint(market.market.quoteMint);
     } finally {
       setIsSettling(false);
     }
-  }, [order, market, marketPubkey, settleFundsTransactions, wallet, fetchOpenOrders, fetchBalance]);
+  }, [
+    order,
+    market,
+    marketPubkey,
+    settleFundsTransactions,
+    wallet,
+    fetchOpenOrders,
+    fetchBalanceByMint,
+  ]);
 
   const handleCloseAccount = useCallback(async () => {
     if (!market || !marketPubkey) return;
@@ -74,7 +82,9 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
     }
   }, [market, marketPubkey, sender, order, wallet]);
 
-  return !market ? (<Loader />) : (
+  return !market ? (
+    <Loader />
+  ) : (
     <Table.Tr key={order.publicKey.toString()}>
       <Table.Td>
         <a
@@ -87,10 +97,7 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
       </Table.Td>
       <Table.Td>
         <Group justify="flex-start" align="center" gap={10}>
-          <IconWriting
-            color={theme.colors.green[9]}
-            scale="xs"
-          />
+          <IconWriting color={theme.colors.green[9]} scale="xs" />
           <Stack gap={0} justify="flex-start" align="flex-start">
             <Text size="xs" c={isBid(order) ? theme.colors.green[9] : theme.colors.red[9]}>
               {isBid(order) ? 'Bid' : 'Ask'}
@@ -100,12 +107,8 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
       </Table.Td>
       <Table.Td>
         <Stack gap={0}>
-          <Text>
-            {`${baseLotsToUi(market.market, order.account.position.baseFreeNative)}`}
-          </Text>
-          <Text>
-            {`${quoteLotsToUi(market?.market, order.account.position.quoteFreeNative)}`}
-          </Text>
+          <Text>{`${baseLotsToUi(market.market, order.account.position.baseFreeNative)}`}</Text>
+          <Text>{`${quoteLotsToUi(market?.market, order.account.position.quoteFreeNative)}`}</Text>
         </Stack>
       </Table.Td>
       <Table.Td>

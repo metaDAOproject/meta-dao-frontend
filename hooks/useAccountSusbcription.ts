@@ -48,7 +48,7 @@ export default function useAccountSubscription<T>(
       const subscription = connection.onAccountChange(publicKey, (accountInfo) => {
         const processedData = handler(accountInfo);
         queryClient.setQueryData(['accountData', publicKey], () => processedData);
-        // clear any timeout that was running
+        // clear any timeout that was running so we don't refetch
         if (fallbackTimeout) {
           clearTimeout(fallbackTimeout);
         }
@@ -68,6 +68,7 @@ export default function useAccountSubscription<T>(
     queryClient.setQueryData(['accountData', publicKey], () => updatedData);
     // Set up a fallback mechanism with timeout
     const timeoutId = setTimeout(async () => {
+      // this timeout will run if a websocket event hasn't come through
       queryClient.refetchQueries({ queryKey: ['accountData', publicKey] });
     }, globalTimeout);
     setFallbackTimeout(timeoutId);

@@ -22,12 +22,12 @@ import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useBalances } from '../../contexts/BalancesContext';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 
-export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey; }) {
+export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
   const { markets, fetchOpenOrders } = useProposalMarkets();
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
-  const { fetchBalance } = useBalances();
+  const { fetchBalanceByMint } = useBalances();
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal, crankMarkets, isCranking } = useProposal();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
@@ -54,12 +54,12 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
 
       await sender.send(txs);
       await fetchOpenOrders(wallet.publicKey);
-      fetchBalance((pass ? markets.pass : markets.fail).baseMint);
-      fetchBalance((pass ? markets.pass : markets.fail).quoteMint);
+      fetchBalanceByMint((pass ? markets.pass : markets.fail).baseMint);
+      fetchBalanceByMint((pass ? markets.pass : markets.fail).quoteMint);
     } finally {
       setIsSettling(false);
     }
-  }, [order, proposal, settleFundsTransactions, wallet, fetchOpenOrders, fetchBalance]);
+  }, [order, proposal, settleFundsTransactions, wallet, fetchOpenOrders]);
 
   const handleCloseAccount = useCallback(async () => {
     if (!proposal || !markets) return;
@@ -107,19 +107,21 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
       <Table.Td>
         <Stack gap={0}>
           <Text>
-            {`${order.account.position.baseFreeNative.toNumber() / 1_000_000_000} ${isPass(order, proposal) ? 'pMETA' : 'fMETA'
-              }`}
+            {`${order.account.position.baseFreeNative.toNumber() / 1_000_000_000} ${
+              isPass(order, proposal) ? 'pMETA' : 'fMETA'
+            }`}
           </Text>
           <Text>
-            {`${order.account.position.quoteFreeNative / 1_000_000} ${isPass(order, proposal) ? 'pUSDC' : 'fUSDC'
-              }`}
+            {`${order.account.position.quoteFreeNative / 1_000_000} ${
+              isPass(order, proposal) ? 'pUSDC' : 'fUSDC'
+            }`}
           </Text>
         </Stack>
       </Table.Td>
       <Table.Td>
         <Group>
           {order.account.position.asksBaseLots.gt(BN_0) ||
-            order.account.position.bidsBaseLots.gt(BN_0) ? (
+          order.account.position.bidsBaseLots.gt(BN_0) ? (
             <Tooltip label="Crank the market 🐷">
               <ActionIcon
                 variant="outline"
