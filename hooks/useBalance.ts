@@ -1,5 +1,4 @@
 import { PublicKey } from '@solana/web3.js';
-import { useEffect } from 'react';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { defaultAmount, useBalances } from '../contexts/BalancesContext';
