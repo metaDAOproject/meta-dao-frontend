@@ -54,13 +54,9 @@ export function OrderConfigurationCard({
   const base = _marketInstrument[0];
   const quote = _marketInstrument[1];
 
-  const { amount: baseBalance } = useBalance(
-    market.market.baseMint
-  );
+  const { amount: baseBalance } = useBalance(market.market.baseMint);
 
-  const { amount: quoteBalance } = useBalance(
-    market.market.quoteMint
-  );
+  const { amount: quoteBalance } = useBalance(market.market.quoteMint);
 
   const _orderPrice = () => {
     if (isLimitOrder) {
@@ -167,12 +163,7 @@ export function OrderConfigurationCard({
     if (!openbookMarket) return;
     try {
       setIsPlacingOrder(true);
-      await openbookMarket.placeOrder(
-        amount,
-        _orderPrice(),
-        isLimitOrder,
-        isAskSide
-      );
+      await openbookMarket.placeOrder(amount, _orderPrice(), isLimitOrder, isAskSide);
     } catch (err) {
       // TODO: Stub for app reporting
     } finally {
@@ -281,15 +272,17 @@ export function OrderConfigurationCard({
         </Grid.Col>
       </Grid>
       <Group align="center" justify="space-between">
-        {baseBalance?.uiAmountString || quoteBalance?.uiAmountString ? (
+        {baseBalance?.data?.uiAmountString || quoteBalance?.data?.uiAmountString ? (
           <Group gap={0}>
             <IconWallet height={12} />
             <Text size="xs">
               {isAskSide
-                ? `${base} ${numeral(baseBalance?.uiAmountString || 0).format(BASE_FORMAT) || ''
-                }`
-                : `${quote} ${numeral(quoteBalance?.uiAmountString || 0).format(NUMERAL_FORMAT) || ''
-                }`}
+                ? `${base} ${
+                    numeral(baseBalance?.data?.uiAmountString || 0).format(BASE_FORMAT) || ''
+                  }`
+                : `${quote} ${
+                    numeral(quoteBalance?.data?.uiAmountString || 0).format(NUMERAL_FORMAT) || ''
+                  }`}
             </Text>
           </Group>
         ) : (
