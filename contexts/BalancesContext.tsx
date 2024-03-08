@@ -4,9 +4,9 @@ import { AccountInfo, PublicKey, TokenAmount } from '@solana/web3.js';
 import { AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { useQueryClient } from '@tanstack/react-query';
 import { BN } from '@coral-xyz/anchor';
-import { META_BASE_LOTS, Token, USDC_BASE_LOTS, useTokens } from '@/hooks/useTokens';
+import { META_BASE_LOTS, USDC_BASE_LOTS, useTokens } from '@/hooks/useTokens';
 import { useProposalMarkets } from './ProposalMarketsContext';
-import useAccountSubscription from '@/hooks/useAccountSusbcription';
+import useAccountSubscription, { Response } from '@/hooks/useAccountSusbcription';
 
 export const defaultAmount: TokenAmount = {
   amount: '0.0',
@@ -14,7 +14,7 @@ export const defaultAmount: TokenAmount = {
   uiAmount: 0.0,
 };
 
-type Balances = { [token: string]: TokenAmount };
+type Balances = { [token: string]: Response<TokenAmount | undefined> };
 
 export interface BalancesInterface {
   balances: Balances;
@@ -86,6 +86,7 @@ export function BalancesProvider({
 
   const accountSubscriptionCallback = useCallback(
     (accountInfo: AccountInfo<Buffer>) => {
+      // try price to lots UI please
       const accountData = AccountLayout.decode(accountInfo.data);
       const isMeta = metaMintsString.includes(accountData.mint.toString());
 
@@ -156,7 +157,7 @@ export function BalancesProvider({
   );
 
   const metaAta = useMemo(() => getAta(tokens.meta?.publicKey), [tokens.meta?.publicKey, owner]);
-  const [{ data: metaBalance }, setMetaBalance] = useAccountSubscription<TokenAmount | undefined>({
+  const [metaBalance, setMetaBalance] = useAccountSubscription<TokenAmount | undefined>({
     publicKey: metaAta,
     handler: accountSubscriptionCallback,
     fetch: fetchBalance,
@@ -165,26 +166,22 @@ export function BalancesProvider({
     () => getAta(markets?.baseVault.conditionalOnFinalizeTokenMint),
     [markets?.baseVault.conditionalOnFinalizeTokenMint],
   );
-  const [{ data: pMetaBalance }, setPmetaBalance] = useAccountSubscription<TokenAmount | undefined>(
-    {
-      publicKey: pMetaAta,
-      handler: accountSubscriptionCallback,
-      fetch: fetchBalance,
-    },
-  );
+  const [pMetaBalance, setPmetaBalance] = useAccountSubscription<TokenAmount | undefined>({
+    publicKey: pMetaAta,
+    handler: accountSubscriptionCallback,
+    fetch: fetchBalance,
+  });
   const fMetaAta = useMemo(
     () => getAta(markets?.baseVault.conditionalOnRevertTokenMint),
     [markets?.baseVault.conditionalOnRevertTokenMint],
   );
-  const [{ data: fMetaBalance }, setFmetaBalance] = useAccountSubscription<TokenAmount | undefined>(
-    {
-      publicKey: fMetaAta,
-      handler: accountSubscriptionCallback,
-      fetch: fetchBalance,
-    },
-  );
+  const [fMetaBalance, setFmetaBalance] = useAccountSubscription<TokenAmount | undefined>({
+    publicKey: fMetaAta,
+    handler: accountSubscriptionCallback,
+    fetch: fetchBalance,
+  });
   const usdcAta = useMemo(() => getAta(tokens.usdc?.publicKey), [tokens.usdc?.publicKey]);
-  const [{ data: usdcBalance }, setUsdcBalance] = useAccountSubscription<TokenAmount | undefined>({
+  const [usdcBalance, setUsdcBalance] = useAccountSubscription<TokenAmount | undefined>({
     publicKey: usdcAta,
     handler: accountSubscriptionCallback,
     fetch: fetchBalance,
@@ -193,32 +190,52 @@ export function BalancesProvider({
     () => getAta(markets?.quoteVault.conditionalOnFinalizeTokenMint),
     [markets?.quoteVault.conditionalOnFinalizeTokenMint, owner],
   );
-  const [{ data: pUsdcBalance }, setPUsdcBalance] = useAccountSubscription<TokenAmount | undefined>(
-    {
-      publicKey: pUsdcAta,
-      handler: accountSubscriptionCallback,
-      fetch: fetchBalance,
-    },
-  );
+  const [pUsdcBalance, setPUsdcBalance] = useAccountSubscription<TokenAmount | undefined>({
+    publicKey: pUsdcAta,
+    handler: accountSubscriptionCallback,
+    fetch: fetchBalance,
+  });
   const fUsdcAta = useMemo(
     () => getAta(markets?.quoteVault.conditionalOnFinalizeTokenMint),
     [markets?.quoteVault.conditionalOnFinalizeTokenMint, owner],
   );
-  const [{ data: fUsdcBalance }, setFUsdcBalance] = useAccountSubscription<TokenAmount | undefined>(
-    {
-      publicKey: fUsdcAta,
-      handler: accountSubscriptionCallback,
-      fetch: fetchBalance,
-    },
-  );
+  const [fUsdcBalance, setFUsdcBalance] = useAccountSubscription<TokenAmount | undefined>({
+    publicKey: fUsdcAta,
+    handler: accountSubscriptionCallback,
+    fetch: fetchBalance,
+  });
 
   const balances: Balances = {
-    [metaAta?.toString() ?? '']: metaBalance ?? defaultAmount,
-    [pMetaAta?.toString() ?? '']: pMetaBalance ?? defaultAmount,
-    [fMetaAta?.toString() ?? '']: fMetaBalance ?? defaultAmount,
-    [usdcAta?.toString() ?? '']: usdcBalance ?? defaultAmount,
-    [pUsdcAta?.toString() ?? '']: pUsdcBalance ?? defaultAmount,
-    [fUsdcAta?.toString() ?? '']: fUsdcBalance ?? defaultAmount,
+    [metaAta?.toString() ?? '']: metaBalance ?? {
+      data: defaultAmount,
+      isLoading: false,
+      status: 'success',
+    },
+    [pMetaAta?.toString() ?? '']: pMetaBalance ?? {
+      data: defaultAmount,
+      isLoading: false,
+      status: 'success',
+    },
+    [fMetaAta?.toString() ?? '']: fMetaBalance ?? {
+      data: defaultAmount,
+      isLoading: false,
+      status: 'success',
+    },
+    [usdcAta?.toString() ?? '']: usdcBalance ?? {
+      data: defaultAmount,
+      isLoading: false,
+      status: 'success',
+    },
+    [pUsdcAta?.toString() ?? '']: pUsdcBalance ?? {
+      data: defaultAmount,
+      isLoading: false,
+      status: 'success',
+    },
+    [fUsdcAta?.toString() ?? '']: fUsdcBalance ?? {
+      data: defaultAmount,
+      isLoading: false,
+      status: 'success',
+    },
   };
   const balanceSetters = {
     [metaAta?.toString() ?? '']: setMetaBalance,
@@ -238,8 +255,11 @@ export function BalancesProvider({
   ) {
     const ata = getAta(mint);
     if (ata) {
-      const newAmount = stateUpdater(balances[ata.toString()]);
-      balanceSetters[ata.toString()](newAmount);
+      const balance = balances[ata.toString()].data;
+      if (balance) {
+        const newAmount = stateUpdater(balance);
+        balanceSetters[ata.toString()](newAmount);
+      }
     }
   }
 

@@ -25,9 +25,10 @@ import { useProposal } from '@/contexts/ProposalContext';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import MarketTitle from './MarketTitle';
 import DisableNumberInputScroll from '../Utilities/DisableNumberInputScroll';
-import { useBalance } from '../../hooks/useBalance';
 import { useProvider } from '@/hooks/useProvider';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
+import { useBalances } from '@/contexts/BalancesContext';
+import { useBalance } from '@/hooks/useBalance';
 
 type Props = {
   asks: any[][];
@@ -48,6 +49,7 @@ export function ConditionalMarketCard({
   const { daoState } = useAutocrat();
   const { proposal, isCranking, crankMarkets } = useProposal();
   const { orderBookObject, markets, placeOrder } = useProposalMarkets();
+  const { setBalanceByMint } = useBalances();
   const provider = useProvider();
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
@@ -200,13 +202,15 @@ export function ConditionalMarketCard({
 
   const maxOrderAmount = () => {
     if (isAskSide) {
-      if (Number(baseBalance?.uiAmountString || 0) > 0) {
-        return Number(baseBalance?.uiAmountString || 0);
+      if (Number(baseBalance?.data?.uiAmountString || 0) > 0) {
+        return Number(baseBalance?.data?.uiAmountString || 0);
       }
       return 0;
     }
     if (quoteBalance && price) {
-      const _maxAmountRatio = Math.floor(Number(quoteBalance?.uiAmountString) / Number(price));
+      const _maxAmountRatio = Math.floor(
+        Number(quoteBalance?.data?.uiAmountString) / Number(price),
+      );
       return _maxAmountRatio;
     }
     return 0;
@@ -268,7 +272,30 @@ export function ConditionalMarketCard({
   const handlePlaceOrder = useCallback(async () => {
     try {
       setIsPlacingOrder(true);
-      await placeOrder(amount, _orderPrice(), isLimitOrder, isAskSide, isPassMarket);
+      const txsSent = await placeOrder(
+        amount,
+        _orderPrice(),
+        isLimitOrder,
+        isAskSide,
+        isPassMarket,
+      );
+      if (txsSent && txsSent.length > 0) {
+        const marketAccount = isPassMarket
+          ? { account: markets.pass, publicKey: proposal?.account.openbookPassMarket }
+          : { account: markets.fail, publicKey: proposal?.account.openbookFailMarket };
+        const relevantMint = isAskSide
+          ? marketAccount.account.baseMint
+          : marketAccount.account.quoteMint;
+        setBalanceByMint(relevantMint, (oldBalance) => {
+          const newAmount = (oldBalance.uiAmount ?? 0) - amount;
+          return {
+            ...oldBalance,
+            amount: newAmount.toString(),
+            uiAmount: newAmount,
+            uiAmountString: newAmount.toString(),
+          };
+        });
+      }
     } finally {
       setIsPlacingOrder(false);
     }
@@ -554,16 +581,17 @@ export function ConditionalMarketCard({
             </Grid.Col>
           </Grid>
           <Group align="center" justify="space-between">
-            {baseBalance?.uiAmountString || quoteBalance?.uiAmountString ? (
+            {baseBalance?.data?.uiAmountString || quoteBalance?.data?.uiAmountString ? (
               <Group gap={0}>
                 <IconWallet height={12} />
                 <Text size="xs">
                   {isAskSide
                     ? `${isPassMarket ? 'p' : 'f'}META ${
-                        numeral(baseBalance?.uiAmountString || 0).format(BASE_FORMAT) || ''
+                        numeral(baseBalance?.data?.uiAmountString || 0).format(BASE_FORMAT) || ''
                       }`
                     : `${isPassMarket ? 'p' : 'f'}USDC $${
-                        numeral(quoteBalance?.uiAmountString || 0).format(NUMERAL_FORMAT) || ''
+                        numeral(quoteBalance?.data?.uiAmountString || 0).format(NUMERAL_FORMAT) ||
+                        ''
                       }`}
                 </Text>
               </Group>

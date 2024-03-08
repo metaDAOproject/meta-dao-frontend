@@ -59,19 +59,21 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
 
     try {
       setIsCanceling(true);
-      await cancelAndSettleOrder(order, marketAccount.publicKey);
-      const relevantMint = isBidSide
-        ? marketAccount.account.quoteMint
-        : marketAccount.account.baseMint;
-      setBalanceByMint(relevantMint, (oldBalance) => {
-        const newAmount = oldBalance.uiAmount + balance.toNumber();
-        return {
-          ...oldBalance,
-          amount: newAmount.toString(),
-          uiAmount: newAmount,
-          uiAmountString: newAmount.toString(),
-        };
-      });
+      const txsSent = await cancelAndSettleOrder(order, marketAccount.publicKey);
+      if (txsSent && txsSent.length > 0) {
+        const relevantMint = isBidSide
+          ? marketAccount.account.quoteMint
+          : marketAccount.account.baseMint;
+        setBalanceByMint(relevantMint, (oldBalance) => {
+          const newAmount = oldBalance.uiAmount + balance.toNumber();
+          return {
+            ...oldBalance,
+            amount: newAmount.toString(),
+            uiAmount: newAmount,
+            uiAmountString: newAmount.toString(),
+          };
+        });
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -85,12 +87,13 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
     const price =
       editedPrice ||
       numeral(order.account.openOrders[0].lockedPrice.toString()).multiply(QUOTE_LOTS).value()!;
-    const size =
-      editedSize ||
-      (isBidSide
-        ? order.account.position.bidsBaseLots
-        : order.account.position.asksBaseLots
-      ).toNumber();
+    const oldSize = (
+      isBidSide ? order.account.position.bidsBaseLots : order.account.position.asksBaseLots
+    ).toNumber();
+    const size = editedSize || oldSize;
+    const marketAccount = isPass(order, proposal)
+      ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
+      : { publicKey: proposal.account.openbookFailMarket, account: markets.fail };
     const txs = (
       await editOrderTransactions({
         order,
@@ -99,9 +102,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
         price,
         limitOrder: true,
         ask: !isBidSide,
-        market: isPass(order, proposal)
-          ? { publicKey: proposal.account.openbookPassMarket, account: markets.pass }
-          : { publicKey: proposal.account.openbookFailMarket, account: markets.fail },
+        market: marketAccount,
       })
     )
       ?.flat()
@@ -109,7 +110,22 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
     if (!wallet.publicKey || !txs) return;
     try {
       setIsEditing(true);
-      await sender.send(txs);
+      const txsSent = await sender.send(txs);
+      if (txsSent.length > 0) {
+        const relevantMint = isBidSide
+          ? marketAccount.account.quoteMint
+          : marketAccount.account.baseMint;
+        const changeInSize = size - oldSize;
+        setBalanceByMint(relevantMint, (oldBalance) => {
+          const newAmount = (oldBalance.uiAmount ?? 0) - changeInSize;
+          return {
+            ...oldBalance,
+            amount: newAmount.toString(),
+            uiAmount: newAmount,
+            uiAmountString: newAmount.toString(),
+          };
+        });
+      }
       await fetchOpenOrders(wallet.publicKey);
       setEditingOrder(undefined);
     } finally {
@@ -144,6 +160,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
 
       if (!txs) return;
       await sender.send(txs);
+      //TODO add state update here
     } finally {
       setIsSettling(false);
     }

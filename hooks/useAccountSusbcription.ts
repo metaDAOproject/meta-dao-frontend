@@ -3,9 +3,10 @@ import { AccountInfo, PublicKey } from '@solana/web3.js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 
-type Response<T> = {
+export type Response<T> = {
   data: T | undefined;
   status: 'error' | 'success' | 'pending';
+  isLoading: boolean;
 };
 /**
  * This handler will update the state directly and will also trigger a timeout to check for a websocket event or execute fallback
@@ -36,12 +37,15 @@ export default function useAccountSubscription<T>(
   const queryClient = useQueryClient();
   const [fallbackTimeout, setFallbackTimeout] = useState<NodeJS.Timeout | undefined>();
   const [lastEventReceivedTime, setlastEventReceivedTime] = useState<Date | undefined>();
+  const [subscriptionConnected, setSubscriptionConnected] = useState(false);
   const { connection } = useConnection();
 
   // Using React Query's useQuery to fetch and cache the initial data
-  const { data, status } = useQuery<T | undefined>({
-    queryKey: ['accountData', publicKey],
+  // increase the stale time on this perhaps
+  const { data, status, isLoading } = useQuery<T | undefined>({
+    queryKey: ['accountData', publicKey?.toString()],
     queryFn: async () => fetch(publicKey),
+    enabled: !subscriptionConnected || !publicKey,
   });
 
   useEffect(() => {
@@ -49,37 +53,42 @@ export default function useAccountSubscription<T>(
       const subscription = connection.onAccountChange(publicKey, (accountInfo) => {
         const processedData = handler(accountInfo);
         //TODO check for difference before setting query data
-        queryClient.setQueryData(['accountData', publicKey], () => processedData);
+        queryClient.setQueryData(['accountData', publicKey?.toString()], () => processedData);
         // clear any timeout that was running so we don't refetch
         if (fallbackTimeout) {
           clearTimeout(fallbackTimeout);
         }
-
         setlastEventReceivedTime(new Date());
       });
+
+      if (subscription !== 0) {
+        //successfully subscribed
+        setSubscriptionConnected(true);
+      }
 
       //cleanup subscription and timeout
       return () => {
         clearTimeout(fallbackTimeout);
         if (subscription) {
           connection.removeAccountChangeListener(subscription);
+          setSubscriptionConnected(false);
         }
       };
     }
-  }, [publicKey, handler, fetch, globalTimeout, data]);
+  }, [publicKey?.toString(), globalTimeout, subscriptionConnected]);
 
   const updateData = (updatedData: T) => {
-    queryClient.setQueryData(['accountData', publicKey], () => updatedData);
+    queryClient.setQueryData(['accountData', publicKey?.toString()], () => updatedData);
     // If we haven't received an event in the last 3 seconds, and the values are different, create the fallback timeout
     const oneSecondAgo = new Date(new Date().getTime() - 3000);
     if ((!lastEventReceivedTime || oneSecondAgo < lastEventReceivedTime) && updatedData !== data) {
       const timeoutId = setTimeout(async () => {
         // this timeout will run if a websocket event hasn't come through
-        queryClient.refetchQueries({ queryKey: ['accountData', publicKey] });
+        queryClient.refetchQueries({ queryKey: ['accountData', publicKey?.toString()] });
       }, globalTimeout);
       setFallbackTimeout(timeoutId);
     }
   };
 
-  return [{ data, status }, updateData];
+  return [{ data, status, isLoading }, updateData];
 }
