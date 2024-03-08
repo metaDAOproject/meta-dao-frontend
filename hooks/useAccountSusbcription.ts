@@ -35,6 +35,7 @@ export default function useAccountSubscription<T>(
   const { publicKey, handler, fetch, globalTimeout = 45000 } = options;
   const queryClient = useQueryClient();
   const [fallbackTimeout, setFallbackTimeout] = useState<NodeJS.Timeout | undefined>();
+  const [lastEventReceivedTime, setlastEventReceivedTime] = useState<Date | undefined>();
   const { connection } = useConnection();
 
   // Using React Query's useQuery to fetch and cache the initial data
@@ -53,6 +54,8 @@ export default function useAccountSubscription<T>(
         if (fallbackTimeout) {
           clearTimeout(fallbackTimeout);
         }
+
+        setlastEventReceivedTime(new Date());
       });
 
       //cleanup subscription and timeout
@@ -67,12 +70,15 @@ export default function useAccountSubscription<T>(
 
   const updateData = (updatedData: T) => {
     queryClient.setQueryData(['accountData', publicKey], () => updatedData);
-    // Set up a fallback mechanism with timeout
-    const timeoutId = setTimeout(async () => {
-      // this timeout will run if a websocket event hasn't come through
-      queryClient.refetchQueries({ queryKey: ['accountData', publicKey] });
-    }, globalTimeout);
-    setFallbackTimeout(timeoutId);
+    // If we haven't received an event in the last 3 seconds, and the values are different, create the fallback timeout
+    const oneSecondAgo = new Date(new Date().getTime() - 3000);
+    if ((!lastEventReceivedTime || oneSecondAgo < lastEventReceivedTime) && updatedData !== data) {
+      const timeoutId = setTimeout(async () => {
+        // this timeout will run if a websocket event hasn't come through
+        queryClient.refetchQueries({ queryKey: ['accountData', publicKey] });
+      }, globalTimeout);
+      setFallbackTimeout(timeoutId);
+    }
   };
 
   return [{ data, status }, updateData];
