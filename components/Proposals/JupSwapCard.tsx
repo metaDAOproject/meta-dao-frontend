@@ -31,9 +31,9 @@ export function JupSwapCard() {
   const [isSwapping, setIsSwapping] = useState(false);
   const jupiterQuoteApi = createJupiterApiClient();
   const sender = useTransactionSender();
-  const balance = useBalance(
-    new PublicKey(tokens.filter((token) => token.name === base)[0].mintAddress),
-  );
+  const {
+    amount: { data: balance },
+  } = useBalance(new PublicKey(tokens.filter((token) => token.name === base)[0].mintAddress));
 
   const fetchQuote = async (amount: number, slippage: number) => {
     const baseMint: {
@@ -134,7 +134,7 @@ export function JupSwapCard() {
           <Group p={0} m={0}>
             <Text ml={0} size="xs">
               <IconWallet height={12} />
-              {balance.amount.uiAmount}
+              {balance.uiAmount}
             </Text>
           </Group>
         )}

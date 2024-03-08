@@ -22,15 +22,19 @@ import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useBalances } from '../../contexts/BalancesContext';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 
-export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey; }) {
+export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
   const { markets, fetchOpenOrders } = useProposalMarkets();
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
-  const { fetchBalance } = useBalances();
+  const { setBalanceByMint } = useBalances();
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal, crankMarkets, isCranking } = useProposal();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
+  const isBidSide = isBid(order);
+  const balance = isBidSide
+    ? order.account.position.bidsBaseLots
+    : order.account.position.asksBaseLots;
 
   const [isSettling, setIsSettling] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
@@ -41,25 +45,36 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
     setIsSettling(true);
     try {
       const pass = order.account.market.equals(proposal.account.openbookPassMarket);
+      const marketAccount = pass
+        ? { account: markets.pass, publicKey: proposal.account.openbookPassMarket }
+        : { account: markets.fail, publicKey: proposal.account.openbookFailMarket };
       const txs = await settleFundsTransactions(
         order.account.accountNum,
         pass,
         proposal,
-        pass
-          ? { account: markets.pass, publicKey: proposal.account.openbookPassMarket }
-          : { account: markets.fail, publicKey: proposal.account.openbookFailMarket },
+        marketAccount,
       );
 
       if (!txs) return;
 
       await sender.send(txs);
       await fetchOpenOrders(wallet.publicKey);
-      fetchBalance((pass ? markets.pass : markets.fail).baseMint);
-      fetchBalance((pass ? markets.pass : markets.fail).quoteMint);
+      const relevantMint = isBidSide
+        ? marketAccount.account.quoteMint
+        : marketAccount.account.baseMint;
+      setBalanceByMint(relevantMint, (oldBalance) => {
+        const newAmount = oldBalance.uiAmount + balance.toNumber();
+        return {
+          ...oldBalance,
+          amount: newAmount.toString(),
+          uiAmount: newAmount,
+          uiAmountString: newAmount.toString(),
+        };
+      });
     } finally {
       setIsSettling(false);
     }
-  }, [order, proposal, settleFundsTransactions, wallet, fetchOpenOrders, fetchBalance]);
+  }, [order, proposal, settleFundsTransactions, wallet, fetchOpenOrders]);
 
   const handleCloseAccount = useCallback(async () => {
     if (!proposal || !markets) return;
@@ -107,19 +122,21 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
       <Table.Td>
         <Stack gap={0}>
           <Text>
-            {`${order.account.position.baseFreeNative.toNumber() / 1_000_000_000} ${isPass(order, proposal) ? 'pMETA' : 'fMETA'
-              }`}
+            {`${order.account.position.baseFreeNative.toNumber() / 1_000_000_000} ${
+              isPass(order, proposal) ? 'pMETA' : 'fMETA'
+            }`}
           </Text>
           <Text>
-            {`${order.account.position.quoteFreeNative / 1_000_000} ${isPass(order, proposal) ? 'pUSDC' : 'fUSDC'
-              }`}
+            {`${order.account.position.quoteFreeNative / 1_000_000} ${
+              isPass(order, proposal) ? 'pUSDC' : 'fUSDC'
+            }`}
           </Text>
         </Stack>
       </Table.Td>
       <Table.Td>
         <Group>
           {order.account.position.asksBaseLots.gt(BN_0) ||
-            order.account.position.bidsBaseLots.gt(BN_0) ? (
+          order.account.position.bidsBaseLots.gt(BN_0) ? (
             <Tooltip label="Crank the market 🐷">
               <ActionIcon
                 variant="outline"

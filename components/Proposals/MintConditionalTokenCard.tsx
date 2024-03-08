@@ -68,6 +68,7 @@ export function MintConditionalTokenCard() {
       if (!txs) return;
 
       await sender.send(txs);
+      // TODO add direct state update here
     } finally {
       setIsMinting(false);
     }
@@ -121,7 +122,7 @@ export function MintConditionalTokenCard() {
         description={`Balance: ${numeral(token.balanceSpot?.uiAmountString || 0).format(
           NUMERAL_FORMAT,
         )} $${token.token.symbol}`}
-        placeholder="Amount to mint"
+        placeholder="Amount to deposit"
         type="number"
         onChange={(e) => setMintAmount(Number(e.target.value))}
       />
@@ -133,7 +134,8 @@ export function MintConditionalTokenCard() {
         onClick={handleMint}
         fullWidth
       >
-        Mint {mintAmount ? `${mintAmount} p${token.symbol} and ${mintAmount} f${token.symbol}` : ''}
+        Deposit{' '}
+        {mintAmount ? `${mintAmount} p${token.symbol} and ${mintAmount} f${token.symbol}` : ''}
       </Button>
     </Fieldset>
   );

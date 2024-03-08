@@ -16,7 +16,7 @@ const headers = ['Order ID', 'Market', 'Claimable', 'Actions'];
 export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }) {
   const sender = useTransactionSender();
   const wallet = useWallet();
-  const { fetchBalance } = useBalances();
+  const { fetchBalanceByMint } = useBalances();
   const { market, marketPubkey, fetchOpenOrders } = useOpenbookMarket();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbook();
 
@@ -36,10 +36,12 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
     try {
       const txs = (
         await Promise.all(
-          ordersToSettle.map((order) => settleFundsTransactions(
-              order.account.accountNum,
-              { account: market.market, publicKey: marketPubkey }
-            )),
+          ordersToSettle.map((order) =>
+            settleFundsTransactions(order.account.accountNum, {
+              account: market.market,
+              publicKey: marketPubkey,
+            }),
+          ),
         )
       )
         .flat()
@@ -48,8 +50,8 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
       if (!txs) return;
       await sender.send(txs as Transaction[]);
       fetchOpenOrders(wallet.publicKey);
-      fetchBalance(market.market.baseMint);
-      fetchBalance(market.market.quoteMint);
+      fetchBalanceByMint(market.market.baseMint);
+      fetchBalanceByMint(market.market.quoteMint);
     } finally {
       setIsSettling(false);
     }
@@ -60,7 +62,7 @@ export function UnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKe
     sender,
     settleFundsTransactions,
     fetchOpenOrders,
-    fetchBalance,
+    fetchBalanceByMint,
   ]);
 
   const handleCloseAllOrders = useCallback(async () => {
