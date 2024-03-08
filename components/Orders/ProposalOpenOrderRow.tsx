@@ -110,22 +110,23 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
     if (!wallet.publicKey || !txs) return;
     try {
       setIsEditing(true);
-      const txsSent = await sender.send(txs);
-      if (txsSent.length > 0) {
-        const relevantMint = isBidSide
-          ? marketAccount.account.quoteMint
-          : marketAccount.account.baseMint;
-        const changeInSize = size - oldSize;
-        setBalanceByMint(relevantMint, (oldBalance) => {
-          const newAmount = (oldBalance.uiAmount ?? 0) - changeInSize;
-          return {
-            ...oldBalance,
-            amount: newAmount.toString(),
-            uiAmount: newAmount,
-            uiAmountString: newAmount.toString(),
-          };
-        });
-      }
+      await sender.send(txs);
+      // TODO, once edit working as expected, enable this
+      // if (txsSent.length > 0) {
+      //   const relevantMint = isBidSide
+      //     ? marketAccount.account.quoteMint
+      //     : marketAccount.account.baseMint;
+      //   const changeInSize = size - oldSize;
+      //   setBalanceByMint(relevantMint, (oldBalance) => {
+      //     const newAmount = (oldBalance.uiAmount ?? 0) - changeInSize;
+      //     return {
+      //       ...oldBalance,
+      //       amount: newAmount.toString(),
+      //       uiAmount: newAmount,
+      //       uiAmountString: newAmount.toString(),
+      //     };
+      //   });
+      // }
       await fetchOpenOrders(wallet.publicKey);
       setEditingOrder(undefined);
     } finally {

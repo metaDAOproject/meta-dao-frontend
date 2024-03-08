@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { BN } from '@coral-xyz/anchor';
 import { META_BASE_LOTS, USDC_BASE_LOTS, useTokens } from '@/hooks/useTokens';
 import { useProposalMarkets } from './ProposalMarketsContext';
-import useAccountSubscription, { Response } from '@/hooks/useAccountSusbcription';
+import useAccountSubscription, { Response } from '@/hooks/useAccountSubscription';
 
 export const defaultAmount: TokenAmount = {
   amount: '0.0',
@@ -114,15 +114,15 @@ export function BalancesProvider({
       if (connection && owner && ata) {
         try {
           const amount = await queryClient.fetchQuery({
-            queryKey: ['accountData', ata],
+            queryKey: ['accountData', ata?.toString()],
             queryFn: async () => connection.getTokenAccountBalance(ata),
           });
           return amount.value;
         } catch (err) {
           console.error(
             `Error with this account fetch ${ata.toString()} (owner: ${owner.toString()}), please review issue and solve.`,
+            err,
           );
-          return defaultAmount;
         }
       } else {
         return defaultAmount;

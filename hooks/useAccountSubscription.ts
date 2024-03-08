@@ -52,6 +52,7 @@ export default function useAccountSubscription<T>(
     if (publicKey) {
       const subscription = connection.onAccountChange(publicKey, (accountInfo) => {
         const processedData = handler(accountInfo);
+
         //TODO check for difference before setting query data
         queryClient.setQueryData(['accountData', publicKey?.toString()], () => processedData);
         // clear any timeout that was running so we don't refetch
@@ -80,8 +81,11 @@ export default function useAccountSubscription<T>(
   const updateData = (updatedData: T) => {
     queryClient.setQueryData(['accountData', publicKey?.toString()], () => updatedData);
     // If we haven't received an event in the last 3 seconds, and the values are different, create the fallback timeout
-    const oneSecondAgo = new Date(new Date().getTime() - 3000);
-    if ((!lastEventReceivedTime || oneSecondAgo < lastEventReceivedTime) && updatedData !== data) {
+    const threeSecondsAgo = new Date(new Date().getTime() - 3000);
+    if (
+      (!lastEventReceivedTime || threeSecondsAgo < lastEventReceivedTime) &&
+      updatedData !== data
+    ) {
       const timeoutId = setTimeout(async () => {
         // this timeout will run if a websocket event hasn't come through
         queryClient.refetchQueries({ queryKey: ['accountData', publicKey?.toString()] });
