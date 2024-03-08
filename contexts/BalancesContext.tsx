@@ -196,8 +196,8 @@ export function BalancesProvider({
     fetch: fetchBalance,
   });
   const fUsdcAta = useMemo(
-    () => getAta(markets?.quoteVault.conditionalOnFinalizeTokenMint),
-    [markets?.quoteVault.conditionalOnFinalizeTokenMint, owner],
+    () => getAta(markets?.quoteVault.conditionalOnRevertTokenMint),
+    [markets?.quoteVault.conditionalOnRevertTokenMint, owner],
   );
   const [fUsdcBalance, setFUsdcBalance] = useAccountSubscription<TokenAmount | undefined>({
     publicKey: fUsdcAta,
