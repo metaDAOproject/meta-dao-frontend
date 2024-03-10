@@ -82,10 +82,7 @@ export default function useAccountSubscription<T>(
     queryClient.setQueryData(['accountData', publicKey?.toString()], () => updatedData);
     // If we haven't received an event in the last 3 seconds, and the values are different, create the fallback timeout
     const threeSecondsAgo = new Date(new Date().getTime() - 3000);
-    if (
-      (!lastEventReceivedTime || threeSecondsAgo < lastEventReceivedTime) &&
-      updatedData !== data
-    ) {
+    if (!lastEventReceivedTime || threeSecondsAgo < lastEventReceivedTime) {
       const timeoutId = setTimeout(async () => {
         // this timeout will run if a websocket event hasn't come through
         queryClient.refetchQueries({ queryKey: ['accountData', publicKey?.toString()] });

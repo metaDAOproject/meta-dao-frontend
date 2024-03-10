@@ -7,6 +7,10 @@ import { BN } from '@coral-xyz/anchor';
 import { META_BASE_LOTS, USDC_BASE_LOTS, useTokens } from '@/hooks/useTokens';
 import { useProposalMarkets } from './ProposalMarketsContext';
 import useAccountSubscription, { Response } from '@/hooks/useAccountSubscription';
+import { MarketAccountWithKey } from '@/lib/types';
+import useMultiAccountSubscription, {
+  SubscriptionAccount,
+} from '@/hooks/useMultiAccountSubscription';
 
 export const defaultAmount: TokenAmount = {
   amount: '0.0',
@@ -52,28 +56,50 @@ export const useBalances = () => {
   return context;
 };
 
+type tokenMetaData = {
+  decimals: number;
+  lotSize: number;
+};
+
 export function BalancesProvider({
   children,
   owner,
+  markets,
 }: {
   children: React.ReactNode;
   owner?: PublicKey;
+  // accept an array of market accounts with keys
+  markets: MarketAccountWithKey[];
 }) {
-  const { markets } = useProposalMarkets();
   const queryClient = useQueryClient();
   const { connection } = useConnection();
   const { tokens } = useTokens();
 
-  const metaMints = [
-    tokens.meta?.publicKey,
-    markets?.baseVault.conditionalOnFinalizeTokenMint,
-    markets?.baseVault.conditionalOnRevertTokenMint,
-  ];
-
-  const metaMintsString = useMemo(
-    () => metaMints.map((m) => m?.toString()).filter((m): m is string => !!m),
-    [metaMints],
+  const accounts: SubscriptionAccount<tokenMetaData>[] = useMemo(
+    () =>
+      markets.flatMap((m) => [
+        {
+          publicKey: m.account.baseMint,
+          metaData: {
+            decimals: m.account.baseDecimals,
+            lotSize: 10 ^ m.account.baseDecimals,
+          },
+        },
+        {
+          publicKey: m.account.quoteMint,
+          metaData: {
+            decimals: m.account.quoteDecimals,
+            lotSize: 10 ^ m.account.quoteDecimals,
+          },
+        },
+      ]),
+    [markets],
   );
+
+  // const metaMintsString = useMemo(
+  //   () => metaMints.map((m) => m?.toString()).filter((m): m is string => !!m),
+  //   [metaMints],
+  // );
 
   const getAta = useCallback(
     (publicKey: PublicKey | undefined) => {
@@ -84,30 +110,21 @@ export function BalancesProvider({
     [owner],
   );
 
-  const accountSubscriptionCallback = useCallback(
-    (accountInfo: AccountInfo<Buffer>) => {
-      // try price to lots UI please
-      const accountData = AccountLayout.decode(accountInfo.data);
-      const isMeta = metaMintsString.includes(accountData.mint.toString());
+  const accountSubscriptionCallback = (
+    accountInfo: AccountInfo<Buffer>,
+    metaData: tokenMetaData,
+  ) => {
+    const accountData = AccountLayout.decode(accountInfo.data);
+    const dividedTokenAmount = new BN(accountData.amount) / new BN(metaData.lotSize);
+    const tokenVal: TokenAmount = {
+      amount: dividedTokenAmount.toString(),
+      decimals: metaData.decimals,
+      uiAmount: dividedTokenAmount,
+      uiAmountString: dividedTokenAmount.toString(),
+    };
 
-      const relatedToken = isMeta
-        ? { decimals: tokens.meta?.decimals, baseLots: META_BASE_LOTS }
-        : { decimals: tokens.usdc?.decimals, baseLots: USDC_BASE_LOTS };
-      if (!relatedToken) {
-        return;
-      }
-      const dividedTokenAmount = new BN(accountData.amount) / new BN(relatedToken.baseLots);
-      const tokenVal: TokenAmount = {
-        amount: dividedTokenAmount.toString(),
-        decimals: relatedToken?.decimals ?? 0,
-        uiAmount: dividedTokenAmount,
-        uiAmountString: dividedTokenAmount.toString(),
-      };
-
-      return tokenVal;
-    },
-    [metaMints, META_BASE_LOTS, USDC_BASE_LOTS],
-  );
+    return tokenVal;
+  };
 
   const fetchBalance = useCallback(
     async (ata: PublicKey | undefined) => {
@@ -156,98 +173,104 @@ export function BalancesProvider({
     [connection, owner],
   );
 
-  const metaAta = useMemo(() => getAta(tokens.meta?.publicKey), [tokens.meta?.publicKey, owner]);
-  const [metaBalance, setMetaBalance] = useAccountSubscription<TokenAmount | undefined>({
-    publicKey: metaAta,
-    handler: accountSubscriptionCallback,
+  // const metaAta = useMemo(() => getAta(tokens.meta?.publicKey), [tokens.meta?.publicKey, owner]);
+  // const [metaBalance, setMetaBalance] = useAccountSubscription<TokenAmount | undefined>({
+  //   publicKey: metaAta,
+  //   handler: accountSubscriptionCallback,
+  //   fetch: fetchBalance,
+  // });
+  // const pMetaAta = useMemo(
+  //   () => getAta(markets?.baseVault.conditionalOnFinalizeTokenMint),
+  //   [markets?.baseVault.conditionalOnFinalizeTokenMint],
+  // );
+  // const [pMetaBalance, setPmetaBalance] = useAccountSubscription<TokenAmount | undefined>({
+  //   publicKey: pMetaAta,
+  //   handler: accountSubscriptionCallback,
+  //   fetch: fetchBalance,
+  // });
+  // const fMetaAta = useMemo(
+  //   () => getAta(markets?.baseVault.conditionalOnRevertTokenMint),
+  //   [markets?.baseVault.conditionalOnRevertTokenMint],
+  // );
+  // const [fMetaBalance, setFmetaBalance] = useAccountSubscription<TokenAmount | undefined>({
+  //   publicKey: fMetaAta,
+  //   handler: accountSubscriptionCallback,
+  //   fetch: fetchBalance,
+  // });
+  // const usdcAta = useMemo(() => getAta(tokens.usdc?.publicKey), [tokens.usdc?.publicKey]);
+  // const [usdcBalance, setUsdcBalance] = useAccountSubscription<TokenAmount | undefined>({
+  //   publicKey: usdcAta,
+  //   handler: accountSubscriptionCallback,
+  //   fetch: fetchBalance,
+  // });
+  // const pUsdcAta = useMemo(
+  //   () => getAta(markets?.quoteVault.conditionalOnFinalizeTokenMint),
+  //   [markets?.quoteVault.conditionalOnFinalizeTokenMint, owner],
+  // );
+  // const [pUsdcBalance, setPUsdcBalance] = useAccountSubscription<TokenAmount | undefined>({
+  //   publicKey: pUsdcAta,
+  //   handler: accountSubscriptionCallback,
+  //   fetch: fetchBalance,
+  // });
+  // const fUsdcAta = useMemo(
+  //   () => getAta(markets?.quoteVault.conditionalOnRevertTokenMint),
+  //   [markets?.quoteVault.conditionalOnRevertTokenMint, owner],
+  // );
+  // const [fUsdcBalance, setFUsdcBalance] = useAccountSubscription<TokenAmount | undefined>({
+  //   publicKey: fUsdcAta,
+  //   handler: accountSubscriptionCallback,
+  //   fetch: fetchBalance,
+  // });
+
+  const [accountsData, updateAccountState] = useMultiAccountSubscription({
+    accounts,
     fetch: fetchBalance,
-  });
-  const pMetaAta = useMemo(
-    () => getAta(markets?.baseVault.conditionalOnFinalizeTokenMint),
-    [markets?.baseVault.conditionalOnFinalizeTokenMint],
-  );
-  const [pMetaBalance, setPmetaBalance] = useAccountSubscription<TokenAmount | undefined>({
-    publicKey: pMetaAta,
     handler: accountSubscriptionCallback,
-    fetch: fetchBalance,
-  });
-  const fMetaAta = useMemo(
-    () => getAta(markets?.baseVault.conditionalOnRevertTokenMint),
-    [markets?.baseVault.conditionalOnRevertTokenMint],
-  );
-  const [fMetaBalance, setFmetaBalance] = useAccountSubscription<TokenAmount | undefined>({
-    publicKey: fMetaAta,
-    handler: accountSubscriptionCallback,
-    fetch: fetchBalance,
-  });
-  const usdcAta = useMemo(() => getAta(tokens.usdc?.publicKey), [tokens.usdc?.publicKey]);
-  const [usdcBalance, setUsdcBalance] = useAccountSubscription<TokenAmount | undefined>({
-    publicKey: usdcAta,
-    handler: accountSubscriptionCallback,
-    fetch: fetchBalance,
-  });
-  const pUsdcAta = useMemo(
-    () => getAta(markets?.quoteVault.conditionalOnFinalizeTokenMint),
-    [markets?.quoteVault.conditionalOnFinalizeTokenMint, owner],
-  );
-  const [pUsdcBalance, setPUsdcBalance] = useAccountSubscription<TokenAmount | undefined>({
-    publicKey: pUsdcAta,
-    handler: accountSubscriptionCallback,
-    fetch: fetchBalance,
-  });
-  const fUsdcAta = useMemo(
-    () => getAta(markets?.quoteVault.conditionalOnRevertTokenMint),
-    [markets?.quoteVault.conditionalOnRevertTokenMint, owner],
-  );
-  const [fUsdcBalance, setFUsdcBalance] = useAccountSubscription<TokenAmount | undefined>({
-    publicKey: fUsdcAta,
-    handler: accountSubscriptionCallback,
-    fetch: fetchBalance,
   });
 
-  const balances: Balances = {
-    [metaAta?.toString() ?? '']: metaBalance ?? {
-      data: defaultAmount,
-      isLoading: false,
-      status: 'success',
-    },
-    [pMetaAta?.toString() ?? '']: pMetaBalance ?? {
-      data: defaultAmount,
-      isLoading: false,
-      status: 'success',
-    },
-    [fMetaAta?.toString() ?? '']: fMetaBalance ?? {
-      data: defaultAmount,
-      isLoading: false,
-      status: 'success',
-    },
-    [usdcAta?.toString() ?? '']: usdcBalance ?? {
-      data: defaultAmount,
-      isLoading: false,
-      status: 'success',
-    },
-    [pUsdcAta?.toString() ?? '']: pUsdcBalance ?? {
-      data: defaultAmount,
-      isLoading: false,
-      status: 'success',
-    },
-    [fUsdcAta?.toString() ?? '']: fUsdcBalance ?? {
-      data: defaultAmount,
-      isLoading: false,
-      status: 'success',
-    },
-  };
-  const balanceSetters = {
-    [metaAta?.toString() ?? '']: setMetaBalance,
-    [pMetaAta?.toString() ?? '']: setPmetaBalance,
-    [fMetaAta?.toString() ?? '']: setFmetaBalance,
-    [usdcAta?.toString() ?? '']: setUsdcBalance,
-    [pUsdcAta?.toString() ?? '']: setPUsdcBalance,
-    [fUsdcAta?.toString() ?? '']: setFUsdcBalance,
-  };
+  // const balances: Balances = {
+  //   [metaAta?.toString() ?? '']: metaBalance ?? {
+  //     data: defaultAmount,
+  //     isLoading: false,
+  //     status: 'success',
+  //   },
+  //   [pMetaAta?.toString() ?? '']: pMetaBalance ?? {
+  //     data: defaultAmount,
+  //     isLoading: false,
+  //     status: 'success',
+  //   },
+  //   [fMetaAta?.toString() ?? '']: fMetaBalance ?? {
+  //     data: defaultAmount,
+  //     isLoading: false,
+  //     status: 'success',
+  //   },
+  //   [usdcAta?.toString() ?? '']: usdcBalance ?? {
+  //     data: defaultAmount,
+  //     isLoading: false,
+  //     status: 'success',
+  //   },
+  //   [pUsdcAta?.toString() ?? '']: pUsdcBalance ?? {
+  //     data: defaultAmount,
+  //     isLoading: false,
+  //     status: 'success',
+  //   },
+  //   [fUsdcAta?.toString() ?? '']: fUsdcBalance ?? {
+  //     data: defaultAmount,
+  //     isLoading: false,
+  //     status: 'success',
+  //   },
+  // };
+  // const balanceSetters = {
+  //   [metaAta?.toString() ?? '']: setMetaBalance,
+  //   [pMetaAta?.toString() ?? '']: setPmetaBalance,
+  //   [fMetaAta?.toString() ?? '']: setFmetaBalance,
+  //   [usdcAta?.toString() ?? '']: setUsdcBalance,
+  //   [pUsdcAta?.toString() ?? '']: setPUsdcBalance,
+  //   [fUsdcAta?.toString() ?? '']: setFUsdcBalance,
+  // };
 
   function setBalance(publicKey: PublicKey, amount: TokenAmount) {
-    balanceSetters[publicKey.toString()](amount);
+    updateAccountState(amount, publicKey);
   }
   function setBalanceByMint(
     mint: PublicKey,
@@ -258,7 +281,7 @@ export function BalancesProvider({
       const balance = balances[ata.toString()].data;
       if (balance) {
         const newAmount = stateUpdater(balance);
-        balanceSetters[ata.toString()](newAmount);
+        updateAccountState(newAmount, ata);
       }
     }
   }
