@@ -11,13 +11,12 @@ import { ProposalMarketsProvider } from '@/contexts/ProposalMarketsContext';
 export default function ProposalsPage() {
   const params = useSearchParams();
   const proposalNumber = Number(params.get('id'));
-  const { publicKey } = useWallet();
 
   return (
     <Layout>
       <ProposalMarketsProvider proposalNumber={proposalNumber}>
         <ProposalProvider proposalNumber={proposalNumber}>
-          <BalancesProvider owner={publicKey || undefined}>
+          <BalancesProvider>
             <ProposalDetailCard />
           </BalancesProvider>
         </ProposalProvider>

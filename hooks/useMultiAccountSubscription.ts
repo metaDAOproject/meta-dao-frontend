@@ -17,6 +17,10 @@ export type SubscriptionAccount<T> = {
   publicKey: PublicKey;
   metaData: T;
 };
+export type SubscriptionAccountResponse<T> = {
+  publicKey: PublicKey;
+  response: Response<T>;
+};
 
 /**
  * Custom hook to subscribe to an account's changes and manage its data.
@@ -37,7 +41,7 @@ type AccountSubscriptionOptions<T, U> = {
 
 export default function useMultiAccountSubscription<T, U>(
   options: AccountSubscriptionOptions<T, U>,
-): [Response<T>[], directStateUpdate<T>] {
+): [SubscriptionAccountResponse<T>[], directStateUpdate<T>] {
   const { accounts, handler, fetch, globalTimeout = 45000 } = options;
   const queryClient = useQueryClient();
   const [fallbackTimeouts, setFallbackTimeouts] = useState<
@@ -56,11 +60,14 @@ export default function useMultiAccountSubscription<T, U>(
     })),
   });
 
-  const responses: Response<T>[] = useMemo(() => {
-    return results.map((r) => ({
-      data: r.data,
-      status: r.status,
-      isLoading: r.isLoading,
+  const responses: SubscriptionAccountResponse<T>[] = useMemo(() => {
+    return results.map((r, i) => ({
+      publicKey: accounts[i].publicKey,
+      response: {
+        data: r.data,
+        status: r.status,
+        isLoading: r.isLoading,
+      },
     }));
   }, [results]);
 

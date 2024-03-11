@@ -9,6 +9,7 @@ import {
   OpenbookV2,
   IDL as OPENBOOK_IDL,
   OPENBOOK_PROGRAM_ID,
+  MarketAccount,
 } from '@openbook-dex/openbook-v2';
 import {
   MarketAccountWithKey,
@@ -25,6 +26,7 @@ import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { getLeafNodes } from '../lib/openbook';
 import { debounce } from '../lib/utils';
 import { useProvider } from '@/hooks/useProvider';
+import { BalancesProvider } from './BalancesContext';
 
 export interface ProposalInterface {
   markets?: Markets;
@@ -131,8 +133,21 @@ export function ProposalMarketsProvider({
         ]);
         if (!accountInfos || accountInfos.indexOf(null) >= 0) return;
 
-        const pass = await openbook.coder.accounts.decode('market', accountInfos[0]!.data);
-        const fail = await openbook.coder.accounts.decode('market', accountInfos[1]!.data);
+        // this react-query wrapping function caches the query so it can be used by the BalancesProvider
+        const [pass, fail] = await client.fetchQuery<MarketAccount[]>({
+          queryKey: ['markets'],
+          queryFn: () => {
+            return Promise.all([
+              // pass market is index 0
+              openbook.coder.accounts.decode('market', accountInfos[0]!.data),
+              // fail market is index 1
+              openbook.coder.accounts.decode('market', accountInfos[1]!.data),
+            ]);
+          },
+          staleTime: Infinity,
+        });
+        client.setQueryData(['markets'], () => [pass, fail]);
+
         const passTwap = await openbookTwap.coder.accounts.decodeUnchecked(
           'TWAPMarket',
           accountInfos[2]!.data,
@@ -652,6 +667,8 @@ export function ProposalMarketsProvider({
   );
 
   return (
-    <ProposalMarketsContext.Provider value={memoValue}>{children}</ProposalMarketsContext.Provider>
+    <ProposalMarketsContext.Provider value={memoValue}>
+      <BalancesProvider>{children}</BalancesProvider>
+    </ProposalMarketsContext.Provider>
   );
 }
