@@ -36,6 +36,7 @@ export default function CreateTestTokensCard() {
     const metaAccount = token.getAssociatedTokenAddressSync(
       metaKeypair.publicKey,
       wallet.publicKey,
+      true,
     );
     txMeta.add(
       token.createAssociatedTokenAccountIdempotentInstruction(
@@ -70,6 +71,7 @@ export default function CreateTestTokensCard() {
     const quoteAccount = token.getAssociatedTokenAddressSync(
       quoteKeypair.publicKey,
       wallet.publicKey,
+      true,
     );
     txUsdc.add(
       token.createAssociatedTokenAccountIdempotentInstruction(

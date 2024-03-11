@@ -27,7 +27,7 @@ export function MarketDetailCard() {
     setPrice(value);
   };
 
-  return openbookMarket.loading || !openbookMarket.market ? (
+  return !openbookMarket.market ? (
     <Group justify="center">
       <Loader />
     </Group>

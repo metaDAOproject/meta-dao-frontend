@@ -107,8 +107,8 @@ export function UnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }
       </Table.Td>
       <Table.Td>
         <Stack gap={0}>
-          <Text>{`${baseLotsToUi(market.market, order.account.position.baseFreeNative)}`}</Text>
-          <Text>{`${quoteLotsToUi(market?.market, order.account.position.quoteFreeNative)}`}</Text>
+          <Text>{`${baseLotsToUi(market.market, order.account.position.baseFreeNative) / 100_000}`}</Text>
+          <Text>{`${quoteLotsToUi(market.market, order.account.position.quoteFreeNative)}`}</Text>
         </Stack>
       </Table.Td>
       <Table.Td>

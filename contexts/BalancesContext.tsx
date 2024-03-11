@@ -78,7 +78,7 @@ export function BalancesProvider({
   const getAta = useCallback(
     (publicKey: PublicKey | undefined) => {
       if (publicKey && owner) {
-        return getAssociatedTokenAddressSync(publicKey, owner);
+        return getAssociatedTokenAddressSync(publicKey, owner, true);
       }
     },
     [owner],

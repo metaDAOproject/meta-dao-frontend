@@ -2,7 +2,7 @@ import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, TokenAmount } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 
 /**
  * Use this to fetch the account of any entity, but use `useBalance` to know user's balances
@@ -27,7 +27,7 @@ export function useTokenAmount(mint?: PublicKey, owner?: PublicKey) {
 
   const { error, data } = useQuery({
     queryKey: [`getTokenAccountBalance-${account?.toString()}-undefined`],
-    queryFn: () => connection.getTokenAccountBalance(account ?? new PublicKey("")),
+    queryFn: () => connection.getTokenAccountBalance(account ?? new PublicKey('')),
     staleTime: 10_000,
     enabled: !!account,
   });
@@ -41,8 +41,6 @@ export function useTokenAmount(mint?: PublicKey, owner?: PublicKey) {
       );
     }
   }, [error]);
-
-
 
   return { amount: data?.value ?? defaultAmount, account };
 }
