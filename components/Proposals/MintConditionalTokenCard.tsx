@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Fieldset,
@@ -39,21 +39,21 @@ export function MintConditionalTokenCard() {
   const [isMinting, setIsMinting] = useState(false);
   if (!markets) return null;
 
-  const { metaToken, usdcToken } = useConditionalTokens();
+  const { baseToken, quoteToken } = useConditionalTokens();
 
-  const [token, setToken] = useState<Balance | undefined>();
+  const [token, setToken] = useState<Balance | undefined>(baseToken);
 
   useEffect(() => {
     setToken((prev) => {
-      if (!prev) return metaToken;
-      return prev.symbol === 'META' ? metaToken : usdcToken;
+      if (!prev) return baseToken;
+      return prev.symbol === baseToken?.symbol ? baseToken : quoteToken;
     });
-  }, [metaToken, usdcToken]);
+  }, [baseToken?.symbol, quoteToken?.symbol]);
 
   const updateSelectedToken = (e: string) => {
-    if (e === 'META') setToken(metaToken);
-    else if (e === 'USDC') {
-      setToken(usdcToken);
+    if (e === baseToken?.symbol) setToken(baseToken);
+    else if (e === quoteToken?.symbol) {
+      setToken(quoteToken);
     }
   };
 
@@ -61,7 +61,7 @@ export function MintConditionalTokenCard() {
     if (!mintAmount) return;
 
     setIsMinting(true);
-    const fromBase = token?.symbol !== 'USDC';
+    const fromBase = token?.symbol !== quoteToken?.symbol;
     try {
       const txs = await mintTokensTransactions(mintAmount, fromBase);
 
@@ -73,6 +73,8 @@ export function MintConditionalTokenCard() {
       setIsMinting(false);
     }
   }, [mintTokensTransactions, sender, mintAmount, token]);
+
+  const selectOptions = [baseToken?.symbol, quoteToken?.symbol].filter((s): s is string => !!s);
 
   return !token ? (
     <Group justify="center">
@@ -115,7 +117,7 @@ export function MintConditionalTokenCard() {
         className="label"
         onChange={(e) => updateSelectedToken(e)}
         fullWidth
-        data={['META', 'USDC']}
+        data={selectOptions}
       />
       <TextInput
         label="Amount"

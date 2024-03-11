@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { AccountInfo, PublicKey, TokenAmount } from '@solana/web3.js';
 import { AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token';
@@ -9,6 +9,7 @@ import useMultiAccountSubscription, {
   SubscriptionAccount,
 } from '@/hooks/useMultiAccountSubscription';
 import { MarketAccount } from '@openbook-dex/openbook-v2';
+import { VaultAccount } from '@/lib/types';
 
 export const defaultAmount: TokenAmount = {
   amount: '0.0',
@@ -64,7 +65,9 @@ export function BalancesProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const { connection } = useConnection();
   const markets = queryClient.getQueryData<Array<MarketAccount>>(['markets']);
-  const [balances, setBalances] = useState<Balances>({});
+  const vaultAccounts = queryClient.getQueryData<Array<VaultAccount> | undefined>([
+    'conditionalVault',
+  ]);
 
   const getAta = useCallback(
     (publicKey: PublicKey | undefined) => {
@@ -75,28 +78,43 @@ export function BalancesProvider({ children }: { children: React.ReactNode }) {
     [owner],
   );
 
-  const accounts: SubscriptionAccount<tokenMetaData>[] = useMemo(
-    () =>
+  const accounts: SubscriptionAccount<tokenMetaData>[] = useMemo(() => {
+    const baseDecimals = markets?.[0].baseDecimals;
+    const quoteDecimals = markets?.[0].quoteDecimals;
+    const underlyingTokenAccounts =
+      vaultAccounts
+        ?.flatMap((m) => [
+          {
+            publicKey: getAta(m.underlyingTokenMint),
+            metaData: {
+              decimals: baseDecimals,
+              lotSize: 10 ^ (baseDecimals || 0),
+            },
+          },
+        ])
+        .filter((m): m is SubscriptionAccount<tokenMetaData> => !!m.publicKey) ?? [];
+
+    const conditionalTokenAccounts =
       markets
         ?.flatMap((m) => [
           {
             publicKey: getAta(m.baseMint),
             metaData: {
-              decimals: m.baseDecimals,
-              lotSize: 10 ^ (m.baseDecimals || 0),
+              decimals: baseDecimals,
+              lotSize: 10 ^ (baseDecimals || 0),
             },
           },
           {
             publicKey: getAta(m.quoteMint),
             metaData: {
-              decimals: m.quoteDecimals,
-              lotSize: 10 ^ (m.quoteDecimals || 0),
+              decimals: quoteDecimals,
+              lotSize: 10 ^ (quoteDecimals || 0),
             },
           },
         ])
-        .filter((m): m is SubscriptionAccount<tokenMetaData> => !!m.publicKey) ?? [],
-    [markets, owner],
-  );
+        .filter((m): m is SubscriptionAccount<tokenMetaData> => !!m.publicKey) ?? [];
+    return [...underlyingTokenAccounts, ...conditionalTokenAccounts];
+  }, [markets, vaultAccounts, owner]);
 
   const accountSubscriptionCallback = (
     accountInfo: AccountInfo<Buffer>,
@@ -170,17 +188,14 @@ export function BalancesProvider({ children }: { children: React.ReactNode }) {
     handler: accountSubscriptionCallback,
   });
 
-  useEffect(() => {
-    const emptyBalances: Balances = {};
-    const newBalances: Balances = accountsData.reduce((prev, curr) => {
-      if (!curr.response.data) {
-        return prev;
-      }
-      prev[curr.publicKey.toString()] = curr.response;
+  const emptyBalances: Balances = {};
+  const balances: Balances = accountsData.reduce((prev, curr) => {
+    if (!curr.response.data) {
       return prev;
-    }, emptyBalances);
-    setBalances(newBalances);
-  }, [accountsData]);
+    }
+    prev[curr.publicKey.toString()] = curr.response;
+    return prev;
+  }, emptyBalances);
 
   function setBalance(publicKey: PublicKey, amount: TokenAmount) {
     updateAccountState(amount, publicKey);
@@ -199,17 +214,16 @@ export function BalancesProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  return (
-    <balancesContext.Provider
-      value={{
-        balances,
-        setBalance,
-        setBalanceByMint,
-        fetchBalance,
-        fetchBalanceByMint,
-      }}
-    >
-      {children}
-    </balancesContext.Provider>
+  const value = useMemo(
+    () => ({
+      balances,
+      setBalance,
+      setBalanceByMint,
+      fetchBalance,
+      fetchBalanceByMint,
+    }),
+    [balances],
   );
+
+  return <balancesContext.Provider value={value}>{children}</balancesContext.Provider>;
 }

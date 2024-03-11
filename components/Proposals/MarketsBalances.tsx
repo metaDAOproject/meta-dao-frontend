@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { MintConditionalTokenCard } from './MintConditionalTokenCard';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import useConditionalTokens, { ConditionalToken } from '@/hooks/useConditionalTokens';
+import { useBalances } from '@/contexts/BalancesContext';
 
 function Balance({
   token,
@@ -74,18 +75,18 @@ function Balance({
 }
 
 export default function MarketsBalances() {
-  const { metaToken, usdcToken } = useConditionalTokens();
+  const { baseToken, quoteToken } = useConditionalTokens();
 
   return (
     <Stack align="center" justify="center" pos="relative" pt="lg" w="100%">
       <MintConditionalTokenCard />
-      {metaToken && usdcToken && (
+      {baseToken && quoteToken && (
         <Group gap={24} w="100%">
           <Fieldset legend="Pass market" flex={1}>
             <Stack>
-              <Balance token={metaToken} market="pass" imageSrc="/metaToken.png" />
+              <Balance token={baseToken} market="pass" imageSrc="/metaToken.png" />
               <Balance
-                token={usdcToken}
+                token={quoteToken}
                 market="pass"
                 imageSrc="https://s3.coinmarketcap.com/static-gravity/image/5a8229787b5e4c809b5914eef709b59a.png"
               />
@@ -93,9 +94,9 @@ export default function MarketsBalances() {
           </Fieldset>
           <Fieldset legend="Fail market" flex={1}>
             <Stack>
-              <Balance token={metaToken} market="fail" imageSrc="/metaToken.png" />
+              <Balance token={baseToken} market="fail" imageSrc="/metaToken.png" />
               <Balance
-                token={usdcToken}
+                token={quoteToken}
                 market="fail"
                 imageSrc="https://s3.coinmarketcap.com/static-gravity/image/5a8229787b5e4c809b5914eef709b59a.png"
               />
