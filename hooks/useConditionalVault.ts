@@ -89,13 +89,21 @@ export function useConditionalVault() {
       ixs: [
         createAssociatedTokenAccountIdempotentInstruction(
           provider.publicKey,
-          getAssociatedTokenAddressSync(vault.conditionalOnFinalizeTokenMint, provider.publicKey),
+          getAssociatedTokenAddressSync(
+            vault.conditionalOnFinalizeTokenMint,
+            provider.publicKey,
+            true
+          ),
           provider.publicKey,
           vault.conditionalOnFinalizeTokenMint,
         ),
         createAssociatedTokenAccountIdempotentInstruction(
           provider.publicKey,
-          getAssociatedTokenAddressSync(vault.conditionalOnRevertTokenMint, provider.publicKey),
+          getAssociatedTokenAddressSync(
+            vault.conditionalOnRevertTokenMint,
+            provider.publicKey,
+            true
+          ),
           provider.publicKey,
           vault.conditionalOnRevertTokenMint,
         ),
@@ -106,14 +114,17 @@ export function useConditionalVault() {
             userConditionalOnFinalizeTokenAccount: getAssociatedTokenAddressSync(
               vault.conditionalOnFinalizeTokenMint,
               provider.publicKey,
+              true,
             ),
             userConditionalOnRevertTokenAccount: getAssociatedTokenAddressSync(
               vault.conditionalOnRevertTokenMint,
               provider.publicKey,
+              true,
             ),
             userUnderlyingTokenAccount: getAssociatedTokenAddressSync(
               vault.underlyingTokenMint,
               provider.publicKey,
+              true,
             ),
             vaultUnderlyingTokenAccount: vault.underlyingTokenAccount,
             conditionalOnFinalizeTokenMint: vault.conditionalOnFinalizeTokenMint,
@@ -143,13 +154,21 @@ export function useConditionalVault() {
         ixs: [
           createAssociatedTokenAccountIdempotentInstruction(
             provider.publicKey,
-            getAssociatedTokenAddressSync(vault.conditionalOnFinalizeTokenMint, provider.publicKey),
+            getAssociatedTokenAddressSync(
+              vault.conditionalOnFinalizeTokenMint,
+              provider.publicKey,
+              true
+            ),
             provider.publicKey,
             vault.conditionalOnFinalizeTokenMint,
           ),
           createAssociatedTokenAccountIdempotentInstruction(
             provider.publicKey,
-            getAssociatedTokenAddressSync(vault.conditionalOnRevertTokenMint, provider.publicKey),
+            getAssociatedTokenAddressSync(
+              vault.conditionalOnRevertTokenMint,
+              provider.publicKey,
+              true
+            ),
             provider.publicKey,
             vault.conditionalOnRevertTokenMint,
           ),
@@ -166,14 +185,17 @@ export function useConditionalVault() {
               userConditionalOnFinalizeTokenAccount: getAssociatedTokenAddressSync(
                 vault.conditionalOnFinalizeTokenMint,
                 provider.publicKey,
+                true,
               ),
               userConditionalOnRevertTokenAccount: getAssociatedTokenAddressSync(
                 vault.conditionalOnRevertTokenMint,
                 provider.publicKey,
+                true,
               ),
               userUnderlyingTokenAccount: getAssociatedTokenAddressSync(
                 vault.underlyingTokenMint,
                 provider.publicKey,
+                true,
               ),
               vaultUnderlyingTokenAccount: vault.underlyingTokenAccount,
               conditionalOnFinalizeTokenMint: vault.conditionalOnFinalizeTokenMint,
@@ -193,14 +215,17 @@ export function useConditionalVault() {
       const userConditionalOnFinalizeTokenAccount = getAssociatedTokenAddressSync(
         vault.account.conditionalOnFinalizeTokenMint,
         program.provider.publicKey,
+        true,
       );
       const userConditionalOnRevertTokenAccount = getAssociatedTokenAddressSync(
         vault.account.conditionalOnRevertTokenMint,
         program.provider.publicKey,
+        true,
       );
       const userUnderlyingTokenAccount = getAssociatedTokenAddressSync(
         vault.account.underlyingTokenMint,
         program.provider.publicKey,
+        true,
       );
       return [
         await program.methods

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, AccountMeta } from '@solana/web3.js';
 import { priceLotsToUi, baseLotsToUi } from '@openbook-dex/openbook-v2';
+import { BN } from '@coral-xyz/anchor';
 import {
   OpenOrdersAccountWithKey,
   LeafNode,
@@ -23,22 +24,15 @@ export interface OpenbookMarketInterface {
   loading: boolean;
   fetchOpenOrders: (owner: PublicKey) => Promise<void>;
   fetchMarketInfo: () => Promise<void>;
-  // placeOrderTransactions: (
-  //   amount: number,
-  //   price: number,
-  //   market: MarketAccountWithKey,
-  //   limitOrder?: boolean | undefined,
-  //   ask?: boolean | undefined,
-  //   pass?: boolean | undefined,
-  //   indexOffset?: number | undefined,
-  // ) => Promise<any>;
   placeOrder: (
     amount: number,
     price: number,
     limitOrder?: boolean,
     ask?: boolean,
-    pass?: boolean,
   ) => Promise<void>;
+  cancelAndSettleOrder: (
+    order: OpenOrdersAccountWithKey,
+  ) => Promise<string[] | void>;
   eventHeapCount: number | undefined;
 }
 
@@ -66,7 +60,11 @@ export function OpenbookMarketProvider({
   const [market, setMarket] = useState<OpenbookMarket>();
   const [orders, setOrders] = useState<OpenOrdersAccountWithKey[]>([]);
   const [eventHeapCount, setEventHeapCount] = useState<number>();
-  const { program: _openbook, placeOrderTransactions } = useOpenbook();
+  const {
+    program: _openbook,
+    placeOrderTransactions,
+    cancelAndSettleFundsTransactions,
+  } = useOpenbook();
 
   // @ts-ignore
   const marketPubkey = new PublicKey(marketId);
@@ -298,19 +296,71 @@ export function OpenbookMarketProvider({
     ],
   );
 
+  const cancelAndSettleOrder = useCallback(
+    async (order: OpenOrdersAccountWithKey) => {
+      if (!marketId || !market || !order) return;
+
+      const _market = { publicKey: new PublicKey(marketId), account: market.market };
+
+      try {
+        //settle it right away
+        const cancelAndSettleTxs = await cancelAndSettleFundsTransactions(
+          new BN(order.account.accountNum),
+          _market,
+        );
+
+        if (!cancelAndSettleTxs) return;
+
+        const txsSent = await sender.send([...cancelAndSettleTxs]);
+        if (txsSent.length !== 0) {
+          //update order in state
+          const cancelledOrderIndex = orders.findIndex(
+            (o) => o.account.accountNum === order.account.accountNum,
+          );
+          orders[cancelledOrderIndex].account.openOrders[0].isFree = 1;
+          orders[cancelledOrderIndex].account.position.baseFreeNative = new BN(0);
+          orders[cancelledOrderIndex].account.position.quoteFreeNative = new BN(0);
+          const newOrders = [...orders];
+          setOrders(newOrders);
+        }
+        return txsSent;
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [market, marketId],
+  );
+
+  const memoValue = useMemo(
+    () => ({
+      market,
+      marketPubkey,
+      orders,
+      orderBookObject,
+      loading,
+      fetchOpenOrders,
+      fetchMarketInfo,
+      placeOrder,
+      cancelAndSettleOrder,
+      eventHeapCount,
+    }),
+    [
+      market,
+      marketPubkey,
+      orders,
+      orderBookObject,
+      loading,
+      fetchOpenOrders,
+      fetchMarketInfo,
+      placeOrder,
+      cancelAndSettleOrder,
+      eventHeapCount,
+    ],
+  );
+
   return (
     <openbookMarketContext.Provider
-      value={{
-        market,
-        marketPubkey,
-        orders,
-        orderBookObject,
-        loading,
-        fetchOpenOrders,
-        fetchMarketInfo,
-        placeOrder,
-        eventHeapCount,
-      }}
+      value={memoValue}
     >
       {children}
     </openbookMarketContext.Provider>

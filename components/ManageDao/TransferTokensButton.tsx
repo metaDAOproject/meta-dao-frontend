@@ -35,7 +35,7 @@ export default function TransferTokensButton() {
         )
         .add(
           createTransferInstruction(
-            getAssociatedTokenAddressSync(tokens.meta.publicKey, wallet.publicKey),
+            getAssociatedTokenAddressSync(tokens.meta.publicKey, wallet.publicKey, true),
             getAssociatedTokenAddressSync(tokens.meta.publicKey, daoTreasury, true),
             wallet.publicKey,
             1000000000n,

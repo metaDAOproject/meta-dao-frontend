@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { AccountMeta, PublicKey, Transaction, VersionedTransaction } from '@solana/web3.js';
 import {
@@ -8,20 +8,13 @@ import {
 import { notifications } from '@mantine/notifications';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  MarketAccountWithKey,
-  Markets,
-  OpenOrdersAccountWithKey,
-  OrderBook,
   Proposal,
   ProposalAccountWithKey,
-  LeafNode,
 } from '@/lib/types';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { useConditionalVault } from '@/hooks/useConditionalVault';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
-import { getLeafNodes } from '../lib/openbook';
-import { debounce } from '../lib/utils';
 import { useProposalMarkets } from './ProposalMarketsContext';
 
 export interface ProposalInterface {
@@ -123,12 +116,14 @@ export function ProposalProvider({
       const userBasePass = getAssociatedTokenAddressSync(
         baseVault.conditionalOnFinalizeTokenMint,
         wallet.publicKey,
+        true
       );
       const userQuotePass = getAssociatedTokenAddressSync(
         quoteVault.conditionalOnFinalizeTokenMint,
         wallet.publicKey,
+        true
       );
-      const metaTokenAccount = getAssociatedTokenAddressSync(metaMint, wallet.publicKey, false);
+      const metaTokenAccount = getAssociatedTokenAddressSync(metaMint, wallet.publicKey, true);
 
       try {
         metaBalance = await client.fetchQuery({

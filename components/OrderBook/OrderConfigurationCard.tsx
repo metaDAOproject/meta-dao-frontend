@@ -39,8 +39,6 @@ export function OrderConfigurationCard({
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
   const [orderValue, setOrderValue] = useState<string>('0');
-  // const baseBalance = 1000000;
-  // const quoteBalance = 1000000;
 
   const isAskSide = orderSide === 'Sell';
   const isLimitOrder = orderType === 'Limit';

@@ -255,10 +255,81 @@ export function useOpenbook() {
     [wallet, openbook],
   );
 
+  const cancelAndSettleFundsTransactions = useCallback(
+    async (
+      orderId: BN | number,
+      market: MarketAccountWithKey,
+    ) => {
+      if (!wallet.publicKey || !openbook) {
+        throw new Error('Some variables are not initialized yet...');
+      }
+
+      const openOrdersAccount = findOpenOrders(new BN(orderId), wallet.publicKey);
+
+      const userBase = getAssociatedTokenAddressSync(
+        market.account.baseMint,
+        wallet.publicKey,
+        true
+      );
+      const userQuote = getAssociatedTokenAddressSync(
+        market.account.quoteMint,
+        wallet.publicKey,
+        true
+      );
+
+      const userBaseAccount = userBase;
+      const userQuoteAccount = userQuote;
+
+      const placeTx = await openbook.program.methods
+        .settleFunds()
+        .accounts({
+          owner: wallet.publicKey,
+          penaltyPayer: wallet.publicKey,
+          openOrdersAccount,
+          market: market.publicKey,
+          marketAuthority: market.account.marketAuthority,
+          marketBaseVault: market.account.marketBaseVault,
+          marketQuoteVault: market.account.marketQuoteVault,
+          userBaseAccount,
+          userQuoteAccount,
+          referrerAccount: null,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SYSTEM_PROGRAM,
+        })
+        .preInstructions([
+          await openbook.program.methods
+            .cancelOrderByClientOrderId(orderId)
+            .accounts({
+              openOrdersAccount,
+              asks: market.account.asks,
+              bids: market.account.bids,
+              market: market.publicKey,
+            })
+            .instruction(),
+          createAssociatedTokenAccountIdempotentInstruction(
+            wallet.publicKey,
+            userBaseAccount,
+            wallet.publicKey,
+            market.account.baseMint,
+          ),
+          createAssociatedTokenAccountIdempotentInstruction(
+            wallet.publicKey,
+            userQuoteAccount,
+            wallet.publicKey,
+            market.account.quoteMint,
+          ),
+        ])
+        .transaction();
+      return [placeTx];
+    },
+    [wallet, openbook],
+  );
+
   return {
     placeOrderTransactions,
     cancelOrderTransactions,
     closeOpenOrdersAccountTransactions,
+    cancelAndSettleFundsTransactions,
     settleFundsTransactions,
     program: openbook,
   };

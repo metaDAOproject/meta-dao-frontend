@@ -159,7 +159,7 @@ export function useOpenbookTwap() {
           market: market.publicKey,
           marketVault: ask ? market.account.marketBaseVault : market.account.marketQuoteVault,
           twapMarket: getTwapMarketKey(market.publicKey),
-          userTokenAccount: getAssociatedTokenAddressSync(mint, wallet.publicKey),
+          userTokenAccount: getAssociatedTokenAddressSync(mint, wallet.publicKey, true),
           openbookProgram: openbook.programId,
         })
         .preInstructions(openTx.instructions)
@@ -287,18 +287,22 @@ export function useOpenbookTwap() {
       const userBasePass = getAssociatedTokenAddressSync(
         baseVault.conditionalOnFinalizeTokenMint,
         wallet.publicKey,
+        true,
       );
       const userQuotePass = getAssociatedTokenAddressSync(
         quoteVault.conditionalOnFinalizeTokenMint,
         wallet.publicKey,
+        true,
       );
       const userBaseFail = getAssociatedTokenAddressSync(
         baseVault.conditionalOnRevertTokenMint,
         wallet.publicKey,
+        true,
       );
       const userQuoteFail = getAssociatedTokenAddressSync(
         quoteVault.conditionalOnRevertTokenMint,
         wallet.publicKey,
+        true,
       );
       let userBaseAccount = userBaseFail;
       let userQuoteAccount = userQuoteFail;
@@ -362,18 +366,22 @@ export function useOpenbookTwap() {
       const userBasePass = getAssociatedTokenAddressSync(
         baseVault.conditionalOnFinalizeTokenMint,
         wallet.publicKey,
+        true,
       );
       const userQuotePass = getAssociatedTokenAddressSync(
         quoteVault.conditionalOnFinalizeTokenMint,
         wallet.publicKey,
+        true,
       );
       const userBaseFail = getAssociatedTokenAddressSync(
         baseVault.conditionalOnRevertTokenMint,
         wallet.publicKey,
+        true,
       );
       const userQuoteFail = getAssociatedTokenAddressSync(
         quoteVault.conditionalOnRevertTokenMint,
         wallet.publicKey,
+        true,
       );
       let userBaseAccount = userBaseFail;
       let userQuoteAccount = userQuoteFail;
@@ -508,10 +516,12 @@ export function useOpenbookTwap() {
       const userBaseAccount = getAssociatedTokenAddressSync(
         market.account.baseMint,
         wallet.publicKey,
+        true,
       );
       const userQuoteAccount = getAssociatedTokenAddressSync(
         market.account.quoteMint,
         wallet.publicKey,
+        true,
       );
       const args = createPlaceOrderArgs({ amount, price, limitOrder, ask, accountIndex: orderId });
       const editTx = await openbookTwap.methods
@@ -585,7 +595,7 @@ export function useOpenbookTwap() {
         : new BN(amount).sub(order.account.position.bidsBaseLots).abs();
       const mint = ask ? market.account.baseMint : market.account.quoteMint;
       const marketVault = ask ? market.account.marketBaseVault : market.account.marketQuoteVault;
-      const userTokenAccount = getAssociatedTokenAddressSync(mint, wallet.publicKey);
+      const userTokenAccount = getAssociatedTokenAddressSync(mint, wallet.publicKey, true);
       const editTx = await openbookTwap.methods
         .editOrder(new BN(order.account.accountNum), expectedCancelSize, args)
         .accounts({

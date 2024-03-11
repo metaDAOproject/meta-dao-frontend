@@ -17,7 +17,6 @@ import {
   IconWriting,
 } from '@tabler/icons-react';
 import { priceLotsToUi, baseLotsToUi } from '@openbook-dex/openbook-v2';
-import { BN } from '@coral-xyz/anchor';
 import { OpenOrdersAccountWithKey } from '@/lib/types';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
@@ -31,28 +30,23 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
   const sender = useTransactionSender();
   const wallet = useWallet();
   const { generateExplorerLink } = useExplorerConfiguration();
-  const { market, marketPubkey, fetchOpenOrders } = useOpenbookMarket();
-  const { cancelOrderTransactions, settleFundsTransactions } = useOpenbook();
+  const { market, marketPubkey, fetchOpenOrders, cancelAndSettleOrder } = useOpenbookMarket();
+  const { settleFundsTransactions } = useOpenbook();
 
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
   const [isSettling, setIsSettling] = useState<boolean>(false);
 
   const handleCancel = useCallback(async () => {
-    if (!market || !marketPubkey) return;
-
-    const txs = await cancelOrderTransactions(
-      new BN(order.account.accountNum),
-      { publicKey: marketPubkey, account: market.market }
-    );
-
-    if (!wallet.publicKey || !txs) return;
+    if (!market || !marketPubkey || !wallet.publicKey || !order) return;
 
     try {
       setIsCanceling(true);
-      // Filtered undefined already
-      await sender.send(txs);
-      // We already return above if the wallet doesn't have a public key
-      await fetchOpenOrders(wallet.publicKey!);
+      const txsSent = await cancelAndSettleOrder(
+        order,
+      );
+      if (txsSent && txsSent.length > 0) {
+        await fetchOpenOrders(wallet.publicKey!);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -63,7 +57,7 @@ export function OpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
     market,
     marketPubkey,
     wallet.publicKey,
-    cancelOrderTransactions,
+    cancelAndSettleOrder,
     fetchOpenOrders,
     sender,
   ]);
