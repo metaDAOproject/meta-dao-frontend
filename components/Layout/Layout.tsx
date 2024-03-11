@@ -60,6 +60,7 @@ const links = [
 
 const networks = [
   { label: 'Mainnet', value: Networks.Mainnet.toString() },
+  { label: 'Mainnet2', value: Networks.Mainnet2.toString() },
   { label: 'Devnet', value: Networks.Devnet.toString() },
   { label: 'Localnet', value: Networks.Localnet.toString() },
   { label: 'Custom', value: Networks.Custom.toString() },
