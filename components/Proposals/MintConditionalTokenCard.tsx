@@ -121,7 +121,7 @@ export function MintConditionalTokenCard() {
         label="Amount"
         description={`Balance: ${numeral(token.balanceSpot?.uiAmountString || 0).format(
           NUMERAL_FORMAT,
-        )} $${token.token.symbol}`}
+        )} $${token.symbol}`}
         placeholder="Amount to deposit"
         type="number"
         onChange={(e) => setMintAmount(Number(e.target.value))}
