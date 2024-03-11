@@ -6,7 +6,6 @@ import { useMemo } from 'react';
 import { MintConditionalTokenCard } from './MintConditionalTokenCard';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import useConditionalTokens, { ConditionalToken } from '@/hooks/useConditionalTokens';
-import { useBalances } from '@/contexts/BalancesContext';
 
 function Balance({
   token,
