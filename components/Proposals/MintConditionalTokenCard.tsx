@@ -40,7 +40,6 @@ export function MintConditionalTokenCard() {
   if (!markets) return null;
 
   const { baseToken, quoteToken } = useConditionalTokens();
-
   const [token, setToken] = useState<Balance | undefined>(baseToken);
 
   useEffect(() => {
@@ -48,7 +47,8 @@ export function MintConditionalTokenCard() {
       if (!prev) return baseToken;
       return prev.symbol === baseToken?.symbol ? baseToken : quoteToken;
     });
-  }, [baseToken?.symbol, quoteToken?.symbol]);
+    // not proud of this, TODO clean this up
+  }, [JSON.stringify(baseToken), JSON.stringify(quoteToken)]);
 
   const updateSelectedToken = (e: string) => {
     if (e === baseToken?.symbol) setToken(baseToken);
