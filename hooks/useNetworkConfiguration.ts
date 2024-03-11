@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 
 export enum Networks {
   Mainnet = 'mainnet-beta',
+  Mainnet2 = 'mainnet-beta2',
   Devnet = 'devnet',
   Localnet = 'local',
   Custom = 'custom',
@@ -26,6 +27,8 @@ export function useNetworkConfiguration() {
     switch (network) {
       case Networks.Mainnet:
         return 'https://rpc-proxy.themetadao-org.workers.dev/';
+      case Networks.Mainnet2:
+        return 'https://rpc2-proxy.themetadao-org.workers.dev/';
       case Networks.Devnet:
         return 'https://netty-8ka8l7-fast-devnet.helius-rpc.com/';
       case Networks.Localnet:
