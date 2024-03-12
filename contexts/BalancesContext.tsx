@@ -81,18 +81,24 @@ export function BalancesProvider({ children }: { children: React.ReactNode }) {
   const accounts: SubscriptionAccount<tokenMetaData>[] = useMemo(() => {
     const baseDecimals = markets?.[0].baseDecimals;
     const quoteDecimals = markets?.[0].quoteDecimals;
-    const underlyingTokenAccounts =
-      vaultAccounts
-        ?.flatMap((m) => [
+    const underlyingTokenAccounts: SubscriptionAccount<tokenMetaData>[] = vaultAccounts
+      ? [
           {
-            publicKey: getAta(m.underlyingTokenMint),
+            publicKey: getAta(vaultAccounts[0].underlyingTokenMint),
             metaData: {
               decimals: baseDecimals,
               lotSize: 10 ^ (baseDecimals || 0),
             },
           },
-        ])
-        .filter((m): m is SubscriptionAccount<tokenMetaData> => !!m.publicKey) ?? [];
+          {
+            publicKey: getAta(vaultAccounts[1].underlyingTokenMint),
+            metaData: {
+              decimals: quoteDecimals,
+              lotSize: 10 ^ (baseDecimals || 0),
+            },
+          },
+        ].filter((m): m is SubscriptionAccount<tokenMetaData> => !!m.publicKey) ?? []
+      : [];
 
     const conditionalTokenAccounts =
       markets
@@ -224,6 +230,8 @@ export function BalancesProvider({ children }: { children: React.ReactNode }) {
     }),
     [balances],
   );
+
+  console.log('value.balances', value.balances);
 
   return <balancesContext.Provider value={value}>{children}</balancesContext.Provider>;
 }
