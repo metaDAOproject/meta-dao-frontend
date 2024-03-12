@@ -122,13 +122,13 @@ export function OrderConfigurationCard({
 
   const maxOrderAmount = () => {
     if (isAskSide) {
-      if (Number(baseBalance) > 0) {
-        return Number(baseBalance);
+      if (Number(baseBalance.data?.uiAmount) > 0) {
+        return Number(baseBalance.data?.uiAmount);
       }
       return 0;
     }
-    if (quoteBalance && price) {
-      const _maxAmountRatio = Math.floor(Number(quoteBalance) / Number(price));
+    if (quoteBalance.data?.uiAmount && price) {
+      const _maxAmountRatio = Math.floor(Number(quoteBalance.data?.uiAmount) / Number(price));
       return _maxAmountRatio;
     }
     return 0;
