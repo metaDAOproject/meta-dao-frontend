@@ -231,7 +231,5 @@ export function BalancesProvider({ children }: { children: React.ReactNode }) {
     [balances],
   );
 
-  console.log('value.balances', value.balances);
-
   return <balancesContext.Provider value={value}>{children}</balancesContext.Provider>;
 }
