@@ -4,7 +4,6 @@ import { useSearchParams } from 'next/navigation';
 import { Layout } from '@/components/Layout/Layout';
 import { OpenbookMarketProvider } from '@/contexts/OpenbookMarketContext';
 import { MarketDetailCard } from '@/components/Markets/MarketDetailCard';
-import { BalancesProvider } from '@/contexts/BalancesContext';
 
 export default function MarketPage() {
   const params = useSearchParams();
@@ -13,9 +12,7 @@ export default function MarketPage() {
   return (
     <Layout>
       <OpenbookMarketProvider marketId={marketId}>
-        <BalancesProvider>
-          <MarketDetailCard />
-        </BalancesProvider>
+        <MarketDetailCard />
       </OpenbookMarketProvider>
     </Layout>
   );

@@ -16,6 +16,7 @@ import { debounce } from '../lib/utils';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { useOpenbook } from '@/hooks/useOpenbook';
 import { useQueryClient } from '@tanstack/react-query';
+import { BalancesProvider } from './BalancesContext';
 
 export interface OpenbookMarketInterface {
   market?: OpenbookMarket;
@@ -341,6 +342,8 @@ export function OpenbookMarketProvider({
   );
 
   return (
-    <openbookMarketContext.Provider value={memoValue}>{children}</openbookMarketContext.Provider>
+    <openbookMarketContext.Provider value={memoValue}>
+      <BalancesProvider>{children}</BalancesProvider>
+    </openbookMarketContext.Provider>
   );
 }
