@@ -11,12 +11,12 @@ import { Program, utils } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { useLocalStorage } from '@mantine/hooks';
 import { OpenbookV2, IDL as OPENBOOK_IDL } from '@openbook-dex/openbook-v2';
+import { useQuery } from '@tanstack/react-query';
 import { useProvider } from '@/hooks/useProvider';
 import { AUTOCRAT_VERSIONS, OPENBOOK_PROGRAM_ID } from '@/lib/constants';
 import { AutocratProgram, DaoState, ProgramVersion, Proposal } from '../lib/types';
 import { useNetworkConfiguration } from '../hooks/useNetworkConfiguration';
 import { useOpenbookTwap } from '../hooks/useOpenbookTwap';
-import { useQuery } from '@tanstack/react-query';
 
 export interface AutocratContext {
   dao?: PublicKey;
@@ -87,27 +87,11 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
       a.account.number < b.account.number ? 1 : -1,
     );
 
-    let _proposals: Proposal[] = props.map((prop) => ({
+    const _proposals: Proposal[] = props.map((prop) => ({
       title: `Proposal ${prop.account.number}`,
       description: '',
       ...prop,
     }));
-    setProposals(_proposals);
-    _proposals = await Promise.all(
-      props.map(async (prop) => {
-        let resp;
-        if (prop.account.descriptionUrl.includes('hackmd.io')) {
-          resp = await fetch(`/api/hackmd?url=${prop.account.descriptionUrl}`, { method: 'GET' })
-            .then((r) => r.json())
-            .catch((e) => console.error(e));
-        }
-        return {
-          title: resp?.title || `Proposal ${prop.account.number}`,
-          description: resp?.description || '',
-          ...prop,
-        };
-      }),
-    );
     setProposals(_proposals);
   }, [endpoint, autocratProgram]);
 

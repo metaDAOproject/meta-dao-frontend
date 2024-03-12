@@ -28,4 +28,9 @@ export const AUTOCRAT_VERSIONS: ProgramVersion[] = [
     programId: new PublicKey('meta3cxKzFBmWYgCVozmvCQAS3y9b3fGxrG9HkHL7Wi'),
     idl: AUTOCRAT_V0_IDL,
   },
+  {
+    label: 'Mertd',
+    programId: new PublicKey('MErTXfDBubnbJudhQCD7xN9WaCQySSPpPiHvkrX2Dh3'),
+    idl: AUTOCRAT_V0_IDL,
+  },
 ];
