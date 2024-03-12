@@ -39,21 +39,21 @@ export function MintConditionalTokenCard() {
   const [isMinting, setIsMinting] = useState(false);
   if (!markets) return null;
 
-  const { metaToken, usdcToken } = useConditionalTokens();
-
-  const [token, setToken] = useState<Balance | undefined>();
+  const { baseToken, quoteToken } = useConditionalTokens();
+  const [token, setToken] = useState<Balance | undefined>(baseToken);
 
   useEffect(() => {
     setToken((prev) => {
-      if (!prev) return metaToken;
-      return prev.symbol === 'META' ? metaToken : usdcToken;
+      if (!prev) return baseToken;
+      return prev.symbol === baseToken?.symbol ? baseToken : quoteToken;
     });
-  }, [metaToken, usdcToken]);
+    // not proud of this, TODO clean this up
+  }, [JSON.stringify(baseToken), JSON.stringify(quoteToken)]);
 
   const updateSelectedToken = (e: string) => {
-    if (e === 'META') setToken(metaToken);
-    else if (e === 'USDC') {
-      setToken(usdcToken);
+    if (e === baseToken?.symbol) setToken(baseToken);
+    else if (e === quoteToken?.symbol) {
+      setToken(quoteToken);
     }
   };
 
@@ -61,7 +61,7 @@ export function MintConditionalTokenCard() {
     if (!mintAmount) return;
 
     setIsMinting(true);
-    const fromBase = token?.symbol !== 'USDC';
+    const fromBase = token?.symbol !== quoteToken?.symbol;
     try {
       const txs = await mintTokensTransactions(mintAmount, fromBase);
 
@@ -73,6 +73,8 @@ export function MintConditionalTokenCard() {
       setIsMinting(false);
     }
   }, [mintTokensTransactions, sender, mintAmount, token]);
+
+  const selectOptions = [baseToken?.symbol, quoteToken?.symbol].filter((s): s is string => !!s);
 
   return !token ? (
     <Group justify="center">
@@ -115,13 +117,13 @@ export function MintConditionalTokenCard() {
         className="label"
         onChange={(e) => updateSelectedToken(e)}
         fullWidth
-        data={['META', 'USDC']}
+        data={selectOptions}
       />
       <TextInput
         label="Amount"
         description={`Balance: ${numeral(token.balanceSpot?.uiAmountString || 0).format(
           NUMERAL_FORMAT,
-        )} $${token.token.symbol}`}
+        )} $${token.symbol}`}
         placeholder="Amount to deposit"
         type="number"
         onChange={(e) => setMintAmount(Number(e.target.value))}

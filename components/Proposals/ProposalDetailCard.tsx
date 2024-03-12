@@ -53,9 +53,9 @@ export function ProposalDetailCard() {
   const { fetchProposals, daoTreasury, daoState } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
   const { tokens } = useTokens();
-  const { proposal, finalizeProposalTransactions } =
-    useProposal();
-  const { orders,
+  const { proposal, finalizeProposalTransactions } = useProposal();
+  const {
+    orders,
     fetchOpenOrders,
     markets,
     passAsks,
@@ -65,7 +65,8 @@ export function ProposalDetailCard() {
     lastPassSlotUpdated,
     lastFailSlotUpdated,
     passSpreadString,
-    failSpreadString } = useProposalMarkets();
+    failSpreadString,
+  } = useProposalMarkets();
   const { cancelOrderTransactions, settleFundsTransactions, closeOpenOrdersAccountTransactions } =
     useOpenbookTwap();
   const sender = useTransactionSender();
@@ -332,19 +333,18 @@ export function ProposalDetailCard() {
                 <IconChevronLeft />
               </ActionIcon>
             ) : null}
-            {
-              proposal.account.state.pending && pendingProposals && pendingProposals.length > 1 ?
-                <Select
-                  data={pendingProposals?.map(el => el.title)}
-                  defaultValue={proposal.title}
-                  onChange={handleProposalChange}
-                  value={proposal.title}
-                  size="md"
-                  fw={800}
-                />
-                :
-                <Title order={2}>{proposal.title}</Title>
-            }
+            {proposal.account.state.pending && pendingProposals && pendingProposals.length > 1 ? (
+              <Select
+                data={pendingProposals?.map((el) => el.title)}
+                defaultValue={proposal.title}
+                onChange={handleProposalChange}
+                value={proposal.title}
+                size="md"
+                fw={800}
+              />
+            ) : (
+              <Title order={2}>{proposal.title}</Title>
+            )}
             <StateBadge proposal={proposal} />
           </Group>
           {proposal.description ? (
@@ -358,33 +358,31 @@ export function ProposalDetailCard() {
             </Card>
           ) : null}
           <ProposalCountdown remainingSlots={remainingSlots} />
-          <Text>Account:{' '}
-            <a
-              href={generateExplorerLink(proposal.publicKey.toString(), 'account')}
-              target="blank"
-            >
+          <Text>
+            Account:{' '}
+            <a href={generateExplorerLink(proposal.publicKey.toString(), 'account')} target="blank">
               {shortKey(proposal.publicKey)}
             </a>
           </Text>
-          {proposal.account.instruction.data
-            &&
+          {proposal.account.instruction.data && (
             <>
-            <Text>Instruction:</Text>
-            <Stack pl={15}>
-              {(proposal.account.instruction.accounts.length > 0)
-              &&
-              <>
-              <Text size="xs">Accounts</Text>
-              {proposal.account.instruction.accounts.map((account) =>
-                <Code key={account.pubkey.toString()}>{account.pubkey.toString()}</Code>
-              )}
-              </>
-              }
-              <Text size="xs">Data</Text><Code>[{Uint8Array.from(proposal.account.instruction.data).toString()}]</Code>
-              <Text size="xs">Program</Text><Code>{proposal.account.instruction.programId.toString()}</Code>
-            </Stack>
+              <Text>Instruction:</Text>
+              <Stack pl={15}>
+                {proposal.account.instruction.accounts.length > 0 && (
+                  <>
+                    <Text size="xs">Accounts</Text>
+                    {proposal.account.instruction.accounts.map((account) => (
+                      <Code key={account.pubkey.toString()}>{account.pubkey.toString()}</Code>
+                    ))}
+                  </>
+                )}
+                <Text size="xs">Data</Text>
+                <Code>[{Uint8Array.from(proposal.account.instruction.data).toString()}]</Code>
+                <Text size="xs">Program</Text>
+                <Code>{proposal.account.instruction.programId.toString()}</Code>
+              </Stack>
             </>
-          }
+          )}
           <Group wrap="wrap" justify="space-between" pt={10}>
             <ExternalLink href={proposal.account.descriptionUrl} />
             <Text opacity={0.6} style={{ textAlign: 'right' }}>
@@ -423,7 +421,12 @@ export function ProposalDetailCard() {
               </Button>
             ) : (
               <Tooltip label="You have open orders left!">
-                <Button color="green" loading={isRedeeming} variant="outline" onClick={handleRedeem}>
+                <Button
+                  color="green"
+                  loading={isRedeeming}
+                  variant="outline"
+                  onClick={handleRedeem}
+                >
                   Redeem
                 </Button>
               </Tooltip>
