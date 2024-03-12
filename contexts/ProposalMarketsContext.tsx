@@ -10,6 +10,7 @@ import {
   IDL as OPENBOOK_IDL,
   OPENBOOK_PROGRAM_ID,
   MarketAccount,
+  OpenBookV2Client,
 } from '@openbook-dex/openbook-v2';
 import {
   MarketAccountWithKey,
@@ -24,10 +25,23 @@ import { useAutocrat } from '@/contexts/AutocratContext';
 import { useConditionalVault } from '@/hooks/useConditionalVault';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
-import { getLeafNodes } from '../lib/openbook';
+import { getLeafNodes, getUsersOpenOrderPks } from '../lib/openbook';
 import { debounce } from '../lib/utils';
 import { useProvider } from '@/hooks/useProvider';
 import { BalancesProvider } from './BalancesContext';
+import { useOpenbook } from '@/hooks/useOpenbook';
+import { QUOTE_LOTS } from '@/lib/constants';
+
+export type OrderBookOrder = {
+  price: number;
+  size: number;
+  timestamp: BN;
+  owner: PublicKey;
+  ownerSlot: number;
+  side: 'bids' | 'asks';
+  market: PublicKey;
+  clientOrderId: BN;
+};
 
 export interface ProposalInterface {
   markets?: Markets;
@@ -42,7 +56,14 @@ export interface ProposalInterface {
   failSpreadString: string;
   lastPassSlotUpdated: number;
   lastFailSlotUpdated: number;
-  fetchOpenOrders: (owner: PublicKey) => Promise<void>;
+  refreshUserOrders: (
+    openBookClient: OpenBookV2Client,
+    proposal: Proposal,
+    passBids: LeafNode[],
+    passAsks: LeafNode[],
+    failBids: LeafNode[],
+    failAsks: LeafNode[],
+  ) => Promise<void>;
   fetchMarketsInfo: () => Promise<void>;
   placeOrderTransactions: (
     amount: number,
@@ -86,6 +107,7 @@ export function ProposalMarketsProvider({
   fromProposal?: ProposalAccountWithKey;
 }) {
   const provider = useProvider();
+  // TODO: do we need this variable when we have openbook from the autocrat hook below?
   const openBookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
   const client = useQueryClient();
   const { openbook, openbookTwap, proposals } = useAutocrat();
@@ -93,6 +115,7 @@ export function ProposalMarketsProvider({
   const wallet = useWallet();
   const sender = useTransactionSender();
   const { placeOrderTransactions, cancelAndSettleFundsTransactions } = useOpenbookTwap();
+  const { program: openBookClient } = useOpenbook();
   const { program: vaultProgram } = useConditionalVault();
   const [loading, setLoading] = useState(false);
   const [markets, setMarkets] = useState<Markets>();
@@ -212,40 +235,18 @@ export function ProposalMarketsProvider({
     fetchMarketsInfo();
   }, [proposal]);
 
-  const fetchOpenOrders = useCallback(
-    async (owner: PublicKey) => {
-      const fetchProposalOpenOrders = async () => {
-        if (!openbook || !proposal) {
-          return;
-        }
-        const passOrders = await openbook.account.openOrdersAccount.all([
-          { memcmp: { offset: 8, bytes: owner.toBase58() } },
-          { memcmp: { offset: 40, bytes: proposal.account.openbookPassMarket.toBase58() } },
-        ]);
-        const failOrders = await openbook.account.openOrdersAccount.all([
-          { memcmp: { offset: 8, bytes: owner.toBase58() } },
-          { memcmp: { offset: 40, bytes: proposal.account.openbookFailMarket.toBase58() } },
-        ]);
-        return passOrders
-          .concat(failOrders)
-          .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1));
-      };
-
-      const _orders = await client.fetchQuery({
-        queryKey: [`fetchProposalOpenOrders-${proposal?.publicKey}`],
-        queryFn: () => fetchProposalOpenOrders(),
-        staleTime: 1_000,
-      });
-      setOrders(_orders ?? []);
-    },
-    [openbook, proposal],
-  );
-
   useEffect(() => {
-    if (proposal && wallet.publicKey) {
-      fetchOpenOrders(wallet.publicKey);
+    if (proposal && wallet.publicKey && markets) {
+      refreshUserOrders(
+        openBookClient,
+        proposal,
+        markets.passBids,
+        markets.passAsks,
+        markets.failBids,
+        markets.failAsks,
+      );
     }
-  }, [markets, fetchOpenOrders, proposal]);
+  }, [markets, proposal]);
 
   useEffect(() => {
     if (!markets && proposal) {
@@ -341,6 +342,142 @@ export function ProposalMarketsProvider({
     return undefined;
   }, [markets]);
 
+  const refreshUserOrders = useCallback(
+    async (
+      client: OpenBookV2Client,
+      proposal: Proposal,
+      passBids: LeafNode[],
+      passAsks: LeafNode[],
+      failBids: LeafNode[],
+      failAsks: LeafNode[],
+    ) => {
+      if (wallet.publicKey) {
+        const passBidOrders = passBids.map((leafNode) => {
+          const size = leafNode.quantity.toNumber();
+          const price = leafNode.key.shrn(64).toNumber() / 10_000;
+          return {
+            price,
+            size,
+            market: proposal?.account.openbookPassMarket,
+            owner: leafNode.owner,
+            ownerSlot: leafNode.ownerSlot,
+            side: 'bids' as const,
+            timestamp: leafNode.timestamp,
+            clientOrderId: leafNode.clientOrderId,
+          };
+        });
+        const passAskOrders = passAsks.map((leafNode) => {
+          const size = leafNode.quantity.toNumber();
+          const price = leafNode.key.shrn(64).toNumber() / 10_000;
+          return {
+            price,
+            size,
+            market: proposal?.account.openbookPassMarket,
+            owner: leafNode.owner,
+            ownerSlot: leafNode.ownerSlot,
+            side: 'asks' as const,
+            timestamp: leafNode.timestamp,
+            clientOrderId: leafNode.clientOrderId,
+          };
+        });
+        const failBidOrders = failBids.map((leafNode) => {
+          const size = leafNode.quantity.toNumber();
+          const price = leafNode.key.shrn(64).toNumber() / 10_000;
+          return {
+            price,
+            size,
+            market: proposal?.account.openbookFailMarket,
+            owner: leafNode.owner,
+            ownerSlot: leafNode.ownerSlot,
+            side: 'bids' as const,
+            timestamp: leafNode.timestamp,
+            clientOrderId: leafNode.clientOrderId,
+          };
+        });
+        const failAskOrders = failAsks.map((leafNode) => {
+          const size = leafNode.quantity.toNumber();
+          const price = leafNode.key.shrn(64).toNumber() / 10_000;
+          return {
+            price,
+            size,
+            market: proposal?.account.openbookFailMarket,
+            owner: leafNode.owner,
+            ownerSlot: leafNode.ownerSlot,
+            side: 'asks' as const,
+            timestamp: leafNode.timestamp,
+            clientOrderId: leafNode.clientOrderId,
+          };
+        });
+        const openOrdersPks = (await getUsersOpenOrderPks(client, wallet.publicKey)).map((p) =>
+          p.toString(),
+        );
+        const allOrders = [...passBidOrders, ...passAskOrders, ...failBidOrders, ...failAskOrders];
+
+        const userOrders = allOrders
+          .filter((o): o is OrderBookOrder => {
+            return !!o.market && openOrdersPks.includes(o.owner?.toString());
+          })
+          .map((o) => {
+            const position: OpenOrdersAccountWithKey['account']['position'] =
+              o.side === 'bids'
+                ? {
+                    asksBaseLots: new BN(0),
+                    bidsBaseLots: new BN(o.size),
+                    baseFreeNative: new BN(),
+                    quoteFreeNative: new BN(),
+                    lockedMakerFees: new BN(),
+                    referrerRebatesAvailable: new BN(),
+                    penaltyHeapCount: new BN(),
+                    makerVolume: new BN(),
+                    takerVolume: new BN(),
+                    reserved: [],
+                  }
+                : {
+                    bidsBaseLots: new BN(0),
+                    asksBaseLots: new BN(o.size),
+                    baseFreeNative: new BN(),
+                    quoteFreeNative: new BN(),
+                    lockedMakerFees: new BN(),
+                    referrerRebatesAvailable: new BN(),
+                    penaltyHeapCount: new BN(),
+                    makerVolume: new BN(),
+                    takerVolume: new BN(),
+                    reserved: [],
+                  };
+            const order: OpenOrdersAccountWithKey = {
+              publicKey: o.owner,
+              account: {
+                owner: o.owner,
+                accountNum: o.clientOrderId.toNumber(),
+                market: o.market,
+                position,
+                bump: 0,
+                delegate: {
+                  key: o.owner,
+                },
+                name: [],
+                openOrders: [
+                  {
+                    clientId: o.clientOrderId,
+                    id: new BN(),
+                    isFree: 0,
+                    lockedPrice: new BN(o.price / QUOTE_LOTS),
+                    padding: new BN(),
+                    sideAndTree: 0,
+                  },
+                ],
+                padding: [],
+              },
+            };
+
+            return order;
+          });
+        setOrders(userOrders);
+      }
+    },
+    [wallet.publicKey?.toString()],
+  );
+
   const placeOrder = useCallback(
     async (amount: number, price: number, limitOrder?: boolean, ask?: boolean, pass?: boolean) => {
       if (!proposal || !markets) return;
@@ -358,7 +495,14 @@ export function ProposalMarketsProvider({
 
         const txsSent = await sender.send(placeTxs);
         await fetchMarketsInfo();
-        await fetchOpenOrders(wallet.publicKey);
+        await refreshUserOrders(
+          openBookClient,
+          proposal,
+          markets.passBids,
+          markets.passAsks,
+          markets.failBids,
+          markets.failAsks,
+        );
         return txsSent;
       } catch (err) {
         console.error(err);
@@ -374,7 +518,7 @@ export function ProposalMarketsProvider({
       sender,
       placeOrderTransactions,
       fetchMarketsInfo,
-      fetchOpenOrders,
+      refreshUserOrders,
     ],
   );
 
@@ -639,7 +783,7 @@ export function ProposalMarketsProvider({
       lastFailSlotUpdated,
       passSpreadString,
       failSpreadString,
-      fetchOpenOrders,
+      refreshUserOrders,
       fetchMarketsInfo,
       placeOrderTransactions,
       placeOrder,
