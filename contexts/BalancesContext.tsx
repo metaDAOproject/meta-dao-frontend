@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef } from 'react';
+import { createContext, useCallback, useContext, useMemo } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { AccountInfo, PublicKey, TokenAmount } from '@solana/web3.js';
 import { AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token';
@@ -94,7 +94,7 @@ export function BalancesProvider({ children }: { children: React.ReactNode }) {
             publicKey: getAta(vaultAccounts[1].underlyingTokenMint),
             metaData: {
               decimals: quoteDecimals,
-              lotSize: 10 ^ (baseDecimals || 0),
+              lotSize: 10 ^ (quoteDecimals || 0),
             },
           },
         ].filter((m): m is SubscriptionAccount<tokenMetaData> => !!m.publicKey) ?? []
