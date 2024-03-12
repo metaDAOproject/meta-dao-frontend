@@ -87,14 +87,14 @@ export function BalancesProvider({ children }: { children: React.ReactNode }) {
             publicKey: getAta(vaultAccounts[0].underlyingTokenMint),
             metaData: {
               decimals: baseDecimals,
-              lotSize: 10 ^ (baseDecimals || 0),
+              lotSize: 10 ** (baseDecimals || 0),
             },
           },
           {
             publicKey: getAta(vaultAccounts[1].underlyingTokenMint),
             metaData: {
               decimals: quoteDecimals,
-              lotSize: 10 ^ (quoteDecimals || 0),
+              lotSize: 10 ** (quoteDecimals || 0),
             },
           },
         ].filter((m): m is SubscriptionAccount<tokenMetaData> => !!m.publicKey) ?? []
@@ -107,14 +107,14 @@ export function BalancesProvider({ children }: { children: React.ReactNode }) {
             publicKey: getAta(m.baseMint),
             metaData: {
               decimals: baseDecimals,
-              lotSize: 10 ^ (baseDecimals || 0),
+              lotSize: 10 ** (baseDecimals || 0),
             },
           },
           {
             publicKey: getAta(m.quoteMint),
             metaData: {
               decimals: quoteDecimals,
-              lotSize: 10 ^ (quoteDecimals || 0),
+              lotSize: 10 ** (quoteDecimals || 0),
             },
           },
         ])
