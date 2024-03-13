@@ -100,7 +100,11 @@ export function ConditionalMarketCard({
 
   const updateOrderValue = () => {
     if (!Number.isNaN(amount) && !Number.isNaN(+price)) {
-      const _price = parseFloat((+price * amount).toString()).toFixed(2);
+      const formatter = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      const _price = formatter.format(parseFloat((+price * amount).toString()));
       setOrderValue(_price);
     } else {
       setOrderValue('0');
@@ -600,7 +604,7 @@ export function ConditionalMarketCard({
               <Text> </Text>
             )}
             <>
-              <Text size="xs">Total Order Value ${orderValue}</Text>
+              <Text size="xs">Total Order Value {orderValue}</Text>
             </>
           </Group>
           <Grid>
