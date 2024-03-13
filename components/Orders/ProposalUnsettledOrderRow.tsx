@@ -129,7 +129,7 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
       </Table.Td>
       <Table.Td>
         <Stack gap={0}>
-          <Text>{`${baseBalance} ${isPass(order, proposal) ? `pMETA` : 'fMETA'}`}</Text>
+          <Text>{`${baseBalance} ${isPass(order, proposal) ? 'pMETA' : 'fMETA'}`}</Text>
           <Text>{`${quoteBalance} ${isPass(order, proposal) ? 'pUSDC' : 'fUSDC'}`}</Text>
         </Stack>
       </Table.Td>
