@@ -796,7 +796,6 @@ export function ProposalMarketsProvider({
     }
   }, [orderBookObject]);
 
-  // need to put this in a useEffect that takes all the parameters and passes them on down baby
   const listenOrderBooks = async (
     proposal: Proposal,
     markets: Markets,
