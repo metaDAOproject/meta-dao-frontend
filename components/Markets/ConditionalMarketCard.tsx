@@ -300,7 +300,7 @@ export function ConditionalMarketCard({
     } finally {
       setIsPlacingOrder(false);
     }
-  }, [placeOrder, amount, isLimitOrder, isPassMarket, isAskSide]);
+  }, [placeOrder, amount, isLimitOrder, isPassMarket, isAskSide, price]);
 
   const getObservableTwap = () => {
     if (isPassMarket) {
