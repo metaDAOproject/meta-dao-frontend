@@ -305,6 +305,19 @@ export function ProposalMarketsProvider({
   }, [proposal]);
 
   useEffect(() => {
+    if (proposal && wallet.publicKey && markets) {
+      refreshUserOpenOrders(
+        openBookClient,
+        proposal,
+        markets.passBids,
+        markets.passAsks,
+        markets.failBids,
+        markets.failAsks,
+      );
+    }
+  }, [!!markets, !!proposal]);
+
+  useEffect(() => {
     if (!markets && proposal) {
       fetchMarketsInfo();
     }
@@ -527,7 +540,8 @@ export function ProposalMarketsProvider({
             };
 
             return order;
-          });
+          })
+          .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1));
         setOpenOrders(userOrders);
       }
     },
@@ -584,6 +598,7 @@ export function ProposalMarketsProvider({
       ctx: Context,
     ): number[][] | undefined => {
       try {
+        console.log('consuming order book side', side);
         const isPassMarket = market === proposal?.account.openbookPassMarket;
         const leafNodes = openBookProgram.coder.accounts.decode(
           'bookSide',
@@ -650,28 +665,35 @@ export function ProposalMarketsProvider({
           return [[0, 0]];
         }
         // Update our values for the orderbook and order list
+        //TODO handle what happens if we get an update for a part of the order book that doesn't include the latest...
+        // we need to wait for both updates to come through before updating the user rows...
         if (isPassMarket) {
           if (side === 'asks') {
             if (markets) {
+              // update markets and orders
+              markets.passAsks = leafNodeSide;
+              setMarkets({ ...markets });
               refreshUserOpenOrders(
                 openBookClient,
                 proposal,
-                markets?.passBids,
+                markets.passBids,
                 leafNodeSide,
-                markets?.failBids,
-                markets?.failAsks,
+                markets.failBids,
+                markets.failAsks,
               );
             }
             setPassAsks(__side);
           } else {
             if (markets) {
+              markets.passBids = leafNodeSide;
+              setMarkets({ ...markets });
               refreshUserOpenOrders(
                 openBookClient,
                 proposal,
                 leafNodeSide,
-                markets?.passAsks,
-                markets?.failBids,
-                markets?.failAsks,
+                markets.passAsks,
+                markets.failBids,
+                markets.failAsks,
               );
             }
             setPassBids(__side);
@@ -680,25 +702,29 @@ export function ProposalMarketsProvider({
         } else {
           if (side === 'asks') {
             if (markets && proposal) {
+              markets.failAsks = leafNodeSide;
+              setMarkets({ ...markets });
               refreshUserOpenOrders(
                 openBookClient,
                 proposal,
-                markets?.passBids,
-                markets?.passAsks,
-                markets?.failBids,
+                markets.passBids,
+                markets.passAsks,
+                markets.failBids,
                 leafNodeSide,
               );
             }
             setFailAsks(__side);
           } else {
             if (markets && proposal) {
+              markets.failBids = leafNodeSide;
+              setMarkets({ ...markets });
               refreshUserOpenOrders(
                 openBookClient,
                 proposal,
-                markets?.passBids,
-                markets?.passAsks,
+                markets.passBids,
+                markets.passAsks,
                 leafNodeSide,
-                markets?.failAsks,
+                markets.failAsks,
               );
             }
             setFailBids(__side);
