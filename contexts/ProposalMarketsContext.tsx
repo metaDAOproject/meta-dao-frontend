@@ -305,19 +305,6 @@ export function ProposalMarketsProvider({
   }, [proposal]);
 
   useEffect(() => {
-    if (proposal && wallet.publicKey && markets) {
-      refreshUserOpenOrders(
-        openBookClient,
-        proposal,
-        markets.passBids,
-        markets.passAsks,
-        markets.failBids,
-        markets.failAsks,
-      );
-    }
-  }, [markets, proposal]);
-
-  useEffect(() => {
     if (!markets && proposal) {
       fetchMarketsInfo();
     }
