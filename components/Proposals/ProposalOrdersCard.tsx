@@ -13,18 +13,35 @@ import { ProposalOpenOrdersTab } from '@/components/Orders/ProposalOpenOrdersTab
 import { ProposalUnsettledOrdersTab } from '@/components/Orders/ProposalUnsettledOrdersTab';
 import { ProposalUncrankedOrdersTab } from '@/components/Orders/ProposalUncrankedOrdersTab';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
+import { useOpenbook } from '@/hooks/useOpenbook';
 
 export function ProposalOrdersCard() {
-  const wallet = useWallet();
   const { proposal } = useProposal();
-  const { fetchOpenOrders, markets, orders } = useProposalMarkets();
+  const {
+    markets,
+    openOrders,
+    unsettledOrders,
+    uncrankedOrders: unCrankedOrders,
+    refreshUserOpenOrders,
+  } = useProposalMarkets();
+  const { program: openBookClient } = useOpenbook();
 
-  if (!orders || !markets) return <></>;
-  const openOrders = orders.filter((order) => isOpenOrder(order, markets));
-  const unCrankedOrders = orders.filter((order) => isCompletedOrder(order, markets));
-  const unsettledOrders = orders.filter((order) => isEmptyOrder(order));
+  if (!openOrders || !markets) return <></>;
 
-  return !proposal || !markets || !orders ? (
+  const onRefresh = () => {
+    if (proposal && markets) {
+      refreshUserOpenOrders(
+        openBookClient,
+        proposal,
+        markets.passBids,
+        markets.passAsks,
+        markets.failBids,
+        markets.failAsks,
+      );
+    }
+  };
+
+  return !proposal || !markets || !openOrders ? (
     <Group justify="center" w="100%" h="100%">
       <Loader />
     </Group>
@@ -38,14 +55,14 @@ export function ProposalOrdersCard() {
           <Group justify="space-between" align="flex-start">
             <Text size="lg">
               <Text span fw="bold">
-                ${totalUsdcInOrder(orders)}
+                ${totalUsdcInOrder(openOrders)}
               </Text>{' '}
               condUSDC
             </Text>
             <Text>|</Text>
             <Text size="lg">
               <Text span fw="bold">
-                {totalMetaInOrder(orders)}
+                {totalMetaInOrder(openOrders)}
               </Text>{' '}
               condMETA
             </Text>
@@ -53,7 +70,7 @@ export function ProposalOrdersCard() {
           <ActionIcon
             variant="subtle"
             // @ts-ignore
-            onClick={() => fetchOpenOrders(wallet.publicKey)}
+            onClick={onRefresh}
           >
             <IconRefresh />
           </ActionIcon>
@@ -70,12 +87,10 @@ export function ProposalOrdersCard() {
           <ProposalOpenOrdersTab orders={openOrders} />
         </Tabs.Panel>
         <Tabs.Panel value="uncranked">
-          <ProposalUncrankedOrdersTab
-            orders={unCrankedOrders}
-          />
+          <ProposalUncrankedOrdersTab orders={unCrankedOrders ?? []} />
         </Tabs.Panel>
         <Tabs.Panel value="unsettled">
-          <ProposalUnsettledOrdersTab orders={unsettledOrders} />
+          <ProposalUnsettledOrdersTab orders={unsettledOrders ?? []} />
         </Tabs.Panel>
       </Tabs>
     </>

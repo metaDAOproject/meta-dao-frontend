@@ -35,7 +35,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
   const wallet = useWallet();
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal } = useProposal();
-  const { markets, fetchOpenOrders, cancelAndSettleOrder } = useProposalMarkets();
+  const { markets, cancelAndSettleOrder } = useProposalMarkets();
   const { settleFundsTransactions, editOrderTransactions } = useOpenbookTwap();
   const { setBalanceByMint } = useBalances();
   const isBidSide = isBid(order);
@@ -79,7 +79,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
     } finally {
       setIsCanceling(false);
     }
-  }, [order, proposal, markets, wallet.publicKey, cancelAndSettleOrder, fetchOpenOrders, sender]);
+  }, [order, proposal, markets, wallet.publicKey, cancelAndSettleOrder, sender]);
 
   const handleEdit = useCallback(async () => {
     if (!proposal || !markets || !editingOrder) return;
@@ -127,7 +127,6 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
       //     };
       //   });
       // }
-      await fetchOpenOrders(wallet.publicKey);
       setEditingOrder(undefined);
     } finally {
       setIsEditing(false);
@@ -140,7 +139,6 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
     editedSize,
     editedPrice,
     editOrderTransactions,
-    fetchOpenOrders,
     sender,
   ]);
 
@@ -166,6 +164,10 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
       setIsSettling(false);
     }
   }, [order, proposal, settleFundsTransactions]);
+
+  const price = numeral(order.account.openOrders[0].lockedPrice * QUOTE_LOTS).format(
+    NUMERAL_FORMAT,
+  );
 
   return (
     <Table.Tr key={order.publicKey.toString()}>
@@ -216,9 +218,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
           <Input
             w="5rem"
             variant="filled"
-            defaultValue={numeral(order.account.openOrders[0].lockedPrice * QUOTE_LOTS).format(
-              NUMERAL_FORMAT,
-            )}
+            defaultValue={price}
             onChange={(e) => setEditedPrice(Number(e.target.value))}
           />
         ) : (

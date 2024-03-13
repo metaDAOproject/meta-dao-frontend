@@ -21,9 +21,10 @@ import { useProposal } from '@/contexts/ProposalContext';
 import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useBalances } from '../../contexts/BalancesContext';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
+import { useOpenbook } from '@/hooks/useOpenbook';
 
 export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
-  const { markets, fetchOpenOrders } = useProposalMarkets();
+  const { markets, fetchNonOpenOrders } = useProposalMarkets();
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
@@ -31,6 +32,7 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal, crankMarkets, isCranking } = useProposal();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
+  const { program: openbookClient } = useOpenbook();
   const isBidSide = isBid(order);
   const balance = isBidSide
     ? order.account.position.bidsBaseLots
@@ -58,23 +60,24 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
       if (!txs) return;
 
       await sender.send(txs);
-      await fetchOpenOrders(wallet.publicKey);
-      const relevantMint = isBidSide
-        ? marketAccount.account.quoteMint
-        : marketAccount.account.baseMint;
-      setBalanceByMint(relevantMint, (oldBalance) => {
-        const newAmount = oldBalance.uiAmount + balance.toNumber();
-        return {
-          ...oldBalance,
-          amount: newAmount.toString(),
-          uiAmount: newAmount,
-          uiAmountString: newAmount.toString(),
-        };
-      });
+      // TODO: the balance is already at 0 when this runs, so the math doesn't work right
+      // const relevantMint = isBidSide
+      //   ? marketAccount.account.quoteMint
+      //   : marketAccount.account.baseMint;
+      // setBalanceByMint(relevantMint, (oldBalance) => {
+      //   const newAmount = oldBalance.uiAmount + balance.toNumber();
+      //   return {
+      //     ...oldBalance,
+      //     amount: newAmount.toString(),
+      //     uiAmount: newAmount,
+      //     uiAmountString: newAmount.toString(),
+      //   };
+      // });
+      await fetchNonOpenOrders(wallet.publicKey, openbookClient.program, proposal, markets);
     } finally {
       setIsSettling(false);
     }
-  }, [order, proposal, settleFundsTransactions, wallet, fetchOpenOrders]);
+  }, [order, proposal, settleFundsTransactions, wallet]);
 
   const handleCloseAccount = useCallback(async () => {
     if (!proposal || !markets) return;
@@ -86,7 +89,6 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
     setIsClosing(true);
     try {
       await sender.send(txs);
-      fetchOpenOrders(wallet.publicKey);
     } catch (err) {
       console.error(err);
     } finally {
