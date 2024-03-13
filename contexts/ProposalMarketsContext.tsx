@@ -823,7 +823,6 @@ export function ProposalMarketsProvider({
             },
           ];
           // Setup Websocket subscription for the two sides
-          // TODO pass in markets here to consume order book side
           try {
             const subscriptionIds = sides.map((side) =>
               provider.connection.onAccountChange(
@@ -893,7 +892,6 @@ export function ProposalMarketsProvider({
   );
 
   useEffect(() => {
-    // TODO, TEST IT!!
     const handleOrderBooklistening = async () => {
       if (!wsConnected && proposal && markets && openBookProgram) {
         // connect for both pass and fail market order books
