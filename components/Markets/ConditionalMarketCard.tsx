@@ -286,8 +286,9 @@ export function ConditionalMarketCard({
         const relevantMint = isAskSide
           ? marketAccount.account.baseMint
           : marketAccount.account.quoteMint;
+        const balanceChange = isAskSide ? amount : _orderPrice();
         setBalanceByMint(relevantMint, (oldBalance) => {
-          const newAmount = (oldBalance.uiAmount ?? 0) - amount;
+          const newAmount = (oldBalance.uiAmount ?? 0) - balanceChange;
           return {
             ...oldBalance,
             amount: newAmount.toString(),

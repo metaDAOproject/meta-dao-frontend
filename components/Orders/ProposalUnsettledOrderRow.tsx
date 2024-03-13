@@ -70,8 +70,9 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
       const [relevantMint, relevantBalance] = isBidSide
         ? [marketAccount.account.quoteMint, quoteBalance]
         : [marketAccount.account.baseMint, baseBalance];
+      const balanceChange = isBidSide ? order.account.openOrders[0].lockedPrice : relevantBalance;
       setBalanceByMint(relevantMint, (oldBalance) => {
-        const newAmount = (oldBalance.uiAmount ?? 0) + relevantBalance;
+        const newAmount = (oldBalance.uiAmount ?? 0) + balanceChange;
         return {
           ...oldBalance,
           amount: newAmount.toString(),

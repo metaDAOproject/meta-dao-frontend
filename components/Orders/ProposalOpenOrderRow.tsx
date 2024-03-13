@@ -61,11 +61,12 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
       setIsCanceling(true);
       const txsSent = await cancelAndSettleOrder(order, marketAccount.publicKey);
       if (txsSent && txsSent.length > 0) {
+        const balanceChange = isBidSide ? order.account.openOrders[0].lockedPrice : balance;
         const relevantMint = isBidSide
           ? marketAccount.account.quoteMint
           : marketAccount.account.baseMint;
         setBalanceByMint(relevantMint, (oldBalance) => {
-          const newAmount = oldBalance.uiAmount + balance.toNumber();
+          const newAmount = oldBalance.uiAmount + balanceChange.toNumber();
           return {
             ...oldBalance,
             amount: newAmount.toString(),
