@@ -1,20 +1,14 @@
 import { ActionIcon, Group, Loader, Stack, Tabs, Text } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { IconRefresh } from '@tabler/icons-react';
-import { useProposal } from '@/contexts/ProposalContext';
-import {
-  isCompletedOrder,
-  isEmptyOrder,
-  isOpenOrder,
-  totalMetaInOrder,
-  totalUsdcInOrder,
-} from '@/lib/openbook';
+import { useCallback } from 'react';
 import { ProposalOpenOrdersTab } from '@/components/Orders/ProposalOpenOrdersTab';
-import { ProposalUnsettledOrdersTab } from '@/components/Orders/ProposalUnsettledOrdersTab';
 import { ProposalUncrankedOrdersTab } from '@/components/Orders/ProposalUncrankedOrdersTab';
+import { ProposalUnsettledOrdersTab } from '@/components/Orders/ProposalUnsettledOrdersTab';
+import { useProposal } from '@/contexts/ProposalContext';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 import { useOpenbook } from '@/hooks/useOpenbook';
-import { useCallback } from 'react';
+import { totalMetaInOrder, totalUsdcInOrder } from '@/lib/openbook';
 
 export function ProposalOrdersCard() {
   const { publicKey: owner } = useWallet();
