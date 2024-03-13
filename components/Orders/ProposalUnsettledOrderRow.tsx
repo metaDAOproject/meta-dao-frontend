@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActionIcon,
   Group,
@@ -21,10 +21,11 @@ import { useProposal } from '@/contexts/ProposalContext';
 import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useBalances } from '../../contexts/BalancesContext';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
-import { useOpenbook } from '@/hooks/useOpenbook';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
-  const { markets, fetchNonOpenOrders } = useProposalMarkets();
+  const queryClient = useQueryClient();
+  const { markets } = useProposalMarkets();
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
@@ -32,11 +33,11 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal, crankMarkets, isCranking } = useProposal();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
-  const { program: openbookClient } = useOpenbook();
   const isBidSide = isBid(order);
   const balance = isBidSide
     ? order.account.position.bidsBaseLots
     : order.account.position.asksBaseLots;
+  const originalBalance = useRef(balance);
 
   const [isSettling, setIsSettling] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
@@ -60,20 +61,24 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
       if (!txs) return;
 
       await sender.send(txs);
-      // TODO: the balance is already at 0 when this runs, so the math doesn't work right
-      // const relevantMint = isBidSide
-      //   ? marketAccount.account.quoteMint
-      //   : marketAccount.account.baseMint;
-      // setBalanceByMint(relevantMint, (oldBalance) => {
-      //   const newAmount = oldBalance.uiAmount + balance.toNumber();
-      //   return {
-      //     ...oldBalance,
-      //     amount: newAmount.toString(),
-      //     uiAmount: newAmount,
-      //     uiAmountString: newAmount.toString(),
-      //   };
-      // });
-      await fetchNonOpenOrders(wallet.publicKey, openbookClient.program, proposal, markets);
+      const relevantMint = isBidSide
+        ? marketAccount.account.quoteMint
+        : marketAccount.account.baseMint;
+      setBalanceByMint(relevantMint, (oldBalance) => {
+        const newAmount = oldBalance.uiAmount + originalBalance.current.toNumber();
+        return {
+          ...oldBalance,
+          amount: newAmount.toString(),
+          uiAmount: newAmount,
+          uiAmountString: newAmount.toString(),
+        };
+      });
+      await queryClient.refetchQueries({
+        queryKey: [
+          `fetchProposalClosedOrders-${proposal?.publicKey}-${wallet.publicKey.toString()}`,
+        ],
+        exact: true,
+      });
     } finally {
       setIsSettling(false);
     }

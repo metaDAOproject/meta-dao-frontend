@@ -14,8 +14,10 @@ import { ProposalUnsettledOrdersTab } from '@/components/Orders/ProposalUnsettle
 import { ProposalUncrankedOrdersTab } from '@/components/Orders/ProposalUncrankedOrdersTab';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 import { useOpenbook } from '@/hooks/useOpenbook';
+import { useCallback } from 'react';
 
 export function ProposalOrdersCard() {
+  const { publicKey: owner } = useWallet();
   const { proposal } = useProposal();
   const {
     markets,
@@ -23,6 +25,7 @@ export function ProposalOrdersCard() {
     unsettledOrders,
     uncrankedOrders: unCrankedOrders,
     refreshUserOpenOrders,
+    fetchNonOpenOrders,
   } = useProposalMarkets();
   const { program: openBookClient } = useOpenbook();
 
@@ -40,6 +43,15 @@ export function ProposalOrdersCard() {
       );
     }
   };
+
+  const onTabChange = useCallback(
+    (event: string | null) => {
+      if ((event === 'unsettled' || event === 'uncranked') && owner) {
+        fetchNonOpenOrders(owner, openBookClient.program, proposal, markets);
+      }
+    },
+    [!!owner],
+  );
 
   return !proposal || !markets || !openOrders ? (
     <Group justify="center" w="100%" h="100%">
@@ -77,7 +89,7 @@ export function ProposalOrdersCard() {
         </Group>
         <Stack justify="start" align="start" />
       </Stack>
-      <Tabs defaultValue="open">
+      <Tabs onChange={onTabChange} defaultValue="open">
         <Tabs.List>
           <Tabs.Tab value="open">Open</Tabs.Tab>
           <Tabs.Tab value="uncranked">Uncranked</Tabs.Tab>

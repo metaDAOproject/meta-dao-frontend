@@ -40,7 +40,7 @@ import ExternalLink from '../ExternalLink';
 import MarketsBalances from './MarketsBalances';
 import classes from '../../app/globals.module.css';
 import { useTokens } from '../../hooks/useTokens';
-import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '../../lib/openbook';
+import { isClosableOrder, isPartiallyFilled } from '../../lib/openbook';
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 import { Proposal } from '../../lib/types';
 import { ProposalCountdown } from './ProposalCountdown';

@@ -163,29 +163,32 @@ export function ProposalMarketsProvider({
       proposal: Proposal | undefined,
       markets: Markets | undefined,
     ) => {
-      const fetchProposalClosedOrders = async () => {
-        if (!openbook || !proposal || !markets) {
-          return [];
-        }
-        const passOrders = await openbook.account.openOrdersAccount.all([
-          { memcmp: { offset: 8, bytes: owner.toBase58() } },
-          { memcmp: { offset: 40, bytes: proposal.account.openbookPassMarket.toBase58() } },
-        ]);
-        const passUnsettledOrders = passOrders.filter((o) => isEmptyOrder(o));
-        const passUncrankedOrders = passOrders.filter((o) => isCompletedOrder(o, markets));
-        const failOrders = await openbook.account.openOrdersAccount.all([
-          { memcmp: { offset: 8, bytes: owner.toBase58() } },
-          { memcmp: { offset: 40, bytes: proposal.account.openbookFailMarket.toBase58() } },
-        ]);
-        const failUnsettledOrders = failOrders.filter((o) => isEmptyOrder(o));
-        const failUncrankedOrders = failOrders.filter((o) => isCompletedOrder(o, markets));
-        return [passUnsettledOrders, passUncrankedOrders, failUnsettledOrders, failUncrankedOrders];
-      };
-
       const nonOpenOrders = await client.fetchQuery({
-        queryKey: [`fetchProposalClosedOrders-${proposal?.publicKey}`],
-        queryFn: () => fetchProposalClosedOrders(),
-        staleTime: 1_000,
+        queryKey: [`fetchProposalClosedOrders-${proposal?.publicKey}-${owner.toString()}`],
+        queryFn: async () => {
+          if (!openbook || !proposal || !markets) {
+            return [];
+          }
+          const passOrders = await openbook.account.openOrdersAccount.all([
+            { memcmp: { offset: 8, bytes: owner.toBase58() } },
+            { memcmp: { offset: 40, bytes: proposal.account.openbookPassMarket.toBase58() } },
+          ]);
+          const passUnsettledOrders = passOrders.filter((o) => isEmptyOrder(o));
+          const passUncrankedOrders = passOrders.filter((o) => isCompletedOrder(o, markets));
+          const failOrders = await openbook.account.openOrdersAccount.all([
+            { memcmp: { offset: 8, bytes: owner.toBase58() } },
+            { memcmp: { offset: 40, bytes: proposal.account.openbookFailMarket.toBase58() } },
+          ]);
+          const failUnsettledOrders = failOrders.filter((o) => isEmptyOrder(o));
+          const failUncrankedOrders = failOrders.filter((o) => isCompletedOrder(o, markets));
+          return [
+            passUnsettledOrders,
+            passUncrankedOrders,
+            failUnsettledOrders,
+            failUncrankedOrders,
+          ];
+        },
+        staleTime: 30_000,
       });
 
       if (nonOpenOrders.length > 0) {
@@ -865,20 +868,23 @@ export function ProposalMarketsProvider({
         if (!cancelAndSettleTxs) return;
 
         const txsSent = await sender.send([...cancelAndSettleTxs]);
-        // if (txsSent.length !== 0) {
-        //   //update order in state
-        //   const cancelledOrderIndex = openOrders.findIndex(
-        //     (o) => o.account.accountNum === order.account.accountNum,
-        //   );
-        //   const cancelledOrder: OpenOrdersAccountWithKey | undefined = openOrders[cancelledOrderIndex];
-        //   if (cancelledOrder) {
-        //     openOrders[cancelledOrderIndex].account.openOrders[0].isFree = 1;
-        //     openOrders[cancelledOrderIndex].account.position.baseFreeNative = new BN(0);
-        //     openOrders[cancelledOrderIndex].account.position.quoteFreeNative = new BN(0);
-        //     setUnsettledOrders([...unsettledOrders, cancelledOrder]);
-        //     setOpenOrders(openOrders.filter((o, i) => i !== cancelledOrderIndex));
-        //   }
-        // }
+        if (txsSent.length !== 0) {
+          //update order in state
+          //FYI usually the websocket event comes through and does this first, this state update is a fallback
+          const cancelledOrderIndex = openOrders.findIndex(
+            (o) => o.account.accountNum === order.account.accountNum,
+          );
+          const cancelledOrder: OpenOrdersAccountWithKey | undefined =
+            openOrders[cancelledOrderIndex];
+          //if this order element is undefined, it usually means the WS event happened first
+          if (cancelledOrder) {
+            openOrders[cancelledOrderIndex].account.openOrders[0].isFree = 1;
+            openOrders[cancelledOrderIndex].account.position.baseFreeNative = new BN(0);
+            openOrders[cancelledOrderIndex].account.position.quoteFreeNative = new BN(0);
+            setUnsettledOrders([...unsettledOrders, cancelledOrder]);
+            setOpenOrders(openOrders.filter((o, i) => i !== cancelledOrderIndex));
+          }
+        }
         return txsSent;
       } catch (err) {
         console.error(err);
