@@ -188,7 +188,7 @@ export function ProposalMarketsProvider({
             failUncrankedOrders,
           ];
         },
-        staleTime: 30_000,
+        staleTime: 5_000,
       });
 
       if (nonOpenOrders.length > 0) {
@@ -564,14 +564,6 @@ export function ProposalMarketsProvider({
 
         const txsSent = await sender.send(placeTxs);
         await fetchMarketsInfo();
-        await refreshUserOpenOrders(
-          openBookClient,
-          proposal,
-          markets.passBids,
-          markets.passAsks,
-          markets.failBids,
-          markets.failAsks,
-        );
         return txsSent;
       } catch (err) {
         console.error(err);

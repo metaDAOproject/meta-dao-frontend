@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActionIcon,
   Group,
@@ -12,7 +12,6 @@ import {
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Icon3dRotate, IconWriting, Icon12Hours, IconAssemblyOff } from '@tabler/icons-react';
 import { BN } from '@coral-xyz/anchor';
-import { useQueryClient } from '@tanstack/react-query';
 import { OpenOrdersAccountWithKey } from '@/lib/types';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
@@ -22,10 +21,10 @@ import { useProposal } from '@/contexts/ProposalContext';
 import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useBalances } from '../../contexts/BalancesContext';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
+import { useOpenbook } from '@/hooks/useOpenbook';
 
 export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
-  const queryClient = useQueryClient();
-  const { markets } = useProposalMarkets();
+  const { markets, fetchNonOpenOrders } = useProposalMarkets();
   const theme = useMantineTheme();
   const sender = useTransactionSender();
   const wallet = useWallet();
@@ -33,27 +32,34 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal, crankMarkets, isCranking } = useProposal();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
+  const { program: openbookClient } = useOpenbook();
   const isBidSide = isBid(order);
-  const balance = isBidSide
-    ? order.account.position.bidsBaseLots
-    : order.account.position.asksBaseLots;
-  const originalBalance = useRef(balance);
+  const pass = proposal ? order.account.market.equals(proposal.account.openbookPassMarket) : null;
 
   const [isSettling, setIsSettling] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
+
+  if (!markets || !proposal) {
+    return null;
+  }
+
+  const relevantMarket = pass ? markets.pass : markets.fail;
+  const marketAccount = pass
+    ? { account: relevantMarket, publicKey: proposal.account.openbookPassMarket }
+    : { account: relevantMarket, publicKey: proposal.account.openbookFailMarket };
+  const [baseBalance, quoteBalance] = [
+    order.account.position.baseFreeNative.toNumber() / 10 ** relevantMarket.baseDecimals,
+    order.account.position.quoteFreeNative / 10 ** relevantMarket.quoteDecimals,
+  ];
 
   const handleSettleFunds = useCallback(async () => {
     if (!proposal || !markets || !wallet?.publicKey) return;
 
     setIsSettling(true);
     try {
-      const pass = order.account.market.equals(proposal.account.openbookPassMarket);
-      const marketAccount = pass
-        ? { account: markets.pass, publicKey: proposal.account.openbookPassMarket }
-        : { account: markets.fail, publicKey: proposal.account.openbookFailMarket };
       const txs = await settleFundsTransactions(
         order.account.accountNum,
-        pass,
+        pass ?? false,
         proposal,
         marketAccount,
       );
@@ -61,11 +67,11 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
       if (!txs) return;
 
       await sender.send(txs);
-      const relevantMint = isBidSide
-        ? marketAccount.account.quoteMint
-        : marketAccount.account.baseMint;
+      const [relevantMint, relevantBalance] = isBidSide
+        ? [marketAccount.account.quoteMint, quoteBalance]
+        : [marketAccount.account.baseMint, baseBalance];
       setBalanceByMint(relevantMint, (oldBalance) => {
-        const newAmount = oldBalance.uiAmount + originalBalance.current.toNumber();
+        const newAmount = (oldBalance.uiAmount ?? 0) + relevantBalance;
         return {
           ...oldBalance,
           amount: newAmount.toString(),
@@ -73,12 +79,7 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
           uiAmountString: newAmount.toString(),
         };
       });
-      await queryClient.refetchQueries({
-        queryKey: [
-          `fetchProposalClosedOrders-${proposal?.publicKey}-${wallet.publicKey.toString()}`,
-        ],
-        exact: true,
-      });
+      await fetchNonOpenOrders(wallet.publicKey, openbookClient.program, proposal, markets);
     } finally {
       setIsSettling(false);
     }
@@ -128,16 +129,8 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
       </Table.Td>
       <Table.Td>
         <Stack gap={0}>
-          <Text>
-            {`${order.account.position.baseFreeNative.toNumber() / 1_000_000_000} ${
-              isPass(order, proposal) ? 'pMETA' : 'fMETA'
-            }`}
-          </Text>
-          <Text>
-            {`${order.account.position.quoteFreeNative / 1_000_000} ${
-              isPass(order, proposal) ? 'pUSDC' : 'fUSDC'
-            }`}
-          </Text>
+          <Text>{`${baseBalance} ${isPass(order, proposal) ? `pMETA` : 'fMETA'}`}</Text>
+          <Text>{`${quoteBalance} ${isPass(order, proposal) ? 'pUSDC' : 'fUSDC'}`}</Text>
         </Stack>
       </Table.Td>
       <Table.Td>
