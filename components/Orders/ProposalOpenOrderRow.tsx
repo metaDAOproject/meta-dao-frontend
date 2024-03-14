@@ -28,6 +28,7 @@ import { useProposal } from '@/contexts/ProposalContext';
 import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 import { useBalances } from '@/contexts/BalancesContext';
+import { BN } from '@coral-xyz/anchor';
 
 export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
   const theme = useMantineTheme();
@@ -61,7 +62,10 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
       setIsCanceling(true);
       const txsSent = await cancelAndSettleOrder(order, marketAccount.publicKey);
       if (txsSent && txsSent.length > 0) {
-        const balanceChange = isBidSide ? order.account.openOrders[0].lockedPrice : balance;
+        const quoteLots = new BN(10 ** marketAccount.account.quoteDecimals);
+        const balanceChange = isBidSide
+          ? (order.account.openOrders[0].lockedPrice / quoteLots) * 100
+          : balance;
         const relevantMint = isBidSide
           ? marketAccount.account.quoteMint
           : marketAccount.account.baseMint;
