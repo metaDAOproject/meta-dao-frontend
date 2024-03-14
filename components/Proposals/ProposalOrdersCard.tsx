@@ -1,30 +1,53 @@
 import { ActionIcon, Group, Loader, Stack, Tabs, Text } from '@mantine/core';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { IconRefresh } from '@tabler/icons-react';
-import { useProposal } from '@/contexts/ProposalContext';
-import {
-  isCompletedOrder,
-  isEmptyOrder,
-  isOpenOrder,
-  totalMetaInOrder,
-  totalUsdcInOrder,
-} from '@/lib/openbook';
+import { useCallback } from 'react';
 import { ProposalOpenOrdersTab } from '@/components/Orders/ProposalOpenOrdersTab';
-import { ProposalUnsettledOrdersTab } from '@/components/Orders/ProposalUnsettledOrdersTab';
 import { ProposalUncrankedOrdersTab } from '@/components/Orders/ProposalUncrankedOrdersTab';
+import { ProposalUnsettledOrdersTab } from '@/components/Orders/ProposalUnsettledOrdersTab';
+import { useProposal } from '@/contexts/ProposalContext';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
+import { useOpenbook } from '@/hooks/useOpenbook';
+import { totalMetaInOrder, totalUsdcInOrder } from '@/lib/openbook';
 
 export function ProposalOrdersCard() {
-  const wallet = useWallet();
+  const { publicKey: owner } = useWallet();
   const { proposal } = useProposal();
-  const { fetchOpenOrders, markets, orders } = useProposalMarkets();
+  const {
+    markets,
+    openOrders,
+    unsettledOrders,
+    uncrankedOrders: unCrankedOrders,
+    refreshUserOpenOrders,
+    fetchNonOpenOrders,
+  } = useProposalMarkets();
+  const { program: openBookClient } = useOpenbook();
 
-  if (!orders || !markets) return <></>;
-  const openOrders = orders.filter((order) => isOpenOrder(order, markets));
-  const unCrankedOrders = orders.filter((order) => isCompletedOrder(order, markets));
-  const unsettledOrders = orders.filter((order) => isEmptyOrder(order));
+  if (!openOrders || !markets) return <></>;
 
-  return !proposal || !markets || !orders ? (
+  const onRefresh = () => {
+    if (proposal && markets) {
+      refreshUserOpenOrders(
+        openBookClient,
+        proposal,
+        markets.passBids,
+        markets.passAsks,
+        markets.failBids,
+        markets.failAsks,
+      );
+    }
+  };
+
+  const onTabChange = useCallback(
+    (event: string | null) => {
+      if ((event === 'unsettled' || event === 'uncranked') && owner) {
+        fetchNonOpenOrders(owner, openBookClient.program, proposal, markets);
+      }
+    },
+    [!!owner],
+  );
+
+  return !proposal || !markets || !openOrders ? (
     <Group justify="center" w="100%" h="100%">
       <Loader />
     </Group>
@@ -38,14 +61,14 @@ export function ProposalOrdersCard() {
           <Group justify="space-between" align="flex-start">
             <Text size="lg">
               <Text span fw="bold">
-                ${totalUsdcInOrder(orders)}
+                ${totalUsdcInOrder(openOrders)}
               </Text>{' '}
               condUSDC
             </Text>
             <Text>|</Text>
             <Text size="lg">
               <Text span fw="bold">
-                {totalMetaInOrder(orders)}
+                {totalMetaInOrder(openOrders)}
               </Text>{' '}
               condMETA
             </Text>
@@ -53,14 +76,14 @@ export function ProposalOrdersCard() {
           <ActionIcon
             variant="subtle"
             // @ts-ignore
-            onClick={() => fetchOpenOrders(wallet.publicKey)}
+            onClick={onRefresh}
           >
             <IconRefresh />
           </ActionIcon>
         </Group>
         <Stack justify="start" align="start" />
       </Stack>
-      <Tabs defaultValue="open">
+      <Tabs onChange={onTabChange} defaultValue="open">
         <Tabs.List>
           <Tabs.Tab value="open">Open</Tabs.Tab>
           <Tabs.Tab value="uncranked">Uncranked</Tabs.Tab>
@@ -70,12 +93,10 @@ export function ProposalOrdersCard() {
           <ProposalOpenOrdersTab orders={openOrders} />
         </Tabs.Panel>
         <Tabs.Panel value="uncranked">
-          <ProposalUncrankedOrdersTab
-            orders={unCrankedOrders}
-          />
+          <ProposalUncrankedOrdersTab orders={unCrankedOrders ?? []} />
         </Tabs.Panel>
         <Tabs.Panel value="unsettled">
-          <ProposalUnsettledOrdersTab orders={unsettledOrders} />
+          <ProposalUnsettledOrdersTab orders={unsettledOrders ?? []} />
         </Tabs.Panel>
       </Tabs>
     </>

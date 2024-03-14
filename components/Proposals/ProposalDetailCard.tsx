@@ -40,7 +40,7 @@ import ExternalLink from '../ExternalLink';
 import MarketsBalances from './MarketsBalances';
 import classes from '../../app/globals.module.css';
 import { useTokens } from '../../hooks/useTokens';
-import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '../../lib/openbook';
+import { isClosableOrder, isPartiallyFilled } from '../../lib/openbook';
 import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
 import { Proposal } from '../../lib/types';
 import { ProposalCountdown } from './ProposalCountdown';
@@ -55,8 +55,8 @@ export function ProposalDetailCard() {
   const { tokens } = useTokens();
   const { proposal, finalizeProposalTransactions } = useProposal();
   const {
-    orders,
-    fetchOpenOrders,
+    openOrders,
+    unsettledOrders,
     markets,
     passAsks,
     passBids,
@@ -146,21 +146,19 @@ export function ProposalDetailCard() {
   }, [tokens, daoTreasury, sender, finalizeProposalTransactions, fetchProposals]);
 
   const handleCloseOrders = useCallback(async () => {
-    if (!proposal || !orders || !markets || !wallet.publicKey) {
+    if (!proposal || !openOrders || !markets || !wallet.publicKey) {
       return;
     }
 
-    const openOrders = orders.filter((order) => isOpenOrder(order, markets));
     // TODO: also handle uncranked orders
     // const uncrankedOrders = orders.filter((order) => isCompletedOrder(order, markets));
-    const unsettledOrders = orders.filter((order) => isEmptyOrder(order));
 
-    const ordersToSettle = unsettledOrders.filter((order) => isPartiallyFilled(order));
-    const ordersToClose = unsettledOrders.filter((order) => isClosableOrder(order));
+    const ordersToSettle = unsettledOrders?.filter((order) => isPartiallyFilled(order)) ?? [];
+    const ordersToClose = unsettledOrders?.filter((order) => isClosableOrder(order)) ?? [];
 
     const cancelOpenOrdersTxs = (
       await Promise.all(
-        openOrders.map((order) =>
+        (openOrders ?? []).map((order) =>
           cancelOrderTransactions(
             new BN(order.account.accountNum),
             proposal.account.openbookPassMarket.equals(order.account.market)
@@ -173,7 +171,7 @@ export function ProposalDetailCard() {
 
     const settleOrdersTxs = (
       await Promise.all(
-        openOrders.concat(ordersToSettle).map((order) => {
+        (openOrders ?? []).concat(ordersToSettle).map((order) => {
           const pass = order.account.market.equals(proposal.account.openbookPassMarket);
           return settleFundsTransactions(
             order.account.accountNum,
@@ -189,7 +187,7 @@ export function ProposalDetailCard() {
 
     const closeOrdersTxs = (
       await Promise.all(
-        openOrders
+        (openOrders ?? [])
           .concat(ordersToSettle)
           .concat(ordersToClose)
           .map((order) => closeOpenOrdersAccountTransactions(new BN(order.account.accountNum))),
@@ -202,18 +200,9 @@ export function ProposalDetailCard() {
         [cancelOpenOrdersTxs, settleOrdersTxs, closeOrdersTxs].filter((set) => set.length !== 0),
       );
     } finally {
-      fetchOpenOrders(wallet.publicKey);
       setIsClosing(false);
     }
-  }, [
-    orders,
-    markets,
-    proposal,
-    sender,
-    wallet.publicKey,
-    cancelOrderTransactions,
-    fetchOpenOrders,
-  ]);
+  }, [openOrders, markets, proposal, sender, wallet.publicKey, cancelOrderTransactions]);
 
   const handleRedeem = useCallback(async () => {
     if (!markets || !proposal) return;
@@ -410,12 +399,12 @@ export function ProposalDetailCard() {
           <>
             <Button
               loading={isClosing}
-              disabled={(orders?.length || 0) === 0}
+              disabled={(openOrders?.length || 0) === 0}
               onClick={handleCloseOrders}
             >
               Close remaining orders
             </Button>
-            {(orders?.length || 0) === 0 ? (
+            {(openOrders?.length || 0) === 0 ? (
               <Button color="green" loading={isRedeeming} onClick={handleRedeem}>
                 Redeem
               </Button>

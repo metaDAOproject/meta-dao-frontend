@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Stack, Table, Button, Group, Text } from '@mantine/core';
 import { Transaction } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
@@ -11,14 +11,16 @@ import { isClosableOrder, isPartiallyFilled } from '@/lib/openbook';
 import { ProposalUnsettledOrderRow } from './ProposalUnsettledOrderRow';
 import { useBalances } from '../../contexts/BalancesContext';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
+import { useAutocrat } from '@/contexts/AutocratContext';
 
 const headers = ['Order ID', 'Market', 'Claimable', 'Actions'];
 
 export function ProposalUnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }) {
   const sender = useTransactionSender();
+  const { openbook } = useAutocrat();
   const wallet = useWallet();
   const { proposal } = useProposal();
-  const { markets, fetchOpenOrders } = useProposalMarkets();
+  const { markets, fetchNonOpenOrders } = useProposalMarkets();
   const { fetchBalanceByMint } = useBalances();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
 
@@ -30,6 +32,12 @@ export function ProposalUnsettledOrdersTab({ orders }: { orders: OpenOrdersAccou
     [orders],
   );
   const ordersToClose = useMemo(() => orders.filter((order) => isClosableOrder(order)), [orders]);
+
+  useEffect(() => {
+    if (wallet.publicKey) {
+      fetchNonOpenOrders(wallet.publicKey, openbook, proposal, markets);
+    }
+  }, [wallet.publicKey?.toString(), openbook, proposal, markets]);
 
   const handleSettleAllFunds = useCallback(async () => {
     if (!proposal || !markets || !wallet?.publicKey) return;
@@ -56,7 +64,6 @@ export function ProposalUnsettledOrdersTab({ orders }: { orders: OpenOrdersAccou
 
       if (!txs) return;
       await sender.send(txs as Transaction[]);
-      fetchOpenOrders(wallet.publicKey);
       fetchBalanceByMint(markets.pass.baseMint);
       fetchBalanceByMint(markets.pass.quoteMint);
       fetchBalanceByMint(markets.fail.baseMint);
@@ -64,15 +71,7 @@ export function ProposalUnsettledOrdersTab({ orders }: { orders: OpenOrdersAccou
     } finally {
       setIsSettling(false);
     }
-  }, [
-    ordersToSettle,
-    markets,
-    proposal,
-    sender,
-    settleFundsTransactions,
-    fetchOpenOrders,
-    fetchBalanceByMint,
-  ]);
+  }, [ordersToSettle, markets, proposal, sender, settleFundsTransactions, fetchBalanceByMint]);
 
   const handleCloseAllOrders = useCallback(async () => {
     if (!proposal || !markets || !wallet?.publicKey) return;
@@ -93,10 +92,9 @@ export function ProposalUnsettledOrdersTab({ orders }: { orders: OpenOrdersAccou
       if (!txs) return;
       await sender.send(txs as Transaction[]);
     } finally {
-      fetchOpenOrders(wallet.publicKey);
       setIsClosing(false);
     }
-  }, [ordersToClose, markets, proposal, sender, settleFundsTransactions, fetchOpenOrders]);
+  }, [ordersToClose, markets, proposal, sender, settleFundsTransactions]);
 
   return (
     <Stack py="md">

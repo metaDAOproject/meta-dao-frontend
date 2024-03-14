@@ -100,7 +100,11 @@ export function ConditionalMarketCard({
 
   const updateOrderValue = () => {
     if (!Number.isNaN(amount) && !Number.isNaN(+price)) {
-      const _price = parseFloat((+price * amount).toString()).toFixed(2);
+      const formatter = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      const _price = formatter.format(parseFloat((+price * amount).toString()));
       setOrderValue(_price);
     } else {
       setOrderValue('0');
@@ -286,8 +290,9 @@ export function ConditionalMarketCard({
         const relevantMint = isAskSide
           ? marketAccount.account.baseMint
           : marketAccount.account.quoteMint;
+        const balanceChange = isAskSide ? amount : _orderPrice();
         setBalanceByMint(relevantMint, (oldBalance) => {
-          const newAmount = (oldBalance.uiAmount ?? 0) - amount;
+          const newAmount = (oldBalance.uiAmount ?? 0) - balanceChange;
           return {
             ...oldBalance,
             amount: newAmount.toString(),
@@ -299,7 +304,7 @@ export function ConditionalMarketCard({
     } finally {
       setIsPlacingOrder(false);
     }
-  }, [placeOrder, amount, isLimitOrder, isPassMarket, isAskSide]);
+  }, [placeOrder, amount, isLimitOrder, isPassMarket, isAskSide, price]);
 
   const getObservableTwap = () => {
     if (isPassMarket) {
@@ -599,7 +604,7 @@ export function ConditionalMarketCard({
               <Text> </Text>
             )}
             <>
-              <Text size="xs">Total Order Value ${orderValue}</Text>
+              <Text size="xs">Total Order Value {orderValue}</Text>
             </>
           </Group>
           <Grid>

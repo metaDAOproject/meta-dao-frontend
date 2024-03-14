@@ -19,6 +19,7 @@ import {
   IconPencilCancel,
   IconCheck,
 } from '@tabler/icons-react';
+import { BN } from '@coral-xyz/anchor';
 import { OpenOrdersAccountWithKey } from '@/lib/types';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
@@ -35,7 +36,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
   const wallet = useWallet();
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal } = useProposal();
-  const { markets, fetchOpenOrders, cancelAndSettleOrder } = useProposalMarkets();
+  const { markets, cancelAndSettleOrder } = useProposalMarkets();
   const { settleFundsTransactions, editOrderTransactions } = useOpenbookTwap();
   const { setBalanceByMint } = useBalances();
   const isBidSide = isBid(order);
@@ -61,11 +62,15 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
       setIsCanceling(true);
       const txsSent = await cancelAndSettleOrder(order, marketAccount.publicKey);
       if (txsSent && txsSent.length > 0) {
+        const quoteLots = new BN(10 ** marketAccount.account.quoteDecimals);
+        const balanceChange = isBidSide
+          ? (order.account.openOrders[0].lockedPrice / quoteLots) * 100
+          : balance;
         const relevantMint = isBidSide
           ? marketAccount.account.quoteMint
           : marketAccount.account.baseMint;
         setBalanceByMint(relevantMint, (oldBalance) => {
-          const newAmount = oldBalance.uiAmount + balance.toNumber();
+          const newAmount = oldBalance.uiAmount + balanceChange.toNumber();
           return {
             ...oldBalance,
             amount: newAmount.toString(),
@@ -79,7 +84,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
     } finally {
       setIsCanceling(false);
     }
-  }, [order, proposal, markets, wallet.publicKey, cancelAndSettleOrder, fetchOpenOrders, sender]);
+  }, [order, proposal, markets, wallet.publicKey, cancelAndSettleOrder, sender]);
 
   const handleEdit = useCallback(async () => {
     if (!proposal || !markets || !editingOrder) return;
@@ -127,7 +132,6 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
       //     };
       //   });
       // }
-      await fetchOpenOrders(wallet.publicKey);
       setEditingOrder(undefined);
     } finally {
       setIsEditing(false);
@@ -140,7 +144,6 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
     editedSize,
     editedPrice,
     editOrderTransactions,
-    fetchOpenOrders,
     sender,
   ]);
 
@@ -166,6 +169,10 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
       setIsSettling(false);
     }
   }, [order, proposal, settleFundsTransactions]);
+
+  const price = numeral(order.account.openOrders[0].lockedPrice * QUOTE_LOTS).format(
+    NUMERAL_FORMAT,
+  );
 
   return (
     <Table.Tr key={order.publicKey.toString()}>
@@ -216,9 +223,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
           <Input
             w="5rem"
             variant="filled"
-            defaultValue={numeral(order.account.openOrders[0].lockedPrice * QUOTE_LOTS).format(
-              NUMERAL_FORMAT,
-            )}
+            defaultValue={price}
             onChange={(e) => setEditedPrice(Number(e.target.value))}
           />
         ) : (

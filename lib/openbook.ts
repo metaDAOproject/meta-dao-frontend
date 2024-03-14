@@ -1,5 +1,5 @@
 import { Program, BN } from '@coral-xyz/anchor';
-import { OpenbookV2 } from '@openbook-dex/openbook-v2';
+import { OpenbookV2, OpenBookV2Client } from '@openbook-dex/openbook-v2';
 import {
   Keypair,
   PublicKey,
@@ -250,33 +250,30 @@ export const isClosableOrder = (order: OpenOrdersAccountWithKey): boolean =>
   order.account.position.baseFreeNative.eq(BN_0) &&
   order.account.position.quoteFreeNative.eq(BN_0);
 
-  export const _isOpenOrder = (
-    order: OpenOrdersAccountWithKey,
-    market: OpenbookMarket
-  ): boolean => {
-    if (order.account.openOrders[0].isFree === 0) {
-      const asksFilter = market.asks.filter(
-        (_order: any) => _order.owner.toString() === order.publicKey.toString(),
-      );
-      const bidsFilter = market.bids.filter(
-        (_order: any) => _order.owner.toString() === order.publicKey.toString(),
-      );
-      let _order = null;
-      if (asksFilter.length > 0) {
-        // eslint-disable-next-line prefer-destructuring
-        _order = asksFilter[0];
-      }
-      if (bidsFilter.length > 0) {
-        // eslint-disable-next-line prefer-destructuring
-        _order = bidsFilter[0];
-      }
-      if (_order !== null) {
-        return true;
-      }
-      return false;
+export const _isOpenOrder = (order: OpenOrdersAccountWithKey, market: OpenbookMarket): boolean => {
+  if (order.account.openOrders[0].isFree === 0) {
+    const asksFilter = market.asks.filter(
+      (_order: any) => _order.owner.toString() === order.publicKey.toString(),
+    );
+    const bidsFilter = market.bids.filter(
+      (_order: any) => _order.owner.toString() === order.publicKey.toString(),
+    );
+    let _order = null;
+    if (asksFilter.length > 0) {
+      // eslint-disable-next-line prefer-destructuring
+      _order = asksFilter[0];
+    }
+    if (bidsFilter.length > 0) {
+      // eslint-disable-next-line prefer-destructuring
+      _order = bidsFilter[0];
+    }
+    if (_order !== null) {
+      return true;
     }
     return false;
-  };
+  }
+  return false;
+};
 
 export const isOpenOrder = (order: OpenOrdersAccountWithKey, markets: Markets): boolean => {
   if (order.account.openOrders[0].isFree === 0) {
@@ -319,7 +316,7 @@ export const isOpenOrder = (order: OpenOrdersAccountWithKey, markets: Markets): 
 
 export const _isCompletedOrder = (
   order: OpenOrdersAccountWithKey,
-  market: OpenbookMarket
+  market: OpenbookMarket,
 ): boolean => {
   const isOpen = _isOpenOrder(order, market);
   const isEmpty =
@@ -361,14 +358,10 @@ export const totalUsdcInOrder = (orders: OpenOrdersAccountWithKey[]) => {
   sumOrders = orders.map((order) => {
     if (isBidOrAsk(order)) {
       return (
-        ((
-          order.account.position.bidsBaseLots.toNumber()
-          * order.account.openOrders[0].lockedPrice
-        ) / 10_000) +
-        ((
-          order.account.position.asksBaseLots.toNumber()
-          * order.account.openOrders[0].lockedPrice
-        ) / 10_000)
+        (order.account.position.bidsBaseLots.toNumber() * order.account.openOrders[0].lockedPrice) /
+          10_000 +
+        (order.account.position.asksBaseLots.toNumber() * order.account.openOrders[0].lockedPrice) /
+          10_000
       );
     }
     return 0;
@@ -392,4 +385,14 @@ export const totalMetaInOrder = (orders: OpenOrdersAccountWithKey[]) => {
 
   const totalValueLocked = sumOrders.reduce((partialSum, amount) => partialSum + amount, 0);
   return numeral(totalValueLocked).format(BASE_FORMAT);
+};
+
+export const getUsersOpenOrderPks = async (
+  client: OpenBookV2Client,
+  userWalletPk: PublicKey,
+): Promise<PublicKey[]> => {
+  const indexerPk = client.findOpenOrdersIndexer(userWalletPk);
+  const indexerAcc = await client.deserializeOpenOrdersIndexerAccount(indexerPk);
+  const openOrdersPks = indexerAcc?.addresses;
+  return openOrdersPks ?? [];
 };

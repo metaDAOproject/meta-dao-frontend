@@ -7,10 +7,7 @@ import {
 } from '@solana/spl-token';
 import { notifications } from '@mantine/notifications';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  Proposal,
-  ProposalAccountWithKey,
-} from '@/lib/types';
+import { Proposal, ProposalAccountWithKey } from '@/lib/types';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { useConditionalVault } from '@/hooks/useConditionalVault';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
@@ -57,10 +54,9 @@ export function ProposalProvider({
   fromProposal?: ProposalAccountWithKey;
 }) {
   const client = useQueryClient();
-  const { autocratProgram, dao, daoState, daoTreasury, proposals } =
-    useAutocrat();
+  const { autocratProgram, dao, daoState, daoTreasury, proposals } = useAutocrat();
   const { connection } = useConnection();
-  const { markets, fetchMarketsInfo, fetchOpenOrders } = useProposalMarkets();
+  const { markets, fetchMarketsInfo } = useProposalMarkets();
   const wallet = useWallet();
   const sender = useTransactionSender();
   const {
@@ -116,12 +112,12 @@ export function ProposalProvider({
       const userBasePass = getAssociatedTokenAddressSync(
         baseVault.conditionalOnFinalizeTokenMint,
         wallet.publicKey,
-        true
+        true,
       );
       const userQuotePass = getAssociatedTokenAddressSync(
         quoteVault.conditionalOnFinalizeTokenMint,
         wallet.publicKey,
-        true
+        true,
       );
       const metaTokenAccount = getAssociatedTokenAddressSync(metaMint, wallet.publicKey, true);
 
@@ -270,14 +266,13 @@ export function ProposalProvider({
         if (!passTxs || !failTxs) return;
         const txs = [...passTxs, ...failTxs].filter(Boolean);
         await sender.send(txs as VersionedTransaction[]);
-        fetchOpenOrders(wallet.publicKey);
       } catch (err) {
         console.error(err);
       } finally {
         setIsCranking(false);
       }
     },
-    [markets, proposal, wallet.publicKey, sender, crankMarketTransactions, fetchOpenOrders],
+    [markets, proposal, wallet.publicKey, sender, crankMarketTransactions],
   );
 
   return (
