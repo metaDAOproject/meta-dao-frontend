@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { AccountInfo, PublicKey, TokenAmount } from '@solana/web3.js';
 import { AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token';
@@ -64,6 +64,7 @@ export function BalancesProvider({ children }: { children: React.ReactNode }) {
   const { publicKey: owner } = useWallet();
   const queryClient = useQueryClient();
   const { connection } = useConnection();
+  const [accounts, setAccounts] = useState<SubscriptionAccount<tokenMetaData>[]>([]);
   const markets = queryClient.getQueryData<Array<MarketAccount>>(['markets']);
   const vaultAccounts = queryClient.getQueryData<Array<VaultAccount> | undefined>([
     'conditionalVault',
@@ -78,49 +79,54 @@ export function BalancesProvider({ children }: { children: React.ReactNode }) {
     [owner],
   );
 
-  const accounts: SubscriptionAccount<tokenMetaData>[] = useMemo(() => {
-    const baseDecimals = markets?.[0].baseDecimals;
-    const quoteDecimals = markets?.[0].quoteDecimals;
-    const underlyingTokenAccounts: SubscriptionAccount<tokenMetaData>[] = vaultAccounts
-      ? [
-          {
-            publicKey: getAta(vaultAccounts[0].underlyingTokenMint),
-            metaData: {
-              decimals: baseDecimals,
-              lotSize: 10 ** (baseDecimals || 0),
+  useEffect(() => {
+    if (markets && vaultAccounts) {
+      const baseDecimals = markets?.[0].baseDecimals;
+      const quoteDecimals = markets?.[0].quoteDecimals;
+      const underlyingTokenAccounts: SubscriptionAccount<tokenMetaData>[] = vaultAccounts
+        ? [
+            {
+              publicKey: getAta(vaultAccounts[0].underlyingTokenMint),
+              metaData: {
+                decimals: baseDecimals,
+                lotSize: 10 ** (baseDecimals || 0),
+              },
             },
-          },
-          {
-            publicKey: getAta(vaultAccounts[1].underlyingTokenMint),
-            metaData: {
-              decimals: quoteDecimals,
-              lotSize: 10 ** (quoteDecimals || 0),
+            {
+              publicKey: getAta(vaultAccounts[1].underlyingTokenMint),
+              metaData: {
+                decimals: quoteDecimals,
+                lotSize: 10 ** (quoteDecimals || 0),
+              },
             },
-          },
-        ].filter((m): m is SubscriptionAccount<tokenMetaData> => !!m.publicKey) ?? []
-      : [];
+          ].filter((m): m is SubscriptionAccount<tokenMetaData> => !!m.publicKey) ?? []
+        : [];
 
-    const conditionalTokenAccounts =
-      markets
-        ?.flatMap((m) => [
-          {
-            publicKey: getAta(m.baseMint),
-            metaData: {
-              decimals: baseDecimals,
-              lotSize: 10 ** (baseDecimals || 0),
+      const conditionalTokenAccounts =
+        markets
+          ?.flatMap((m) => [
+            {
+              publicKey: getAta(m.baseMint),
+              metaData: {
+                decimals: baseDecimals,
+                lotSize: 10 ** (baseDecimals || 0),
+              },
             },
-          },
-          {
-            publicKey: getAta(m.quoteMint),
-            metaData: {
-              decimals: quoteDecimals,
-              lotSize: 10 ** (quoteDecimals || 0),
+            {
+              publicKey: getAta(m.quoteMint),
+              metaData: {
+                decimals: quoteDecimals,
+                lotSize: 10 ** (quoteDecimals || 0),
+              },
             },
-          },
-        ])
-        .filter((m): m is SubscriptionAccount<tokenMetaData> => !!m.publicKey) ?? [];
-    return [...underlyingTokenAccounts, ...conditionalTokenAccounts];
-  }, [markets, vaultAccounts, owner]);
+          ])
+          .filter((m): m is SubscriptionAccount<tokenMetaData> => !!m.publicKey) ?? [];
+      const newAccounts = [...underlyingTokenAccounts, ...conditionalTokenAccounts];
+      if (newAccounts.length > 0) {
+        setAccounts(newAccounts);
+      }
+    }
+  }, [!!markets, !!vaultAccounts]);
 
   const accountSubscriptionCallback = (
     accountInfo: AccountInfo<Buffer>,
@@ -212,9 +218,9 @@ export function BalancesProvider({ children }: { children: React.ReactNode }) {
   ) {
     const ata = getAta(mint);
     if (ata) {
-      const balance = balances[ata.toString()].data;
-      if (balance) {
-        const newAmount = stateUpdater(balance);
+      const balance = balances[ata.toString()];
+      if (balance.data) {
+        const newAmount = stateUpdater(balance.data);
         updateAccountState(newAmount, ata);
       }
     }
