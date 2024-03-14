@@ -19,6 +19,7 @@ import {
   IconPencilCancel,
   IconCheck,
 } from '@tabler/icons-react';
+import { BN } from '@coral-xyz/anchor';
 import { OpenOrdersAccountWithKey } from '@/lib/types';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
@@ -28,7 +29,6 @@ import { useProposal } from '@/contexts/ProposalContext';
 import { isBid, isPartiallyFilled, isPass } from '@/lib/openbook';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 import { useBalances } from '@/contexts/BalancesContext';
-import { BN } from '@coral-xyz/anchor';
 
 export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKey }) {
   const theme = useMantineTheme();
