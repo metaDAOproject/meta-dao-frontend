@@ -1,50 +1,51 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { BN } from '@coral-xyz/anchor';
 import {
   ActionIcon,
   Button,
   Card,
-  Code,
   Container,
   Divider,
   Flex,
   Group,
   Loader,
   ScrollArea,
-  Stack,
   Select,
+  Stack,
   Text,
   Title,
   Tooltip,
   useMantineColorScheme,
   useMantineTheme,
 } from '@mantine/core';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { IconChevronLeft } from '@tabler/icons-react';
 import { useMediaQuery } from '@mantine/hooks';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { SystemProgram } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import { IconChevronLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { ProposalOrdersCard } from './ProposalOrdersCard';
-import { ConditionalMarketCard } from '../Markets/ConditionalMarketCard';
-import { JupSwapCard } from './JupSwapCard';
-import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
+import classes from '@/app/globals.module.css';
 import { useAutocrat } from '@/contexts/AutocratContext';
-import { shortKey } from '@/lib/utils';
-import { StateBadge } from './StateBadge';
-import { useTransactionSender } from '../../hooks/useTransactionSender';
-import { useConditionalVault } from '../../hooks/useConditionalVault';
 import { useProposal } from '@/contexts/ProposalContext';
-import ExternalLink from '../ExternalLink';
-import MarketsBalances from './MarketsBalances';
-import classes from '../../app/globals.module.css';
-import { useTokens } from '../../hooks/useTokens';
-import { isClosableOrder, isPartiallyFilled } from '../../lib/openbook';
-import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
-import { Proposal } from '../../lib/types';
-import { ProposalCountdown } from './ProposalCountdown';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
+import { useConditionalVault } from '@/hooks/useConditionalVault';
+import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
+import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
+import { useTokens } from '@/hooks/useTokens';
+import { useTransactionSender } from '@/hooks/useTransactionSender';
+import { Proposal } from '@/lib/types';
+import { shortKey } from '@/lib/utils';
+import { isClosableOrder, isPartiallyFilled } from '../../lib/openbook';
+import ExternalLink from '../ExternalLink';
+import { ConditionalMarketCard } from '../Markets/ConditionalMarketCard';
+import ProposalInstructionCard from './Instructions/ProposalInstructionCard';
+import { JupSwapCard } from './JupSwapCard';
+import MarketsBalances from './MarketsBalances';
+import { ProposalCountdown } from './ProposalCountdown';
+import { ProposalOrdersCard } from './ProposalOrdersCard';
+import { StateBadge } from './StateBadge';
 
 export function ProposalDetailCard() {
   const queryClient = useQueryClient();
@@ -353,25 +354,7 @@ export function ProposalDetailCard() {
               {shortKey(proposal.publicKey)}
             </a>
           </Text>
-          {proposal.account.instruction.data && (
-            <>
-              <Text>Instruction:</Text>
-              <Stack pl={15}>
-                {proposal.account.instruction.accounts.length > 0 && (
-                  <>
-                    <Text size="xs">Accounts</Text>
-                    {proposal.account.instruction.accounts.map((account) => (
-                      <Code key={account.pubkey.toString()}>{account.pubkey.toString()}</Code>
-                    ))}
-                  </>
-                )}
-                <Text size="xs">Data</Text>
-                <Code>[{Uint8Array.from(proposal.account.instruction.data).toString()}]</Code>
-                <Text size="xs">Program</Text>
-                <Code>{proposal.account.instruction.programId.toString()}</Code>
-              </Stack>
-            </>
-          )}
+          {proposal.account.instruction.data && <ProposalInstructionCard proposal={proposal} />}
           <Group wrap="wrap" justify="space-between" pt={10}>
             <ExternalLink href={proposal.account.descriptionUrl} />
             <Text opacity={0.6} style={{ textAlign: 'right' }}>
