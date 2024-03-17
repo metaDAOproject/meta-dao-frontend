@@ -1,6 +1,7 @@
 import { Text } from '@mantine/core';
 import { Mint } from '@solana/spl-token';
 import { Connection } from '@solana/web3.js';
+import { useQueryClient } from '@tanstack/react-query';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
@@ -165,6 +166,7 @@ export const TokenProgramInstructionCard = ({
     'thawAccount',
   ];
 
+  const queryClient = useQueryClient();
   const [mint, setMint] = useState<Mint | undefined>(undefined);
   const [isLoadingMintInfo, setIsLoadingMintInfo] = useState<boolean>(mint === undefined);
   const [metadata, setMetadata] = useState<Metadata | undefined>(undefined);
@@ -172,17 +174,31 @@ export const TokenProgramInstructionCard = ({
   const loadIxAccountInfo = async () => {
     if (instruction.accounts.length === 0) return;
     if (instruction.name === 'transfer') {
-      const { mint: loadedMint, metadata: loadedMetadata } = await getMintForAta({
-        connection,
-        ata: instruction.accounts.filter((a) => a.name?.toLowerCase() === 'source')[0].pubkey,
+      const ataPublicKey = instruction.accounts.filter((a) => a.name?.toLowerCase() === 'source')[0]
+        .pubkey;
+      const { mint: loadedMint, metadata: loadedMetadata } = await queryClient.fetchQuery({
+        queryKey: ['GetMintForAta', ataPublicKey],
+        staleTime: Infinity,
+        queryFn: async () =>
+          getMintForAta({
+            connection,
+            ata: ataPublicKey,
+          }),
       });
 
       setMint(loadedMint);
       setMetadata(loadedMetadata);
     } else if (instructionsWithMintAccount.includes(instruction.name)) {
-      const { mint: loadedMint, metadata: loadedMetadata } = await getMint({
-        connection,
-        mint: instruction.accounts.filter((a) => a.name?.toLowerCase() === 'mint')[0].pubkey,
+      const mintPublicKey = instruction.accounts.filter((a) => a.name?.toLowerCase() === 'mint')[0]
+        .pubkey;
+      const { mint: loadedMint, metadata: loadedMetadata } = await queryClient.fetchQuery({
+        queryKey: ['GetMint', mintPublicKey],
+        staleTime: Infinity,
+        queryFn: () =>
+          getMint({
+            connection,
+            mint: mintPublicKey,
+          }),
       });
 
       setMint(loadedMint);
