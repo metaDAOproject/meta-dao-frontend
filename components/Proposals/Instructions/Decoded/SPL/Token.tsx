@@ -238,7 +238,7 @@ export const TokenProgramInstructionCard = ({
   return isLoadingMintInfo ? (
     <>Loading...</>
   ) : jsxPostfix ? (
-    <Text c="white">
+    <Text>
       Invoke the{' '}
       <span>
         Token Program (<PublicKeyAsCodeLink publicKey={instruction.programId} />)

@@ -9,18 +9,18 @@ export const DefaultDecodedInstructionCard = ({
   instruction: DecodedInstruction;
 }) => (
   <>
-    <Text c="white">
+    <Text>
       Invoke the {instruction.name} function on the following program (
       <PublicKeyAsCodeLink publicKey={instruction.programId} />) with the following:
       {instruction.accounts.length > 0 ? (
         <>
-          <Text mt="md" c="white">
+          <Text mt="md">
             Accounts:
           </Text>
           <div>
             {instruction.accounts.map((a, idx) => (
               <div key={idx}>
-                <Text c="white">
+                <Text>
                   #{idx + 1}: {a.name} (<PublicKeyAsCodeLink publicKey={a.pubkey} />)
                 </Text>
               </div>
@@ -28,11 +28,11 @@ export const DefaultDecodedInstructionCard = ({
           </div>
         </>
       ) : (
-        <Text mt="md" c="white">This instruction has no accounts.</Text>
+        <Text mt="md">This instruction has no accounts.</Text>
       )}
       {instruction.args.length > 0 ? (
         <>
-          <Text mt="md" c="white">
+          <Text mt="md">
             Data:
           </Text>
           <div>
@@ -46,7 +46,7 @@ export const DefaultDecodedInstructionCard = ({
           </div>
         </>
       ) : (
-        <Text mt="md" c="white">This instruction has no data.</Text>
+        <Text mt="md">This instruction has no data.</Text>
       )}
     </Text>
   </>
