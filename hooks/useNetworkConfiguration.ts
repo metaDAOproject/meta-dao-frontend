@@ -19,8 +19,8 @@ export function useNetworkConfiguration() {
 
   const [customEndpoint, setCustomEndpoint] = useLocalStorage<string>({
     key: 'futarchy-custom-endpoint',
-    defaultValue: 'https://sudden-jocelyn-fast-mainnet.helius-rpc.com/',
-    getInitialValueInEffect: true,
+    defaultValue: '',
+    getInitialValueInEffect: false,
   });
 
   const endpoint = useMemo(() => {
