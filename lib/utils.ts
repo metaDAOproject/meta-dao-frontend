@@ -1,10 +1,15 @@
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, TransactionSignature } from '@solana/web3.js';
 import { InstructionFieldTypes } from './types';
 
 export const shortKey = (key?: PublicKey | string) => {
   if (!key) return '???';
   const str = key?.toString();
   return `${str.substring(0, 4)}...${str.substring(str.length - 5, str.length)}`;
+};
+
+export const shortSignature = (sig?: TransactionSignature, length: number = 8) => {
+  if (!sig) return '???';
+  return `${sig.substring(0, length)}...`;
 };
 
 // Define the debounce function
