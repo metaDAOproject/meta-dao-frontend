@@ -2,10 +2,8 @@ import { Group, HoverCard, Stack, Text } from '@mantine/core';
 import numeral from 'numeral';
 import React, { useEffect, useState } from 'react';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { PublicKey } from '@solana/web3.js';
 import { NUMERAL_FORMAT } from '../../lib/constants';
-import { useProvider } from '@/hooks/useProvider';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import useClusterDataSubscription from '@/hooks/useClusterDataSubscription';
 import { toScientificNotation } from '@/lib/utils';
@@ -35,16 +33,16 @@ const TwapDisplay: React.FC<{
   countdownEndConditions,
   totalImpact,
 }) => {
-  const queryClient = useQueryClient();
-  const provider = useProvider();
-  const [observedTimestamp, setObservedTimestamp] = useState<number>(0);
+  const [lastObservedDate, setLastObservedDate] = useState(new Date().toUTCString());
   const { generateExplorerLink } = useExplorerConfiguration();
   const {
-    data: { clusterTimestamp, slot },
+    data: { slot },
   } = useClusterDataSubscription();
 
+  const timeDifference = Math.max(0, slot - lastObservedSlot);
+
   const timeSinceObservation = () => {
-    const diff = (clusterTimestamp ?? 0) - observedTimestamp;
+    const diff = (timeDifference * 400) / 1000;
     if (diff > 864_000) {
       return 'A long time ago';
     }
@@ -62,24 +60,14 @@ const TwapDisplay: React.FC<{
       const _diff = diff / 60;
       return `${_diff.toFixed(0)}+ minutes ago`;
     }
-    return `${diff} seconds ago`;
-  };
-
-  const updateObservedTimeStampBySlot = async (observedSlot: number) => {
-    const _observedTimestamp = await queryClient.fetchQuery({
-      queryKey: [`getBlockTime-${observedSlot}`],
-      queryFn: () => provider.connection.getBlockTime(observedSlot),
-    });
-    if (_observedTimestamp) {
-      setObservedTimestamp(_observedTimestamp);
-    }
+    return `${diff.toFixed(0)} seconds ago`;
   };
 
   useEffect(() => {
-    if ((!clusterTimestamp || clusterTimestamp === 0) && lastObservedSlot) {
-      updateObservedTimeStampBySlot(lastObservedSlot);
+    if (timeDifference <= 5) {
+      setLastObservedDate(new Date().toUTCString());
     }
-  }, [lastObservedSlot]);
+  }, [timeDifference]);
 
   return (
     <Group justify="center" align="center">
@@ -108,7 +96,7 @@ const TwapDisplay: React.FC<{
               <br />
               slot {lastObservedSlot} | {Math.max(0, slot - lastObservedSlot)} slots behind cluster
               <br />
-              {new Date(observedTimestamp * 1000).toUTCString()} | {timeSinceObservation()}
+              {lastObservedDate} | {timeSinceObservation()}
             </Text>
             <Text>Crank Impact {toScientificNotation(Math.max(0, totalImpact) * 100, 5)}%</Text>
             <Text c={marketColor}>Currently the {winningMarket} Market wins.</Text>
