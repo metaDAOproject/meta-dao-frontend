@@ -7,10 +7,12 @@ import { useAutocrat } from '@/contexts/AutocratContext';
 import useAccountSubscription from './useAccountSubscription';
 import { useQuery } from '@tanstack/react-query';
 import { useProposal } from '@/contexts/ProposalContext';
+import useClusterDataSubscription from './useClusterDataSubscription';
 
 // these have the same structure but assigning them both to TwapStructure type for understanding
 export type TwapStructure = Markets['passTwap'] | Markets['failTwap'];
 export type TwapSubscriptionRes = {
+  twapLoading?: boolean;
   twap: number | undefined;
   aggregateObservation: number;
   lastObservationValue: number | undefined;
@@ -27,12 +29,9 @@ const useTwapSubscription = (
   const { openbookTwap } = useAutocrat();
   const { connection } = useConnection();
   const { proposal } = useProposal();
-  const { data: slotData } = useQuery({
-    queryKey: ['getSlot'],
-    queryFn: () => connection.getSlot(),
-    staleTime: 30_000,
-  });
-  const slot = slotData ?? 0;
+  const {
+    data: { slot },
+  } = useClusterDataSubscription();
   const getObservableTwap = (midPrice: number, lastObservationValue: number) => {
     if (midPrice > lastObservationValue) {
       const max_observation = (lastObservationValue * (10_000 + 100)) / 10_000 + 1;
@@ -97,6 +96,7 @@ const useTwapSubscription = (
   const lastObservationValue = lastObservedAndSlot?.lastObservationValue;
 
   return {
+    twapLoading,
     twap,
     aggregateObservation,
     lastObservationValue,

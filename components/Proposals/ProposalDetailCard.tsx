@@ -19,10 +19,9 @@ import {
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { SystemProgram } from '@solana/web3.js';
 import { IconChevronLeft } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -50,11 +49,11 @@ import { StateBadge } from './StateBadge';
 import useTwapSubscription from '@/hooks/useTwapSubscription';
 import { getWinningTwap } from '@/lib/openbookTwap';
 import { NUMERAL_FORMAT } from '@/lib/constants';
+import useClusterDataSubscription from '@/hooks/useClusterDataSubscription';
+import useInitializeClusterDataSubscription from '@/hooks/useInitializeClusterDataSubscription';
 
 export function ProposalDetailCard() {
-  const queryClient = useQueryClient();
   const wallet = useWallet();
-  const { connection } = useConnection();
   const { fetchProposals, daoTreasury, daoState } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
   const { tokens } = useTokens();
@@ -79,7 +78,10 @@ export function ProposalDetailCard() {
   const { colorScheme } = useMantineColorScheme();
 
   const { generateExplorerLink } = useExplorerConfiguration();
-  const [lastSlot, setLastSlot] = useState<number>();
+  useInitializeClusterDataSubscription();
+  const {
+    data: { slot: lastSlot },
+  } = useClusterDataSubscription();
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
@@ -262,20 +264,6 @@ export function ProposalDetailCard() {
       setIsRedeeming(false);
     }
   }, [sender, redeemTokensTransactions, fetchProposals]);
-
-  useEffect(() => {
-    if (lastSlot) return;
-    async function fetchSlot() {
-      const slot = await queryClient.fetchQuery({
-        queryKey: ['getSlot'],
-        queryFn: () => connection.getSlot(),
-        staleTime: 30_000,
-      });
-      setLastSlot(slot);
-    }
-
-    fetchSlot();
-  }, [connection, lastSlot]);
 
   const router = useRouter();
   const { proposals } = useAutocrat();

@@ -2,15 +2,17 @@ import { Group, HoverCard, Stack, Text } from '@mantine/core';
 import numeral from 'numeral';
 import React, { useEffect, useState } from 'react';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { PublicKey } from '@solana/web3.js';
 import { NUMERAL_FORMAT } from '../../lib/constants';
 import { useProvider } from '@/hooks/useProvider';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
+import useClusterDataSubscription from '@/hooks/useClusterDataSubscription';
+import { roundToNearestTen, toScientificNotation } from '@/lib/utils';
 
 type MarketType = 'pass' | 'fail';
 
-const Twap: React.FC<{
+const TwapDisplay: React.FC<{
   marketType: MarketType;
   winningMarket: MarketType;
   lastObservationValue: number;
@@ -35,19 +37,14 @@ const Twap: React.FC<{
 }) => {
   const queryClient = useQueryClient();
   const provider = useProvider();
-  const [clusterTimestamp, setClusterTimestamp] = useState<number>(0);
   const [observedTimestamp, setObservedTimestamp] = useState<number>(0);
   const { generateExplorerLink } = useExplorerConfiguration();
-
-  const { data: slotData } = useQuery({
-    queryKey: ['getSlot'],
-    queryFn: () => provider.connection.getSlot(),
-    staleTime: 30_000,
-  });
-  const slot = slotData ?? 0;
+  const {
+    data: { clusterTimestamp, slot },
+  } = useClusterDataSubscription();
 
   const timeSinceObservation = () => {
-    const diff = clusterTimestamp - observedTimestamp;
+    const diff = (clusterTimestamp ?? 0) - observedTimestamp;
     if (diff > 864_000) {
       return 'A long time ago';
     }
@@ -68,33 +65,21 @@ const Twap: React.FC<{
     return `${diff} seconds ago`;
   };
 
-  const getClusterTimestamp = async () => {
-    let _clusterTimestamp: number = 0;
-    if (slot !== 0) {
-      _clusterTimestamp = await queryClient.fetchQuery({
-        queryKey: [`getBlockTime-${slot}`],
-        queryFn: () => provider.connection.getBlockTime(slot),
-        staleTime: 30_000,
-      });
-    }
+  const updateObservedTimeStampBySlot = async (lastObservedSlot: number) => {
     const _observedTimestamp = await queryClient.fetchQuery({
       queryKey: [`getBlockTime-${lastObservedSlot}`],
       queryFn: () => provider.connection.getBlockTime(lastObservedSlot),
-      staleTime: 30_000,
     });
-    if (_clusterTimestamp) {
-      setClusterTimestamp(_clusterTimestamp);
-    }
     if (_observedTimestamp) {
       setObservedTimestamp(_observedTimestamp);
     }
   };
 
   useEffect(() => {
-    if ((!clusterTimestamp || clusterTimestamp === 0) && slot) {
-      getClusterTimestamp();
+    if ((!clusterTimestamp || clusterTimestamp === 0) && lastObservedSlot) {
+      updateObservedTimeStampBySlot(lastObservedSlot);
     }
-  }, [slot]);
+  }, [lastObservedSlot]);
 
   return (
     <Group justify="center" align="center">
@@ -121,18 +106,11 @@ const Twap: React.FC<{
             <Text size="xs">
               Last observed at
               <br />
-              slot {lastObservedSlot} | {slot - lastObservedSlot} slots behind cluster
+              slot {lastObservedSlot} | {Math.max(0, slot - lastObservedSlot)} slots behind cluster
               <br />
               {new Date(observedTimestamp * 1000).toUTCString()} | {timeSinceObservation()}
             </Text>
-            <Text>
-              Crank Impact{' '}
-              {(totalImpact * 100).toLocaleString('fullwide', {
-                useGrouping: false,
-                maximumSignificantDigits: 20,
-              })}
-              %
-            </Text>
+            <Text>Crank Impact {toScientificNotation(Math.max(0, totalImpact) * 100, 5)}%</Text>
             <Text c={marketColor}>Currently the {winningMarket} Market wins.</Text>
             <Text size="xs">
               <a href={generateExplorerLink(twapMarket.toString(), 'account')} target="blank">
@@ -146,4 +124,4 @@ const Twap: React.FC<{
   );
 };
 
-export default Twap;
+export default TwapDisplay;
