@@ -39,3 +39,7 @@ export const validateType = async (type: InstructionFieldTypes, value?: string) 
       return true;
   }
 };
+
+export const toScientificNotation = (number: number, decimalPlaces: number) =>
+  // Convert number to scientific notation with specified decimal places
+   number.toExponential(decimalPlaces);

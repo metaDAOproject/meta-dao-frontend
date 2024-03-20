@@ -233,11 +233,12 @@ export function ProposalMarketsProvider({
         // this function caches the query so it can be used by the BalancesProvider
         client.setQueryData(['markets'], () => [pass, fail]);
 
-        const passTwap = await openbookTwap.coder.accounts.decodeUnchecked(
+        const passTwap: Markets['passTwap'] = await openbookTwap.coder.accounts.decodeUnchecked(
           'TWAPMarket',
           accountInfos[2]!.data,
         );
-        const failTwap = await openbookTwap.coder.accounts.decodeUnchecked(
+
+        const failTwap: Markets['failTwap'] = await openbookTwap.coder.accounts.decodeUnchecked(
           'TWAPMarket',
           accountInfos[3]!.data,
         );
@@ -285,12 +286,14 @@ export function ProposalMarketsProvider({
           quoteVault,
         };
       };
-
-      const marketsInfo = await client.fetchQuery({
-        queryKey: [`fetchProposalMarketsInfo-${proposal?.publicKey}`],
-        queryFn: () => fetchProposalMarketsInfo(),
-        staleTime: 10_000,
-      });
+      let marketsInfo: Awaited<ReturnType<typeof fetchProposalMarketsInfo>> | undefined;
+      if (proposal?.publicKey) {
+        marketsInfo = await client.fetchQuery({
+          queryKey: [`fetchProposalMarketsInfo-${proposal?.publicKey}`],
+          queryFn: () => fetchProposalMarketsInfo(),
+          staleTime: 10_000,
+        });
+      }
       if (marketsInfo) {
         setMarkets(marketsInfo);
       }
@@ -598,7 +601,6 @@ export function ProposalMarketsProvider({
       ctx: Context,
     ): number[][] | undefined => {
       try {
-        console.log('consuming order book side', side);
         const isPassMarket = market === proposal?.account.openbookPassMarket;
         const leafNodes = openBookProgram.coder.accounts.decode(
           'bookSide',

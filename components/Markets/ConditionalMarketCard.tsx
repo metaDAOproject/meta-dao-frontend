@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect, useMemo } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
   ActionIcon,
   Card,
@@ -11,24 +11,21 @@ import {
   Button,
   Tooltip,
   NativeSelect,
-  HoverCard,
   Group,
 } from '@mantine/core';
 import numeral from 'numeral';
-import { Icon12Hours, IconWallet, IconInfoCircle } from '@tabler/icons-react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Icon12Hours, IconWallet } from '@tabler/icons-react';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
-import { useAutocrat } from '../../contexts/AutocratContext';
-import { calculateTWAP, getLastObservedAndSlot } from '../../lib/openbookTwap';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
-import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import MarketTitle from './MarketTitle';
 import DisableNumberInputScroll from '../Utilities/DisableNumberInputScroll';
-import { useProvider } from '@/hooks/useProvider';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 import { useBalances } from '@/contexts/BalancesContext';
 import { useBalance } from '@/hooks/useBalance';
+import TwapDisplay from './TwapDisplay';
+
+import { TwapSubscriptionRes } from '@/hooks/useTwapSubscription';
 
 type Props = {
   asks: any[][];
@@ -36,6 +33,9 @@ type Props = {
   spreadString: string;
   lastSlotUpdated: number;
   isPassMarket: boolean;
+  twapData: TwapSubscriptionRes;
+  isWinning: boolean;
+  twapDescription: string;
 };
 
 export function ConditionalMarketCard({
@@ -44,13 +44,13 @@ export function ConditionalMarketCard({
   spreadString,
   lastSlotUpdated,
   isPassMarket,
+  twapData,
+  isWinning,
+  twapDescription,
 }: Props) {
-  const queryClient = useQueryClient();
-  const { daoState } = useAutocrat();
   const { proposal, isCranking, crankMarkets } = useProposal();
   const { orderBookObject, markets, placeOrder } = useProposalMarkets();
   const { setBalanceByMint } = useBalances();
-  const provider = useProvider();
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
@@ -58,10 +58,23 @@ export function ConditionalMarketCard({
   const [priceError, setPriceError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
   const [orderValue, setOrderValue] = useState<string>('0');
-  const { generateExplorerLink } = useExplorerConfiguration();
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const [clusterTimestamp, setClusterTimestamp] = useState<number>(0);
-  const [observedTimestamp, setObservedTimestamp] = useState<number>(0);
+  const [borderColor, setBorderColor] = useState<'inherit' | 'red' | '#67BD63'>('inherit');
+
+  const { twap, lastObservationValue, lastObservedSlot } = twapData;
+
+  const getMarketBorderColor = () => {
+    if (isPassMarket) return isWinning ? '#67BD63' : 'inherit';
+    return isWinning ? 'red' : 'inherit';
+  };
+  useEffect(() => {
+    setBorderColor(getMarketBorderColor());
+  }, [isWinning, isPassMarket]);
+
+  const failMidPrice =
+    (Number(orderBookObject?.failToB.topAsk) + Number(orderBookObject?.failToB.topBid)) / 2;
+  const passMidPrice =
+    (Number(orderBookObject?.passToB.topAsk) + Number(orderBookObject?.passToB.topBid)) / 2;
 
   const { amount: baseBalance } = useBalance(
     isPassMarket
@@ -75,21 +88,7 @@ export function ConditionalMarketCard({
       : markets?.quoteVault.conditionalOnRevertTokenMint,
   );
 
-  const { data: slotData } = useQuery({
-    queryKey: ['getSlot'],
-    queryFn: () => provider.connection.getSlot(),
-    staleTime: 30_000,
-  });
-  const slot = slotData ?? 0;
-
   if (!markets) return <></>;
-  const passTwap = calculateTWAP(markets.passTwap.twapOracle);
-  const failTwap = calculateTWAP(markets.failTwap.twapOracle);
-  const passObservation = getLastObservedAndSlot(markets.passTwap.twapOracle);
-  const failObservation = getLastObservedAndSlot(markets.failTwap.twapOracle);
-  const passAggregateObservation = markets.passTwap.twapOracle.observationAggregator.toNumber();
-  const failAggregateObservation = markets.failTwap.twapOracle.observationAggregator.toNumber();
-  const twap = isPassMarket ? passTwap : failTwap;
   const isAskSide = orderSide === 'Sell';
   const isLimitOrder = orderType === 'Limit';
 
@@ -163,42 +162,6 @@ export function ConditionalMarketCard({
     }
   };
 
-  const timeSinceObservation = () => {
-    const diff = clusterTimestamp - observedTimestamp;
-    if (diff > 864_000) {
-      return 'A long time ago';
-    }
-    if (diff > 86_400) {
-      const _diff = diff / 86_400;
-      return `${_diff.toFixed(0)}+ days ago`;
-    }
-    if (diff > 3_600) {
-      // hours
-      const _diff = diff / 3_600;
-      return `${_diff.toFixed(0)}+ hours ago`;
-    }
-    if (diff > 60) {
-      // minutes
-      const _diff = diff / 60;
-      return `${_diff.toFixed(0)}+ minutes ago`;
-    }
-    return `${diff} seconds ago`;
-  };
-
-  const lastObservedSlot = useMemo((): number => {
-    if (passObservation && failObservation) {
-      return isPassMarket
-        ? passObservation?.lastObservationSlot.toNumber()
-        : failObservation?.lastObservationSlot.toNumber();
-    }
-    return 0;
-  }, [isPassMarket, passObservation, failObservation]);
-
-  const failMidPrice =
-    (Number(orderBookObject?.failToB.topAsk) + Number(orderBookObject?.failToB.topBid)) / 2;
-  const passMidPrice =
-    (Number(orderBookObject?.passToB.topAsk) + Number(orderBookObject?.passToB.topBid)) / 2;
-
   const setPriceFromOrderBook = (value: string) => {
     priceValidator(value);
     setPrice(value);
@@ -263,16 +226,6 @@ export function ConditionalMarketCard({
     return Number.isNaN(Number(_orderAmount));
   };
 
-  const isWinning = () => {
-    if (passTwap && failTwap && daoState) {
-      const fail = (failTwap * (10000 + daoState.passThresholdBps)) / 10000;
-      const passWin = passTwap > fail;
-      if (isPassMarket) return passWin || proposal?.account.state.passed ? '#67BD63' : 'inherit';
-      return !passWin || proposal?.account.state.failed ? 'red' : 'inherit';
-    }
-    return 'inherit';
-  };
-
   const handlePlaceOrder = useCallback(async () => {
     try {
       setIsPlacingOrder(true);
@@ -306,69 +259,6 @@ export function ConditionalMarketCard({
     }
   }, [placeOrder, amount, isLimitOrder, isPassMarket, isAskSide, price]);
 
-  const getObservableTwap = () => {
-    if (isPassMarket) {
-      if (passObservation) {
-        if (passMidPrice > passObservation.lastObservationValue) {
-          const max_observation =
-            (passObservation.lastObservationValue * (10_000 + 100)) / 10_000 + 1;
-          const evaluated = Math.min(passMidPrice, max_observation);
-          return evaluated;
-        }
-        const min_observation = (passObservation.lastObservationValue * (10_000 + 100)) / 10_000;
-        const evaluated = Math.max(passMidPrice, min_observation);
-        return evaluated;
-      }
-    } else if (failObservation) {
-      if (failMidPrice > failObservation.lastObservationValue) {
-        const max_observation =
-          (failObservation.lastObservationValue * (10_000 + 100)) / 10_000 + 1;
-        const evaluated = Math.min(failMidPrice, max_observation);
-        return evaluated;
-      }
-      const min_observation = (failObservation.lastObservationValue * (10_000 + 100)) / 10_000;
-      const evaluated = Math.max(failMidPrice, min_observation);
-      return evaluated;
-    }
-  };
-
-  const getTotalImpact = (): number => {
-    const aggregateObservation = isPassMarket ? passAggregateObservation : failAggregateObservation;
-    const twapObserved = getObservableTwap();
-    if (twapObserved) {
-      const _slotDiffObserved = twapObserved * (slot - lastObservedSlot);
-      const newAggregate = aggregateObservation + _slotDiffObserved;
-      const startSlot = proposal?.account.slotEnqueued.toNumber();
-      const proposalTimeInSlots: number = lastObservedSlot - startSlot;
-      const oldValue = aggregateObservation / proposalTimeInSlots;
-      const newValue = newAggregate / proposalTimeInSlots;
-      return (newValue - oldValue) / oldValue;
-    }
-    return 0;
-  };
-
-  const getClusterTimestamp = async () => {
-    let _clusterTimestamp: number = 0;
-    if (slot !== 0) {
-      _clusterTimestamp = await queryClient.fetchQuery({
-        queryKey: [`getBlockTime-${slot}`],
-        queryFn: () => provider.connection.getBlockTime(slot),
-        staleTime: 30_000,
-      });
-    }
-    const _observedTimestamp = await queryClient.fetchQuery({
-      queryKey: [`getBlockTime-${lastObservedSlot}`],
-      queryFn: () => provider.connection.getBlockTime(lastObservedSlot),
-      staleTime: 30_000,
-    });
-    if (_clusterTimestamp) {
-      setClusterTimestamp(_clusterTimestamp);
-    }
-    if (_observedTimestamp) {
-      setObservedTimestamp(_observedTimestamp);
-    }
-  };
-
   useEffect(() => {
     updateOrderValue();
     if (amount !== 0) amountValidator(amount);
@@ -379,18 +269,12 @@ export function ConditionalMarketCard({
     if (price !== '') priceValidator(price);
   }, [price]);
 
-  useEffect(() => {
-    if ((!clusterTimestamp || clusterTimestamp === 0) && slot) {
-      getClusterTimestamp();
-    }
-  }, [slot]);
-
   return (
     <Card
       withBorder
       radius="md"
       maw="26rem"
-      style={{ border: `1px solid ${isWinning()}` }}
+      style={{ border: `1px solid ${borderColor}` }}
       bg="transparent"
     >
       <DisableNumberInputScroll />
@@ -403,91 +287,22 @@ export function ConditionalMarketCard({
             </ActionIcon>
           </Tooltip>
         </Group>
-        {twap ? (
-          <Group justify="center" align="center">
-            <Stack gap={0} pb="1rem" align="center">
-              <Group gap={3} justify="center" align="center">
-                <Text fw="bold" size="md">
-                  ${numeral(twap).format(NUMERAL_FORMAT)}
-                </Text>
-                <Text size="sm">TWAP</Text>
-              </Group>
-              <Text size="xs">
-                ${numeral(isPassMarket ? passMidPrice : failMidPrice).format(NUMERAL_FORMAT)} (mid)
-              </Text>
-            </Stack>
-            <HoverCard position="top">
-              <HoverCard.Target>
-                <IconInfoCircle strokeWidth={1.3} />
-              </HoverCard.Target>
-              <HoverCard.Dropdown w="22rem">
-                <Stack>
-                  <Text>
-                    The Time Weighted Average Price (TWAP) is the measure used to decide if the
-                    proposal passes: if the TWAP of the pass market is{' '}
-                    {daoState
-                      ? `${numeral(daoState.passThresholdBps / 100).format(NUMERAL_FORMAT)}%`
-                      : '???'}{' '}
-                    above the fail market{' '}
-                    {daoState && failTwap
-                      ? `(> ${numeral(
-                          (failTwap * (10000 + daoState.passThresholdBps)) / 10000,
-                        ).format(NUMERAL_FORMAT)})`
-                      : null}
-                    , the proposal will pass once the countdown ends.
-                  </Text>
-                  <Text>
-                    Last observed price (for TWAP calculation) $
-                    {numeral(
-                      isPassMarket
-                        ? passObservation?.lastObservationValue
-                        : failObservation?.lastObservationValue,
-                    ).format(NUMERAL_FORMAT)}
-                  </Text>
-                  <Text size="xs">
-                    Last observed at
-                    <br />
-                    slot{' '}
-                    {isPassMarket
-                      ? passObservation?.lastObservationSlot.toNumber()
-                      : failObservation?.lastObservationSlot.toNumber()}{' '}
-                    | {slot - lastObservedSlot} slots behind cluster
-                    <br />
-                    {new Date(observedTimestamp * 1000).toUTCString()} | {timeSinceObservation()}
-                  </Text>
-                  <Text>
-                    Crank Impact{' '}
-                    {(getTotalImpact() * 100).toLocaleString('fullwide', {
-                      useGrouping: false,
-                      maximumSignificantDigits: 20,
-                    })}
-                    %
-                  </Text>
-                  <Text c={isWinning()}>
-                    Currently the{' '}
-                    {passTwap! > (failTwap! * (10000 + daoState!.passThresholdBps)) / 10000
-                      ? 'Pass'
-                      : 'Fail'}{' '}
-                    Market wins.
-                  </Text>
-                  <Text size="xs">
-                    <a
-                      href={generateExplorerLink(
-                        isPassMarket
-                          ? proposal?.account.openbookTwapPassMarket.toString()!
-                          : proposal?.account.openbookTwapFailMarket.toString()!,
-                        'account',
-                      )}
-                      target="blank"
-                    >
-                      {`See ${isPassMarket ? 'Pass' : 'Fail'} TWAP Market in explorer.`}
-                    </a>
-                  </Text>
-                </Stack>
-              </HoverCard.Dropdown>
-            </HoverCard>
-          </Group>
-        ) : null}
+        <TwapDisplay
+          countdownEndConditions={twapDescription}
+          totalImpact={twapData.totalImpact}
+          twapMarket={
+            isPassMarket
+              ? proposal!.account.openbookTwapPassMarket
+              : proposal!.account.openbookTwapPassMarket
+          }
+          lastObservationValue={lastObservationValue ?? 0}
+          lastObservedSlot={lastObservedSlot}
+          marketColor=""
+          marketType={isPassMarket ? 'pass' : 'fail'}
+          midPrice={isPassMarket ? passMidPrice : failMidPrice}
+          twap={twap ?? 0}
+          winningMarket="fail"
+        />
         <ConditionalMarketOrderBook
           orderBookObject={orderBookObject}
           setPriceFromOrderBook={setPriceFromOrderBook}

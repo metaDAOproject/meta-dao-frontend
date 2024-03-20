@@ -19,13 +19,13 @@ import {
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { SystemProgram } from '@solana/web3.js';
 import { IconChevronLeft } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import numeral from 'numeral';
 import classes from '@/app/globals.module.css';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { useProposal } from '@/contexts/ProposalContext';
@@ -46,11 +46,14 @@ import MarketsBalances from './MarketsBalances';
 import { ProposalCountdown } from './ProposalCountdown';
 import { ProposalOrdersCard } from './ProposalOrdersCard';
 import { StateBadge } from './StateBadge';
+import useTwapSubscription from '@/hooks/useTwapSubscription';
+import { getWinningTwap } from '@/lib/openbookTwap';
+import { NUMERAL_FORMAT } from '@/lib/constants';
+import useClusterDataSubscription from '@/hooks/useClusterDataSubscription';
+import useInitializeClusterDataSubscription from '@/hooks/useInitializeClusterDataSubscription';
 
 export function ProposalDetailCard() {
-  const queryClient = useQueryClient();
   const wallet = useWallet();
-  const { connection } = useConnection();
   const { fetchProposals, daoTreasury, daoState } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
   const { tokens } = useTokens();
@@ -67,6 +70,7 @@ export function ProposalDetailCard() {
     lastFailSlotUpdated,
     passSpreadString,
     failSpreadString,
+    orderBookObject,
   } = useProposalMarkets();
   const { cancelOrderTransactions, settleFundsTransactions, closeOpenOrdersAccountTransactions } =
     useOpenbookTwap();
@@ -74,13 +78,47 @@ export function ProposalDetailCard() {
   const { colorScheme } = useMantineColorScheme();
 
   const { generateExplorerLink } = useExplorerConfiguration();
-  const [lastSlot, setLastSlot] = useState<number>();
+  useInitializeClusterDataSubscription();
+  const {
+    data: { slot: lastSlot },
+  } = useClusterDataSubscription();
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
   const theme = useMantineTheme();
   const isSmall = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
   const isMedium = useMediaQuery(`(max-width: ${theme.breakpoints.md})`);
+  const passMidPrice =
+    (Number(orderBookObject?.passToB.topAsk) + Number(orderBookObject?.passToB.topBid)) / 2;
+  const failMidPrice =
+    (Number(orderBookObject?.failToB.topAsk) + Number(orderBookObject?.failToB.topBid)) / 2;
+
+  const passTwapStructure = useTwapSubscription(
+    proposal?.account.openbookTwapPassMarket,
+    passMidPrice,
+  );
+  const failTwapStructure = useTwapSubscription(
+    proposal?.account.openbookTwapFailMarket,
+    failMidPrice,
+  );
+  const winningMarket = getWinningTwap(passTwapStructure?.twap, failTwapStructure?.twap, daoState);
+
+  const daoPercentageMargin = daoState
+    ? `${numeral(daoState.passThresholdBps / 100).format(NUMERAL_FORMAT)}%`
+    : '???';
+  const minimumToPass =
+    daoState && failTwapStructure?.twap
+      ? `(> ${numeral(
+          ((failTwapStructure?.twap ?? 0) * (10000 + daoState.passThresholdBps)) / 10000,
+        ).format(NUMERAL_FORMAT)})`
+      : null;
+
+  const twapDescription = `The Time Weighted Average Price (TWAP) is the measure used to decide if the proposal
+          passes: if the TWAP of the pass market is
+          ${daoPercentageMargin}
+          above the fail market
+          ${minimumToPass}
+          , the proposal will pass once the countdown ends.`;
 
   const remainingSlots = useMemo(() => {
     if (!proposal || !daoState || !lastSlot) return;
@@ -226,20 +264,6 @@ export function ProposalDetailCard() {
       setIsRedeeming(false);
     }
   }, [sender, redeemTokensTransactions, fetchProposals]);
-
-  useEffect(() => {
-    if (lastSlot) return;
-    async function fetchSlot() {
-      const slot = await queryClient.fetchQuery({
-        queryKey: ['getSlot'],
-        queryFn: () => connection.getSlot(),
-        staleTime: 30_000,
-      });
-      setLastSlot(slot);
-    }
-
-    fetchSlot();
-  }, [connection, lastSlot]);
 
   const router = useRouter();
   const { proposals } = useAutocrat();
@@ -418,6 +442,9 @@ export function ProposalDetailCard() {
                 lastSlotUpdated={lastPassSlotUpdated}
                 spreadString={passSpreadString}
                 isPassMarket
+                isWinning={winningMarket === 'pass'}
+                twapData={passTwapStructure}
+                twapDescription={twapDescription}
               />
               <ConditionalMarketCard
                 asks={failAsks ?? []}
@@ -425,6 +452,9 @@ export function ProposalDetailCard() {
                 lastSlotUpdated={lastFailSlotUpdated}
                 spreadString={failSpreadString}
                 isPassMarket={false}
+                isWinning={winningMarket === 'fail'}
+                twapData={failTwapStructure}
+                twapDescription={twapDescription}
               />
             </Group>
           ) : null}
