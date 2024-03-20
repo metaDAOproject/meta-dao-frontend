@@ -8,7 +8,7 @@ import { NUMERAL_FORMAT } from '../../lib/constants';
 import { useProvider } from '@/hooks/useProvider';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import useClusterDataSubscription from '@/hooks/useClusterDataSubscription';
-import { roundToNearestTen, toScientificNotation } from '@/lib/utils';
+import { toScientificNotation } from '@/lib/utils';
 
 type MarketType = 'pass' | 'fail';
 
@@ -65,10 +65,10 @@ const TwapDisplay: React.FC<{
     return `${diff} seconds ago`;
   };
 
-  const updateObservedTimeStampBySlot = async (lastObservedSlot: number) => {
+  const updateObservedTimeStampBySlot = async (observedSlot: number) => {
     const _observedTimestamp = await queryClient.fetchQuery({
-      queryKey: [`getBlockTime-${lastObservedSlot}`],
-      queryFn: () => provider.connection.getBlockTime(lastObservedSlot),
+      queryKey: [`getBlockTime-${observedSlot}`],
+      queryFn: () => provider.connection.getBlockTime(observedSlot),
     });
     if (_observedTimestamp) {
       setObservedTimestamp(_observedTimestamp);
