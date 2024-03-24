@@ -4,11 +4,11 @@ import { AccountInfo, PublicKey, TokenAmount } from '@solana/web3.js';
 import { AccountLayout, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { useQueryClient } from '@tanstack/react-query';
 import { BN } from '@coral-xyz/anchor';
+import { MarketAccount } from '@openbook-dex/openbook-v2';
 import { Response } from '@/hooks/useAccountSubscription';
 import useMultiAccountSubscription, {
   SubscriptionAccount,
 } from '@/hooks/useMultiAccountSubscription';
-import { MarketAccount } from '@openbook-dex/openbook-v2';
 import { VaultAccount } from '@/lib/types';
 
 export const defaultAmount: TokenAmount = {
