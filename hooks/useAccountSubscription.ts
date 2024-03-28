@@ -2,6 +2,7 @@ import { useConnection } from '@solana/wallet-adapter-react';
 import { AccountInfo, PublicKey } from '@solana/web3.js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
+import { SubscriptionAccount } from './useMultiAccountSubscription';
 
 export type Response<T> = {
   data: T | undefined;
@@ -12,6 +13,9 @@ export type Response<T> = {
  * This handler will update the state directly and will also trigger a timeout to check for a websocket event or execute fallback
  */
 type directStateUpdate<T> = (data: T) => void;
+type accountSubscriptionHandler<T, U> =
+  | ((accountInfo: AccountInfo<Buffer>, metaData?: U) => T)
+  | ((accountInfo: AccountInfo<Buffer>, metaData?: U) => Promise<T>);
 
 /**
  * Custom hook to subscribe to an account's changes and manage its data.
@@ -23,17 +27,19 @@ type directStateUpdate<T> = (data: T) => void;
  * @returns A tuple containing the current data state and a function to manually set the data state.
  */
 
-type AccountSubscriptionOptions<T> = {
-  publicKey: PublicKey | undefined;
-  handler: (accountInfo: AccountInfo<Buffer>) => T;
-  fetch: (publicKey: PublicKey | undefined) => Promise<T | undefined>;
+type AccountSubscriptionOptions<T, U> = {
+  account: SubscriptionAccount<U> | undefined;
+  handler: accountSubscriptionHandler<T, U>;
+  fetch: (publicKey?: PublicKey | undefined) => Promise<T | undefined>;
   globalTimeout?: number;
 };
 
-export default function useAccountSubscription<T>(
-  options: AccountSubscriptionOptions<T>,
+export default function useAccountSubscription<T, U>(
+  options: AccountSubscriptionOptions<T, U>,
 ): [Response<T>, directStateUpdate<T>] {
-  const { publicKey, handler, fetch, globalTimeout = 45000 } = options;
+  const { account, handler, fetch, globalTimeout = 45000 } = options;
+  const publicKey = account?.publicKey;
+  const metaData = account?.metaData;
   const queryClient = useQueryClient();
   const [fallbackTimeout, setFallbackTimeout] = useState<NodeJS.Timeout | undefined>();
   const [lastEventReceivedTime, setlastEventReceivedTime] = useState<Date | undefined>();
@@ -50,11 +56,17 @@ export default function useAccountSubscription<T>(
 
   useEffect(() => {
     if (publicKey) {
-      const subscription = connection.onAccountChange(publicKey, (accountInfo) => {
-        const processedData = handler(accountInfo);
+      const subscription = connection.onAccountChange(publicKey, async (accountInfo) => {
+        const processedData = handler(accountInfo, metaData);
+        let result: T;
+        if (processedData instanceof Promise) {
+          result = await processedData;
+        } else {
+          result = processedData;
+        }
 
         //TODO check for difference before setting query data
-        queryClient.setQueryData(['accountData', publicKey?.toString()], () => processedData);
+        queryClient.setQueryData(['accountData', publicKey?.toString()], () => result);
         // clear any timeout that was running so we don't refetch
         if (fallbackTimeout) {
           clearTimeout(fallbackTimeout);
@@ -82,10 +94,7 @@ export default function useAccountSubscription<T>(
     queryClient.setQueryData(['accountData', publicKey?.toString()], () => updatedData);
     // If we haven't received an event in the last 3 seconds, and the values are different, create the fallback timeout
     const threeSecondsAgo = new Date(new Date().getTime() - 3000);
-    if (
-      (!lastEventReceivedTime || threeSecondsAgo < lastEventReceivedTime) &&
-      updatedData !== data
-    ) {
+    if (!lastEventReceivedTime || threeSecondsAgo < lastEventReceivedTime) {
       const timeoutId = setTimeout(async () => {
         // this timeout will run if a websocket event hasn't come through
         queryClient.refetchQueries({ queryKey: ['accountData', publicKey?.toString()] });

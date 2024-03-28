@@ -1,62 +1,66 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { BN } from '@coral-xyz/anchor';
 import {
   ActionIcon,
   Button,
   Card,
-  Code,
   Container,
   Divider,
   Flex,
   Group,
   Loader,
   ScrollArea,
-  Stack,
   Select,
+  Stack,
   Text,
   Title,
   Tooltip,
   useMantineColorScheme,
   useMantineTheme,
 } from '@mantine/core';
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { IconChevronLeft } from '@tabler/icons-react';
 import { useMediaQuery } from '@mantine/hooks';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { SystemProgram } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
-import { useQueryClient } from '@tanstack/react-query';
-import { ProposalOrdersCard } from './ProposalOrdersCard';
-import { ConditionalMarketCard } from '../Markets/ConditionalMarketCard';
-import { JupSwapCard } from './JupSwapCard';
-import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
+import { IconChevronLeft } from '@tabler/icons-react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
+import numeral from 'numeral';
+import classes from '@/app/globals.module.css';
 import { useAutocrat } from '@/contexts/AutocratContext';
-import { shortKey } from '@/lib/utils';
-import { StateBadge } from './StateBadge';
-import { useTransactionSender } from '../../hooks/useTransactionSender';
-import { useConditionalVault } from '../../hooks/useConditionalVault';
 import { useProposal } from '@/contexts/ProposalContext';
-import ExternalLink from '../ExternalLink';
-import MarketsBalances from './MarketsBalances';
-import classes from '../../app/globals.module.css';
-import { useTokens } from '../../hooks/useTokens';
-import { isClosableOrder, isEmptyOrder, isOpenOrder, isPartiallyFilled } from '../../lib/openbook';
-import { useOpenbookTwap } from '../../hooks/useOpenbookTwap';
-import { Proposal } from '../../lib/types';
-import { ProposalCountdown } from './ProposalCountdown';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
+import { useConditionalVault } from '@/hooks/useConditionalVault';
+import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
+import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
+import { useTokens } from '@/hooks/useTokens';
+import { useTransactionSender } from '@/hooks/useTransactionSender';
+import { Proposal } from '@/lib/types';
+import { shortKey } from '@/lib/utils';
+import { isClosableOrder, isPartiallyFilled } from '../../lib/openbook';
+import ExternalLink from '../ExternalLink';
+import { ConditionalMarketCard } from '../Markets/ConditionalMarketCard';
+import ProposalInstructionCard from './Instructions/ProposalInstructionCard';
+import { JupSwapCard } from './JupSwapCard';
+import MarketsBalances from './MarketsBalances';
+import { ProposalCountdown } from './ProposalCountdown';
+import { ProposalOrdersCard } from './ProposalOrdersCard';
+import { StateBadge } from './StateBadge';
+import useTwapSubscription from '@/hooks/useTwapSubscription';
+import { getWinningTwap } from '@/lib/openbookTwap';
+import { NUMERAL_FORMAT } from '@/lib/constants';
+import useClusterDataSubscription from '@/hooks/useClusterDataSubscription';
+import useInitializeClusterDataSubscription from '@/hooks/useInitializeClusterDataSubscription';
 
 export function ProposalDetailCard() {
-  const queryClient = useQueryClient();
   const wallet = useWallet();
-  const { connection } = useConnection();
   const { fetchProposals, daoTreasury, daoState } = useAutocrat();
   const { redeemTokensTransactions } = useConditionalVault();
   const { tokens } = useTokens();
-  const { proposal, finalizeProposalTransactions } =
-    useProposal();
-  const { orders,
-    fetchOpenOrders,
+  const { proposal, finalizeProposalTransactions } = useProposal();
+  const {
+    openOrders,
+    unsettledOrders,
     markets,
     passAsks,
     passBids,
@@ -65,20 +69,56 @@ export function ProposalDetailCard() {
     lastPassSlotUpdated,
     lastFailSlotUpdated,
     passSpreadString,
-    failSpreadString } = useProposalMarkets();
+    failSpreadString,
+    orderBookObject,
+  } = useProposalMarkets();
   const { cancelOrderTransactions, settleFundsTransactions, closeOpenOrdersAccountTransactions } =
     useOpenbookTwap();
   const sender = useTransactionSender();
   const { colorScheme } = useMantineColorScheme();
 
   const { generateExplorerLink } = useExplorerConfiguration();
-  const [lastSlot, setLastSlot] = useState<number>();
+  useInitializeClusterDataSubscription();
+  const {
+    data: { slot: lastSlot },
+  } = useClusterDataSubscription();
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [isClosing, setIsClosing] = useState<boolean>(false);
   const [isRedeeming, setIsRedeeming] = useState<boolean>(false);
   const theme = useMantineTheme();
   const isSmall = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
   const isMedium = useMediaQuery(`(max-width: ${theme.breakpoints.md})`);
+  const passMidPrice =
+    (Number(orderBookObject?.passToB.topAsk) + Number(orderBookObject?.passToB.topBid)) / 2;
+  const failMidPrice =
+    (Number(orderBookObject?.failToB.topAsk) + Number(orderBookObject?.failToB.topBid)) / 2;
+
+  const passTwapStructure = useTwapSubscription(
+    proposal?.account.openbookTwapPassMarket,
+    passMidPrice,
+  );
+  const failTwapStructure = useTwapSubscription(
+    proposal?.account.openbookTwapFailMarket,
+    failMidPrice,
+  );
+  const winningMarket = getWinningTwap(passTwapStructure?.twap, failTwapStructure?.twap, daoState);
+
+  const daoPercentageMargin = daoState
+    ? `${numeral(daoState.passThresholdBps / 100).format(NUMERAL_FORMAT)}%`
+    : '???';
+  const minimumToPass =
+    daoState && failTwapStructure?.twap
+      ? `(> ${numeral(
+          ((failTwapStructure?.twap ?? 0) * (10000 + daoState.passThresholdBps)) / 10000,
+        ).format(NUMERAL_FORMAT)})`
+      : null;
+
+  const twapDescription = `The Time Weighted Average Price (TWAP) is the measure used to decide if the proposal
+          passes: if the TWAP of the pass market is
+          ${daoPercentageMargin}
+          above the fail market
+          ${minimumToPass}
+          , the proposal will pass once the countdown ends.`;
 
   const remainingSlots = useMemo(() => {
     if (!proposal || !daoState || !lastSlot) return;
@@ -145,21 +185,19 @@ export function ProposalDetailCard() {
   }, [tokens, daoTreasury, sender, finalizeProposalTransactions, fetchProposals]);
 
   const handleCloseOrders = useCallback(async () => {
-    if (!proposal || !orders || !markets || !wallet.publicKey) {
+    if (!proposal || !openOrders || !markets || !wallet.publicKey) {
       return;
     }
 
-    const openOrders = orders.filter((order) => isOpenOrder(order, markets));
     // TODO: also handle uncranked orders
     // const uncrankedOrders = orders.filter((order) => isCompletedOrder(order, markets));
-    const unsettledOrders = orders.filter((order) => isEmptyOrder(order));
 
-    const ordersToSettle = unsettledOrders.filter((order) => isPartiallyFilled(order));
-    const ordersToClose = unsettledOrders.filter((order) => isClosableOrder(order));
+    const ordersToSettle = unsettledOrders?.filter((order) => isPartiallyFilled(order)) ?? [];
+    const ordersToClose = unsettledOrders?.filter((order) => isClosableOrder(order)) ?? [];
 
     const cancelOpenOrdersTxs = (
       await Promise.all(
-        openOrders.map((order) =>
+        (openOrders ?? []).map((order) =>
           cancelOrderTransactions(
             new BN(order.account.accountNum),
             proposal.account.openbookPassMarket.equals(order.account.market)
@@ -172,7 +210,7 @@ export function ProposalDetailCard() {
 
     const settleOrdersTxs = (
       await Promise.all(
-        openOrders.concat(ordersToSettle).map((order) => {
+        (openOrders ?? []).concat(ordersToSettle).map((order) => {
           const pass = order.account.market.equals(proposal.account.openbookPassMarket);
           return settleFundsTransactions(
             order.account.accountNum,
@@ -188,7 +226,7 @@ export function ProposalDetailCard() {
 
     const closeOrdersTxs = (
       await Promise.all(
-        openOrders
+        (openOrders ?? [])
           .concat(ordersToSettle)
           .concat(ordersToClose)
           .map((order) => closeOpenOrdersAccountTransactions(new BN(order.account.accountNum))),
@@ -201,18 +239,9 @@ export function ProposalDetailCard() {
         [cancelOpenOrdersTxs, settleOrdersTxs, closeOrdersTxs].filter((set) => set.length !== 0),
       );
     } finally {
-      fetchOpenOrders(wallet.publicKey);
       setIsClosing(false);
     }
-  }, [
-    orders,
-    markets,
-    proposal,
-    sender,
-    wallet.publicKey,
-    cancelOrderTransactions,
-    fetchOpenOrders,
-  ]);
+  }, [openOrders, markets, proposal, sender, wallet.publicKey, cancelOrderTransactions]);
 
   const handleRedeem = useCallback(async () => {
     if (!markets || !proposal) return;
@@ -235,20 +264,6 @@ export function ProposalDetailCard() {
       setIsRedeeming(false);
     }
   }, [sender, redeemTokensTransactions, fetchProposals]);
-
-  useEffect(() => {
-    if (lastSlot) return;
-    async function fetchSlot() {
-      const slot = await queryClient.fetchQuery({
-        queryKey: ['getSlot'],
-        queryFn: () => connection.getSlot(),
-        staleTime: 30_000,
-      });
-      setLastSlot(slot);
-    }
-
-    fetchSlot();
-  }, [connection, lastSlot]);
 
   const router = useRouter();
   const { proposals } = useAutocrat();
@@ -332,19 +347,18 @@ export function ProposalDetailCard() {
                 <IconChevronLeft />
               </ActionIcon>
             ) : null}
-            {
-              proposal.account.state.pending && pendingProposals && pendingProposals.length > 1 ?
-                <Select
-                  data={pendingProposals?.map(el => el.title)}
-                  defaultValue={proposal.title}
-                  onChange={handleProposalChange}
-                  value={proposal.title}
-                  size="md"
-                  fw={800}
-                />
-                :
-                <Title order={2}>{proposal.title}</Title>
-            }
+            {proposal.account.state.pending && pendingProposals && pendingProposals.length > 1 ? (
+              <Select
+                data={pendingProposals?.map((el) => el.title)}
+                defaultValue={proposal.title}
+                onChange={handleProposalChange}
+                value={proposal.title}
+                size="md"
+                fw={800}
+              />
+            ) : (
+              <Title order={2}>{proposal.title}</Title>
+            )}
             <StateBadge proposal={proposal} />
           </Group>
           {proposal.description ? (
@@ -358,33 +372,13 @@ export function ProposalDetailCard() {
             </Card>
           ) : null}
           <ProposalCountdown remainingSlots={remainingSlots} />
-          <Text>Account:{' '}
-            <a
-              href={generateExplorerLink(proposal.publicKey.toString(), 'account')}
-              target="blank"
-            >
+          <Text>
+            Account:{' '}
+            <a href={generateExplorerLink(proposal.publicKey.toString(), 'account')} target="blank">
               {shortKey(proposal.publicKey)}
             </a>
           </Text>
-          {proposal.account.instruction.data
-            &&
-            <>
-            <Text>Instruction:</Text>
-            <Stack pl={15}>
-              {(proposal.account.instruction.accounts.length > 0)
-              &&
-              <>
-              <Text size="xs">Accounts</Text>
-              {proposal.account.instruction.accounts.map((account) =>
-                <Code key={account.pubkey.toString()}>{account.pubkey.toString()}</Code>
-              )}
-              </>
-              }
-              <Text size="xs">Data</Text><Code>[{Uint8Array.from(proposal.account.instruction.data).toString()}]</Code>
-              <Text size="xs">Program</Text><Code>{proposal.account.instruction.programId.toString()}</Code>
-            </Stack>
-            </>
-          }
+          {proposal.account.instruction.data && <ProposalInstructionCard proposal={proposal} />}
           <Group wrap="wrap" justify="space-between" pt={10}>
             <ExternalLink href={proposal.account.descriptionUrl} />
             <Text opacity={0.6} style={{ textAlign: 'right' }}>
@@ -412,18 +406,23 @@ export function ProposalDetailCard() {
           <>
             <Button
               loading={isClosing}
-              disabled={(orders?.length || 0) === 0}
+              disabled={(openOrders?.length || 0) === 0}
               onClick={handleCloseOrders}
             >
               Close remaining orders
             </Button>
-            {(orders?.length || 0) === 0 ? (
+            {(openOrders?.length || 0) === 0 ? (
               <Button color="green" loading={isRedeeming} onClick={handleRedeem}>
                 Redeem
               </Button>
             ) : (
               <Tooltip label="You have open orders left!">
-                <Button color="green" loading={isRedeeming} variant="outline" onClick={handleRedeem}>
+                <Button
+                  color="green"
+                  loading={isRedeeming}
+                  variant="outline"
+                  onClick={handleRedeem}
+                >
                   Redeem
                 </Button>
               </Tooltip>
@@ -443,6 +442,9 @@ export function ProposalDetailCard() {
                 lastSlotUpdated={lastPassSlotUpdated}
                 spreadString={passSpreadString}
                 isPassMarket
+                isWinning={winningMarket === 'pass'}
+                twapData={passTwapStructure}
+                twapDescription={twapDescription}
               />
               <ConditionalMarketCard
                 asks={failAsks ?? []}
@@ -450,6 +452,9 @@ export function ProposalDetailCard() {
                 lastSlotUpdated={lastFailSlotUpdated}
                 spreadString={failSpreadString}
                 isPassMarket={false}
+                isWinning={winningMarket === 'fail'}
+                twapData={failTwapStructure}
+                twapDescription={twapDescription}
               />
             </Group>
           ) : null}

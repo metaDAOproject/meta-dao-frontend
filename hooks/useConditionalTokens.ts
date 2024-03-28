@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { useBalance } from './useBalance';
 import { Token, useTokens } from './useTokens';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
+import { useBalance } from './useBalance';
 
 export interface ConditionalToken {
   token: Token;
@@ -21,14 +21,14 @@ export default function useConditionalTokens() {
   const { markets } = useProposalMarkets();
   if (!markets) {
     return {
-      usdcToken: undefined,
-      metaToken: undefined,
-      usdcBalance: undefined,
-      metaBalance: undefined,
-      pUsdcBalance: undefined,
-      pMetaBalance: undefined,
-      fUsdcBalance: undefined,
-      fMetaBalance: undefined,
+      quoteToken: undefined,
+      baseToken: undefined,
+      quoteBalance: undefined,
+      baseBalance: undefined,
+      pquoteBalance: undefined,
+      pBaseBalance: undefined,
+      fquoteBalance: undefined,
+      fBaseBalance: undefined,
     };
   }
   const { tokens } = useTokens();
@@ -38,62 +38,45 @@ export default function useConditionalTokens() {
   );
 
   const {
-    amount: { data: usdcBalance, isLoading: isUsdcLoading },
+    amount: { data: quoteBalance, isLoading: isQuoteLoading },
   } = useBalance(quote.underlyingTokenMint);
   const {
-    amount: { data: metaBalance, isLoading: isMetaLoading },
+    amount: { data: baseBalance, isLoading: isBaseLoading },
   } = useBalance(base.underlyingTokenMint);
   const {
-    amount: { data: pMetaBalance, isLoading: isPmetaLoading },
+    amount: { data: pBaseBalance, isLoading: isPbaseLoading },
   } = useBalance(base.conditionalOnFinalizeTokenMint);
   const {
-    amount: { data: fMetaBalance, isLoading: isFmetaLoading },
+    amount: { data: fBaseBalance, isLoading: isFbaseLoading },
   } = useBalance(base.conditionalOnRevertTokenMint);
 
   const {
-    amount: { data: pUsdcBalance, isLoading: isPusdcLoading },
+    amount: { data: pQuoteBalance, isLoading: isPquoteLoading },
   } = useBalance(quote.conditionalOnFinalizeTokenMint);
   const {
-    amount: { data: fUsdcBalance, isLoading: isFusdcLoading },
+    amount: { data: fQuoteBalance, isLoading: isFquoteLoading },
   } = useBalance(quote.conditionalOnRevertTokenMint);
 
-  const [metaToken, setMetaToken] = useState<ConditionalToken | undefined>();
-  const [usdcToken, setUsdcToken] = useState<ConditionalToken | undefined>();
+  const baseToken: ConditionalToken | undefined = {
+    token: tokens.meta as unknown as Token,
+    symbol: tokens.meta?.symbol as unknown as string,
+    balanceSpot: baseBalance,
+    balancePass: pBaseBalance,
+    balanceFail: fBaseBalance,
+    loading: isBaseLoading || isFbaseLoading || isPbaseLoading,
+    finalize: base.conditionalOnFinalizeTokenMint,
+    revert: base.conditionalOnRevertTokenMint,
+  };
+  const quoteToken: ConditionalToken | undefined = {
+    token: tokens.usdc as unknown as Token,
+    symbol: tokens.usdc?.symbol as unknown as string,
+    balanceSpot: quoteBalance,
+    balancePass: pQuoteBalance,
+    balanceFail: fQuoteBalance,
+    loading: isQuoteLoading || isFquoteLoading || isPquoteLoading,
+    finalize: quote.conditionalOnFinalizeTokenMint,
+    revert: quote.conditionalOnRevertTokenMint,
+  };
 
-  useEffect(() => {
-    if (tokens && base && quote) {
-      setMetaToken({
-        token: tokens.meta as unknown as Token,
-        symbol: tokens.meta?.symbol as unknown as string,
-        balanceSpot: metaBalance,
-        balancePass: pMetaBalance,
-        balanceFail: fMetaBalance,
-        loading: isMetaLoading || isFmetaLoading || isPmetaLoading,
-        finalize: base.conditionalOnFinalizeTokenMint,
-        revert: base.conditionalOnRevertTokenMint,
-      });
-      setUsdcToken({
-        token: tokens.usdc as unknown as Token,
-        symbol: tokens.usdc?.symbol as unknown as string,
-        balanceSpot: usdcBalance,
-        balancePass: pUsdcBalance,
-        balanceFail: fUsdcBalance,
-        loading: isUsdcLoading || isFusdcLoading || isPusdcLoading,
-        finalize: quote.conditionalOnFinalizeTokenMint,
-        revert: quote.conditionalOnRevertTokenMint,
-      });
-    }
-  }, [
-    tokens,
-    base,
-    quote,
-    metaBalance,
-    fMetaBalance,
-    pMetaBalance,
-    usdcBalance,
-    fUsdcBalance,
-    pUsdcBalance,
-  ]);
-
-  return { usdcToken, metaToken, usdcBalance, metaBalance };
+  return { quoteToken, baseToken, quoteBalance, baseBalance };
 }

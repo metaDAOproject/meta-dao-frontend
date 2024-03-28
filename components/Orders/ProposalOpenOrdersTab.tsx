@@ -13,9 +13,9 @@ import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 
 const headers = ['Order ID', 'Market', 'Status', 'Size', 'Price', 'Notional', 'Actions'];
 
-export function ProposalOpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[]; }) {
+export function ProposalOpenOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }) {
   const { isCranking, crankMarkets, proposal } = useProposal();
-  const { markets, fetchOpenOrders } = useProposalMarkets();
+  const { markets } = useProposalMarkets();
   const sender = useTransactionSender();
   const wallet = useWallet();
   const { cancelOrderTransactions, settleFundsTransactions } = useOpenbookTwap();
@@ -45,14 +45,12 @@ export function ProposalOpenOrdersTab({ orders }: { orders: OpenOrdersAccountWit
       setIsCanceling(true);
       // Filtered undefined already
       await sender.send(txs);
-      // We already return above if the wallet doesn't have a public key
-      await fetchOpenOrders(wallet.publicKey!);
     } catch (err) {
       console.error(err);
     } finally {
       setIsCanceling(false);
     }
-  }, [proposal, markets, wallet.publicKey, cancelOrderTransactions, fetchOpenOrders, sender]);
+  }, [proposal, markets, wallet.publicKey, cancelOrderTransactions, sender]);
 
   const handleSettleAllFunds = useCallback(async () => {
     if (!proposal || !markets) return;

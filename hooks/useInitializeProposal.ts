@@ -14,22 +14,17 @@ import { useTransactionSender } from './useTransactionSender';
 export function useInitializeProposal() {
   const { connection } = useConnection();
   const sender = useTransactionSender();
+
   const { initializeVault } = useConditionalVault();
-  const {
-    autocratProgram: program,
-    dao,
-    daoTreasury,
-    daoState,
-    fetchProposals,
-  } = useAutocrat();
+  const { autocratProgram: program, dao, daoTreasury, daoState, fetchProposals } = useAutocrat();
   const wallet = useWallet();
   const openbook = useOpenbook().program;
   const { program: openbookTwap } = useOpenbookTwap();
   const { tokens } = useTokens();
   const baseNonce: BN = new BN(daoState?.proposalCount || 0);
-  const [vaults, setVaults] = useState<{ base: InitializedVault; quote: InitializedVault; }>();
-  const [markets, setMarkets] = useState<{ pass: Keypair; fail: Keypair; }>();
-  const [twaps, setTwaps] = useState<{ pass: PublicKey; fail: PublicKey; }>();
+  const [vaults, setVaults] = useState<{ base: InitializedVault; quote: InitializedVault }>();
+  const [markets, setMarkets] = useState<{ pass: Keypair; fail: Keypair }>();
+  const [twaps, setTwaps] = useState<{ pass: PublicKey; fail: PublicKey }>();
 
   useEffect(() => {
     const f = async () => {

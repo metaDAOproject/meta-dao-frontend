@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, AccountMeta } from '@solana/web3.js';
-import { priceLotsToUi, baseLotsToUi } from '@openbook-dex/openbook-v2';
+import { priceLotsToUi, baseLotsToUi, MarketAccount } from '@openbook-dex/openbook-v2';
 import { BN } from '@coral-xyz/anchor';
 import {
   OpenOrdersAccountWithKey,
@@ -15,6 +15,8 @@ import { getLeafNodes } from '../lib/openbook';
 import { debounce } from '../lib/utils';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { useOpenbook } from '@/hooks/useOpenbook';
+import { useQueryClient } from '@tanstack/react-query';
+import { BalancesProvider } from './BalancesContext';
 
 export interface OpenbookMarketInterface {
   market?: OpenbookMarket;
@@ -24,15 +26,8 @@ export interface OpenbookMarketInterface {
   loading: boolean;
   fetchOpenOrders: (owner: PublicKey) => Promise<void>;
   fetchMarketInfo: () => Promise<void>;
-  placeOrder: (
-    amount: number,
-    price: number,
-    limitOrder?: boolean,
-    ask?: boolean,
-  ) => Promise<void>;
-  cancelAndSettleOrder: (
-    order: OpenOrdersAccountWithKey,
-  ) => Promise<string[] | void>;
+  placeOrder: (amount: number, price: number, limitOrder?: boolean, ask?: boolean) => Promise<void>;
+  cancelAndSettleOrder: (order: OpenOrdersAccountWithKey) => Promise<string[] | void>;
   eventHeapCount: number | undefined;
 }
 
@@ -65,57 +60,54 @@ export function OpenbookMarketProvider({
     placeOrderTransactions,
     cancelAndSettleFundsTransactions,
   } = useOpenbook();
-
+  const queryClient = useQueryClient();
   // @ts-ignore
   const marketPubkey = new PublicKey(marketId);
 
-  const findEventHeapCount = useCallback(
-    async () => {
-      if (!_openbook || !market) return;
-      let accounts: PublicKey[] = new Array<PublicKey>();
-      const _eventHeap = await _openbook.program.account.eventHeap.fetch(
-        market?.market.eventHeap
-      );
-      if (_eventHeap != null) {
-        // eslint-disable-next-line no-restricted-syntax
-        for (const node of _eventHeap.nodes) {
-          if (node.event.eventType === 0) {
-            const fillEvent: FillEvent = _openbook.program.coder.types.decode(
-              'FillEvent',
-              Buffer.from([0, ...node.event.padding]),
-            );
-            accounts = accounts.filter((a) => a !== fillEvent.maker).concat([fillEvent.maker]);
-          } else {
-            const outEvent: OutEvent = _openbook.program.coder.types.decode(
-              'OutEvent',
-              Buffer.from([0, ...node.event.padding]),
-            );
-            accounts = accounts.filter((a) => a !== outEvent.owner).concat([outEvent.owner]);
-          }
+  const findEventHeapCount = useCallback(async () => {
+    if (!_openbook || !market) return;
+    let accounts: PublicKey[] = new Array<PublicKey>();
+    const _eventHeap = await _openbook.program.account.eventHeap.fetch(market?.market.eventHeap);
+    if (_eventHeap != null) {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const node of _eventHeap.nodes) {
+        if (node.event.eventType === 0) {
+          const fillEvent: FillEvent = _openbook.program.coder.types.decode(
+            'FillEvent',
+            Buffer.from([0, ...node.event.padding]),
+          );
+          accounts = accounts.filter((a) => a !== fillEvent.maker).concat([fillEvent.maker]);
+        } else {
+          const outEvent: OutEvent = _openbook.program.coder.types.decode(
+            'OutEvent',
+            Buffer.from([0, ...node.event.padding]),
+          );
+          accounts = accounts.filter((a) => a !== outEvent.owner).concat([outEvent.owner]);
         }
-        const accountsMeta: AccountMeta[] = accounts.map((remaining) => ({
-          pubkey: remaining,
-          isSigner: false,
-          isWritable: true,
-        }));
-        setEventHeapCount(accountsMeta.length);
-      } else {
-        setEventHeapCount(0);
       }
-    }, [_openbook, market]
-  );
+      const accountsMeta: AccountMeta[] = accounts.map((remaining) => ({
+        pubkey: remaining,
+        isSigner: false,
+        isWritable: true,
+      }));
+      setEventHeapCount(accountsMeta.length);
+    } else {
+      setEventHeapCount(0);
+    }
+  }, [_openbook, market]);
 
   const fetchMarketInfo = useCallback(
     debounce(async () => {
       if (!marketId || !_openbook || !connection) {
         return;
       }
-      const accountInfos = await connection.getMultipleAccountsInfo([
-        new PublicKey(marketId),
-      ]);
-      if (!accountInfos || accountInfos.indexOf(null) >= 0) return;
+      const accountInfos = await connection.getMultipleAccountsInfo([new PublicKey(marketId)]);
 
-      const _market = await _openbook.program.coder.accounts.decode('market', accountInfos[0]!.data);
+      const _market = await _openbook.program.coder.accounts.decode(
+        'market',
+        accountInfos[0]!.data,
+      );
+      queryClient.setQueryData(['markets'], [_market]);
 
       const bookAccountInfos = await connection.getMultipleAccountsInfo([
         _market.asks,
@@ -147,10 +139,7 @@ export function OpenbookMarketProvider({
         { memcmp: { offset: 8, bytes: owner.toBase58() } },
         { memcmp: { offset: 40, bytes: new PublicKey(marketId).toBase58() } },
       ]);
-      setOrders(
-        _orders
-          .sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1)),
-      );
+      setOrders(_orders.sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1)));
     }, 1000),
     [_openbook, marketId],
   );
@@ -212,8 +201,8 @@ export function OpenbookMarketProvider({
         const _orderBookSide = getSide(orderBookForSide, isBidSide);
         if (_orderBookSide) {
           return Array.from(_orderBookSide.deduped?.entries()).map((side) => [
-            (side[0]).toFixed(4),
-            (side[1]).toFixed(4),
+            side[0].toFixed(4),
+            side[1].toFixed(4),
           ]);
         }
       }
@@ -261,13 +250,7 @@ export function OpenbookMarketProvider({
     async (amount: number, price: number, limitOrder?: boolean, ask?: boolean) => {
       if (!marketId || !market) return;
       const _market = { publicKey: new PublicKey(marketId), account: market.market };
-      const placeTxs = await placeOrderTransactions(
-        amount,
-        price,
-        _market,
-        limitOrder,
-        ask,
-      );
+      const placeTxs = await placeOrderTransactions(amount, price, _market, limitOrder, ask);
 
       if (!placeTxs || !wallet.publicKey) {
         return;
@@ -359,10 +342,8 @@ export function OpenbookMarketProvider({
   );
 
   return (
-    <openbookMarketContext.Provider
-      value={memoValue}
-    >
-      {children}
+    <openbookMarketContext.Provider value={memoValue}>
+      <BalancesProvider>{children}</BalancesProvider>
     </openbookMarketContext.Provider>
   );
 }

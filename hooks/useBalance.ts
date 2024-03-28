@@ -11,7 +11,6 @@ export function useBalance(mint?: PublicKey) {
     mint && owner
       ? getAssociatedTokenAddressSync(new PublicKey(mint.toString()), owner, true)
       : null;
-
   const balance = balances[account?.toString() ?? ''];
 
   return { amount: balance ?? defaultAmount };
