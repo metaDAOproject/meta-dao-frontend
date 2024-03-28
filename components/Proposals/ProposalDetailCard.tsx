@@ -109,8 +109,8 @@ export function ProposalDetailCard() {
   const minimumToPass =
     daoState && failTwapStructure?.twap
       ? `(> ${numeral(
-          ((failTwapStructure?.twap ?? 0) * (10000 + daoState.passThresholdBps)) / 10000,
-        ).format(NUMERAL_FORMAT)})`
+        ((failTwapStructure?.twap ?? 0) * (10000 + daoState.passThresholdBps)) / 10000,
+      ).format(NUMERAL_FORMAT)})`
       : null;
 
   const twapDescription = `The Time Weighted Average Price (TWAP) is the measure used to decide if the proposal
@@ -296,33 +296,7 @@ export function ProposalDetailCard() {
       gap={isMedium ? 'xl' : 'md'}
       mt="-1rem"
     >
-      {isMedium ? (
-        isSmall ? null : (
-          <Button
-            pos="fixed"
-            top="76px"
-            className={classes.colorschemebutton}
-            leftSection={<IconChevronLeft />}
-            href="/"
-            component="a"
-            style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
-          >
-            Back to Proposals
-          </Button>
-        )
-      ) : (
-        <Button
-          pos="fixed"
-          top="76px"
-          className={classes.colorschemebutton}
-          leftSection={<IconChevronLeft />}
-          href="/"
-          component="a"
-          style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
-        >
-          Back to Proposals
-        </Button>
-      )}
+
       <Stack
         pos={isMedium ? 'relative' : 'sticky'}
         top={isMedium ? '10px' : '100px'}
@@ -336,17 +310,39 @@ export function ProposalDetailCard() {
             justify={isMedium ? (isSmall ? 'space-around' : 'center') : 'space-between'}
             align="start"
           >
-            {isSmall ? (
-              <ActionIcon
-                my="auto"
+            {isMedium ? (
+              isSmall ?
+                <ActionIcon
+                  my="auto"
+                  className={classes.colorschemebutton}
+                  href="/"
+                  component="a"
+                  style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
+                >
+                  <IconChevronLeft />
+                </ActionIcon> : (
+                  <Button
+                    className={classes.colorschemebutton}
+                    leftSection={<IconChevronLeft />}
+                    href="/"
+                    component="a"
+                    style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
+                  >
+                    Back to Proposals
+                  </Button>
+                )
+            ) : (
+              <Button
                 className={classes.colorschemebutton}
+                leftSection={<IconChevronLeft />}
                 href="/"
                 component="a"
                 style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
               >
-                <IconChevronLeft />
-              </ActionIcon>
-            ) : null}
+                Back to Proposals
+              </Button>
+            )}
+
             {proposal.account.state.pending && pendingProposals && pendingProposals.length > 1 ? (
               <Select
                 data={pendingProposals?.map((el) => el.title)}
