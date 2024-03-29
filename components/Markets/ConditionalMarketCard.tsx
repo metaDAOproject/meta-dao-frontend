@@ -269,6 +269,19 @@ export function ConditionalMarketCard({
     if (price !== '') priceValidator(price);
   }, [price]);
 
+  const winningMarket = () => {
+    if (isPassMarket) {
+      if (isWinning) {
+        return 'pass';
+      }
+      return 'fail';
+    }
+    if (isWinning) {
+      return 'fail';
+    }
+    return 'pass';
+  };
+
   return (
     <Card
       withBorder
@@ -301,7 +314,7 @@ export function ConditionalMarketCard({
           marketType={isPassMarket ? 'pass' : 'fail'}
           midPrice={isPassMarket ? passMidPrice : failMidPrice}
           twap={twap ?? 0}
-          winningMarket="fail"
+          winningMarket={winningMarket()}
         />
         <ConditionalMarketOrderBook
           orderBookObject={orderBookObject}
