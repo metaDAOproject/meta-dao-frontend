@@ -277,7 +277,7 @@ export function ProposalDetailCard() {
   }, [proposals]);
 
   const handleProposalChange = (title: string | null) => {
-    const proposalId = pendingProposals?.filter((p) => p?.title === title)[0].account.number;
+    const proposalId = pendingProposals?.filter((p) => p?.title === title)[0]?.account.number;
 
     if (proposalId) {
       router.replace(`/proposal?id=${proposalId}`);

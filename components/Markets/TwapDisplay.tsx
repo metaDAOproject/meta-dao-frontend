@@ -69,6 +69,8 @@ const TwapDisplay: React.FC<{
     }
   }, [timeDifference]);
 
+  const winningMarketCapitalized = winningMarket[0].toUpperCase() + winningMarket.slice(1);
+
   return (
     <Group justify="center" align="center">
       <Stack gap={0} pb="1rem" align="center">
@@ -99,7 +101,7 @@ const TwapDisplay: React.FC<{
               {lastObservedDate} | {timeSinceObservation()}
             </Text>
             <Text>Crank Impact {toScientificNotation(Math.max(0, totalImpact) * 100, 5)}%</Text>
-            <Text c={marketColor}>Currently the {winningMarket} Market wins.</Text>
+            <Text c={marketColor}>Currently the {winningMarketCapitalized} Market wins.</Text>
             <Text size="xs">
               <a href={generateExplorerLink(twapMarket.toString(), 'account')} target="blank">
                 {`See ${marketType} TWAP Market in explorer.`}
