@@ -4,9 +4,10 @@ import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import {
   Commitment,
   ComputeBudgetProgram,
+  PublicKey,
   RpcResponseAndContext,
   SignatureResult,
-  Transaction,
+  Transaction as LegacyTransaction,
   VersionedTransaction,
 } from '@solana/web3.js';
 import { IconCircleCheck, IconCircleX, IconExclamationCircle } from '@tabler/icons-react';
@@ -26,6 +27,8 @@ enum TransactionStatus {
   NONCE_INVALID = 3,
 }
 
+type Transaction = LegacyTransaction | VersionedTransaction;
+
 type SingleOrArray<T> = T | T[];
 
 /**
@@ -33,26 +36,19 @@ type SingleOrArray<T> = T | T[];
  * Transaction | VersionedTransaction but adds additional attributes/functions that we can use in the process
  * transaction(s) flow
  */
-type TransactionWithMetadata<T extends Transaction | VersionedTransaction> = {
+type TransactionWithMetadata<T extends Transaction> = {
   tx: T;
   canonicalDescriptor?: string;
 };
 
-type TransactionInfo<T extends Transaction | VersionedTransaction> = {
+type TransactionInfo<T extends Transaction> = {
   signature: string;
   transaction: TransactionWithMetadata<T>;
   result?: SignatureResult;
   status?: TransactionStatus;
 };
 
-// type guard function function for TransactionWithMetadata since instanceof won't work
-const isTransactionWithMetadata = <T extends Transaction | VersionedTransaction>(
-  obj: any,
-): obj is TransactionWithMetadata<T> => {
-  return typeof obj === 'object' && obj !== null && 'tx' in obj;
-};
-
-export const useTransactionSender = <T extends Transaction | VersionedTransaction>(args?: {
+export const useTransactionSender = <T extends Transaction>(args?: {
   confirmationTimeoutMs?: number;
   commitment?: Commitment;
 }) => {
@@ -251,7 +247,7 @@ export const useTransactionSender = <T extends Transaction | VersionedTransactio
   /**
    * asynchronously confirm transaction result for each signature and update state when resolved
    */
-  const confirmTransaction = async (transactionInfos: Array<TransactionInfo<T>>, id: string) => {
+  const confirmTransactions = async (transactionInfos: Array<TransactionInfo<T>>, id: string) => {
     transactionInfos.forEach(async (transactionInfo) => {
       const controller = new AbortController();
       const signal = controller.signal;
@@ -313,6 +309,29 @@ export const useTransactionSender = <T extends Transaction | VersionedTransactio
     });
   };
 
+  const startProcessingTransactions = (transactionInfos: TransactionInfo<T>[]) => {
+    /**
+     * render an initial set of transactions in a single notification
+     *
+     * the `id` is a unique identifier for each notification within the
+     * mantine/core notification system. it is used to delete and update
+     * individual notifications.
+     *
+     * source: https://mantine.dev/x/notifications/#notification-props
+     */
+    const id = notifications.show({
+      title: <Text fw="bold">{generateTitle(transactionInfos)}</Text>,
+      message: generateNotficationBody(transactionInfos),
+      ...generateDefaultNotificationOptions(),
+    });
+
+    setIdToTransactionInfos((state) => ({
+      ...state,
+      [id]: transactionInfos,
+    }));
+    confirmTransactions(transactionInfos, id);
+  };
+
   const send = useCallback(
     /**
      * Sends transactions.
@@ -320,13 +339,10 @@ export const useTransactionSender = <T extends Transaction | VersionedTransactio
      * @returns A sequence of set of tx signatures.
      */
     async (txs: SingleOrArray<T | TransactionWithMetadata<T>>[]) => {
-      if (!connection || !wallet.publicKey || !wallet.signAllTransactions) {
+      if (!connection || !wallet.publicKey || !wallet.signAllTransactions)
         throw new Error('Bad wallet connection');
-      }
-
-      if (txs.length === 0 || (txs[0] instanceof Array && txs[0].length === 0)) {
+      if (txs.length === 0 || (txs[0] instanceof Array && txs[0].length === 0))
         throw new Error('No transactions passed');
-      }
 
       const sequence = (
         txs[0] instanceof Array
@@ -346,54 +362,20 @@ export const useTransactionSender = <T extends Transaction | VersionedTransactio
       const { blockhash } = await connection.getLatestBlockhash({
         commitment,
       });
-      const timedTxs = sequence.map((set) =>
-        set.map((el) => {
-          const tx = el.tx;
-          if (!(tx instanceof VersionedTransaction)) {
-            tx.recentBlockhash = blockhash;
-            tx.feePayer = wallet.publicKey!;
-
-            // Priority fee ix
-            tx.instructions = [
-              ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee }),
-              ...tx.instructions,
-            ];
-          }
-          return tx;
-        }),
+      const txsWithPriorityFee = sequence.map((set) =>
+        set.map((el) =>
+          addPriorityFee(el.tx, {
+            fee: priorityFee,
+            blockhash,
+            payer: wallet.publicKey!,
+          }),
+        ),
       );
 
       try {
-        const signedTxs = await wallet.signAllTransactions(timedTxs.flat());
+        const signedTxs = await wallet.signAllTransactions(txsWithPriorityFee.flat());
 
-        // Reconstruct signed sequence
-        const signedSequence: TransactionInfo<T>[][] = [];
-        let i = 0;
-        sequence.forEach((set) => {
-          const signedSet: TransactionInfo<T>[] = [];
-          set.forEach((el) => {
-            const transactionSignature = signedTxs[i].signatures[0];
-            const signature =
-              transactionSignature instanceof Uint8Array
-                ? Buffer.from(transactionSignature)
-                : transactionSignature.signature;
-
-            if (signature) {
-              signedSet.push({
-                signature: base58.encode(signature),
-                transaction: {
-                  ...el,
-                  tx: signedTxs[i],
-                },
-              });
-
-              i += 1;
-            }
-          });
-          signedSequence.push(signedSet);
-        });
-
-        // Send signed transactions
+        const signedSequence = reconstructSequenceFromSignedTxs(sequence, signedTxs);
         const signatures = await Promise.all(
           signedSequence.flatMap((set) =>
             set.map((el) =>
@@ -405,20 +387,7 @@ export const useTransactionSender = <T extends Transaction | VersionedTransactio
           ),
         );
 
-        const transactionInfos = signedSequence.flat();
-
-        // render an initial set of transactions in a single notification
-        const id = notifications.show({
-          title: <Text fw="bold">{generateTitle(transactionInfos)}</Text>,
-          message: generateNotficationBody(transactionInfos),
-          ...generateDefaultNotificationOptions(),
-        });
-
-        setIdToTransactionInfos((state) => ({
-          ...state,
-          [id]: transactionInfos,
-        }));
-        confirmTransaction(transactionInfos, id);
+        startProcessingTransactions(signedSequence.flat());
 
         return signatures;
       } catch (err: any) {
@@ -436,4 +405,88 @@ export const useTransactionSender = <T extends Transaction | VersionedTransactio
   );
 
   return { send };
+};
+
+/**
+ * This logic can be extended to offer the ability to set a dynamic priority fee (with an optional max),
+ * with data from the getRecentPrioritizationFees method.
+ *
+ * One thing we need to figure out is how to adapt this logic for VersionedTransaction objects, or at least
+ * how to allow configuration + setting before creating the VersionedTransaction.
+ */
+const addPriorityFee = <T extends Transaction>(
+  tx: T,
+  config?: {
+    fee?: number | bigint;
+    blockhash?: string;
+    payer?: PublicKey;
+  },
+): T => {
+  if (tx instanceof VersionedTransaction) return tx;
+  if (!config?.fee) return tx;
+
+  if (config?.blockhash) tx.recentBlockhash = config?.blockhash;
+  if (config?.payer) tx.feePayer = config?.payer;
+
+  tx.instructions = [
+    ComputeBudgetProgram.setComputeUnitPrice({ microLamports: config?.fee }),
+    ...tx.instructions,
+  ];
+
+  return tx;
+};
+
+// type guard function function for TransactionWithMetadata since instanceof won't work
+const isTransactionWithMetadata = <T extends Transaction>(
+  obj: any,
+): obj is TransactionWithMetadata<T> => {
+  return typeof obj === 'object' && obj !== null && 'tx' in obj;
+};
+
+const toTransactionWithMetadataSequence = <T extends Transaction>(
+  txSet: (T | TransactionWithMetadata<T>)[][],
+) =>
+  txSet.map((set) =>
+    set.map((tx) =>
+      isTransactionWithMetadata(tx)
+        ? tx
+        : {
+            tx: tx,
+            canonicalDescriptor: undefined,
+          },
+    ),
+  );
+
+const reconstructSequenceFromSignedTxs = <T extends Transaction | VersionedTransaction>(
+  sequence: TransactionWithMetadata<T>[][],
+  signedTransactions: T[],
+) => {
+  const signedSequence: TransactionInfo<T>[][] = [];
+  let i = 0;
+  sequence.forEach((set) => {
+    const signedSet: TransactionInfo<T>[] = [];
+    set.forEach((el) => {
+      const transactionSignature = signedTransactions[i].signatures[0];
+      const signature =
+        transactionSignature instanceof Uint8Array
+          ? Buffer.from(transactionSignature)
+          : transactionSignature.signature;
+
+      if (signature) {
+        signedSet.push({
+          signature: base58.encode(signature),
+          transaction: {
+            ...el,
+            tx: signedTransactions[i],
+          },
+        });
+
+        i += 1;
+      }
+    });
+
+    signedSequence.push(signedSet);
+  });
+
+  return signedSequence;
 };
