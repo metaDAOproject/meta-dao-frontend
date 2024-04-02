@@ -73,7 +73,31 @@ export const useTransactionSender = <T extends Transaction | VersionedTransactio
   const [idsToClear, setIdsToClear] = useState<Array<string>>([]);
 
   useEffect(() => {
-    asyncClearStateForNotificationId();
+    idsToClear.forEach((id) => {
+      if (!(id in idToTransactionInfos)) return;
+
+      // remove successful count for notification id
+      setSuccessfulSignatureCount((state) =>
+        Object.keys(state).reduce((acc, o) => {
+          if (o === id) return acc;
+          return {
+            ...acc,
+            [o]: state[o],
+          };
+        }, {} as Record<string, number>),
+      );
+
+      // remove transaction info for the specified notification id
+      setIdToTransactionInfos((state) =>
+        Object.keys(state).reduce((acc, o) => {
+          if (o === id) return acc;
+          return {
+            ...acc,
+            [o]: state[o],
+          };
+        }, {} as Record<string, Array<TransactionInfo<T>>>),
+      );
+    });
 
     return () => {
       setIdsToClear([]);
@@ -130,34 +154,6 @@ export const useTransactionSender = <T extends Transaction | VersionedTransactio
    * and allowing async state updates to trigger state cleanup logic
    */
   const onNotificationClose = (id: string) => setIdsToClear((state) => [...state, id]);
-
-  const asyncClearStateForNotificationId = () => {
-    idsToClear.forEach((id) => {
-      if (!(id in idToTransactionInfos)) return;
-
-      // remove successful count for notification id
-      setSuccessfulSignatureCount((state) =>
-        Object.keys(state).reduce((acc, o) => {
-          if (o === id) return acc;
-          return {
-            ...acc,
-            [o]: state[o],
-          };
-        }, {} as Record<string, number>),
-      );
-
-      // remove transaction info for the specified notification id
-      setIdToTransactionInfos((state) =>
-        Object.keys(state).reduce((acc, o) => {
-          if (o === id) return acc;
-          return {
-            ...acc,
-            [o]: state[o],
-          };
-        }, {} as Record<string, Array<TransactionInfo<T>>>),
-      );
-    });
-  };
 
   const generateDefaultNotificationOptions = () => ({
     withCloseButton: true,
