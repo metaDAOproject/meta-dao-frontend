@@ -48,7 +48,9 @@ const SYSTEM_PROGRAM: PublicKey = new PublicKey('1111111111111111111111111111111
 export function useOpenbookTwap() {
   const wallet = useWallet();
   const provider = useProvider();
-  const sender = useTransactionSender();
+  const sender = useTransactionSender({
+    commitment: 'confirmed',
+  });
   const { getVaultMint } = useConditionalVault();
   const openbook = useOpenbook().program;
   const openbookTwap = useMemo(() => {
@@ -241,7 +243,9 @@ export function useOpenbookTwap() {
         .remainingAccounts(filteredAccounts)
         .instruction();
 
-      const latestBlockhash = await provider.connection.getLatestBlockhash();
+      const latestBlockhash = await provider.connection.getLatestBlockhash({
+        commitment: 'confirmed',
+      });
 
       const message = MessageV0.compile({
         payerKey: provider.wallet.publicKey,

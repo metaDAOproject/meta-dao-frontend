@@ -2,6 +2,7 @@ import { Group, Loader, Text } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import {
+  Commitment,
   ComputeBudgetProgram,
   RpcResponseAndContext,
   SignatureResult,
@@ -14,6 +15,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { usePriorityFee } from '@/hooks/usePriorityFee';
+
+const DEFAULT_CONFIRMATION_TIMEOUT_MS = 30_000;
 
 // copy '@solana/web3.js' since unable to import const enum when `isolatedModules` is enabled
 enum TransactionStatus {
@@ -49,7 +52,13 @@ const isTransactionWithMetadata = <T extends Transaction | VersionedTransaction>
   return typeof obj === 'object' && obj !== null && 'tx' in obj;
 };
 
-export const useTransactionSender = <T extends Transaction | VersionedTransaction>() => {
+export const useTransactionSender = <T extends Transaction | VersionedTransaction>(args?: {
+  confirmationTimeoutMs?: number;
+  commitment?: Commitment;
+}) => {
+  const confirmationTimeoutMs = args?.confirmationTimeoutMs ?? DEFAULT_CONFIRMATION_TIMEOUT_MS;
+  const commitment = args?.commitment ?? 'processed';
+
   const { connection } = useConnection();
   const wallet = useWallet();
   const { priorityFee } = usePriorityFee();
@@ -266,7 +275,7 @@ export const useTransactionSender = <T extends Transaction | VersionedTransactio
          */
         const timeoutId = setTimeout(() => {
           controller.abort();
-        }, 30_000);
+        }, confirmationTimeoutMs);
 
         signal.addEventListener('abort', () => {
           clearTimeout(timeoutId);
@@ -338,12 +347,14 @@ export const useTransactionSender = <T extends Transaction | VersionedTransactio
         ),
       );
 
-      const blockhask = await connection.getLatestBlockhash();
+      const { blockhash } = await connection.getLatestBlockhash({
+        commitment,
+      });
       const timedTxs = sequence.map((set) =>
         set.map((el) => {
           const tx = el.tx;
           if (!(tx instanceof VersionedTransaction)) {
-            tx.recentBlockhash = blockhask.blockhash;
+            tx.recentBlockhash = blockhash;
             tx.feePayer = wallet.publicKey!;
 
             // Priority fee ix
@@ -392,6 +403,7 @@ export const useTransactionSender = <T extends Transaction | VersionedTransactio
             set.map((el) =>
               connection.sendRawTransaction(el.transaction.tx.serialize(), {
                 skipPreflight: true,
+                preflightCommitment: commitment,
               }),
             ),
           ),
