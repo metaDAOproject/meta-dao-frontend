@@ -4,11 +4,10 @@ import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import {
   Commitment,
   ComputeBudgetProgram,
-  PublicKey,
-  RpcResponseAndContext,
-  SignatureResult,
   Transaction as LegacyTransaction,
-  VersionedTransaction,
+  PublicKey,
+  SignatureResult,
+  VersionedTransaction
 } from '@solana/web3.js';
 import { IconCircleCheck, IconCircleX, IconExclamationCircle } from '@tabler/icons-react';
 import base58 from 'bs58';
@@ -248,64 +247,55 @@ export const useTransactionSender = <T extends Transaction>(args?: {
    * asynchronously confirm transaction result for each signature and update state when resolved
    */
   const confirmTransactions = async (transactionInfos: Array<TransactionInfo<T>>, id: string) => {
+    const cancelSignatureSubscription = (subscriptionId?: number) => {
+      if (subscriptionId) {
+        console.log('cancelling subscription...');
+        connection
+          .removeSignatureListener(subscriptionId)
+          .then(() => console.log('unsubscribed'))
+          .catch(console.error);
+      }
+    };
+
     transactionInfos.forEach(async (transactionInfo) => {
-      const controller = new AbortController();
-      const signal = controller.signal;
+      let subscriptionId: number | undefined = undefined;
+      /**
+       * note: we use a constant timeout (optionally caller defined, default 30s) for simplicity. in the future,
+       * we might opt to keep trying to confirm until the transaction blockhash expires, dynamically set this
+       * timeout based on various cluster stats, or something else - all with a max limit as optionally supplied
+       * by the caller
+       */
+      const timeoutId = setTimeout(() => {
+        cancelSignatureSubscription(subscriptionId);
+        updateSingleTransactionInfo(transactionInfo.signature, id, () => ({
+          status: TransactionStatus.TIMED_OUT,
+        }));
+      }, confirmationTimeoutMs);
 
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      const confirmTransactionPromise = connection.confirmTransaction({
-        signature: transactionInfo.signature,
-        blockhash,
-        lastValidBlockHeight,
-      });
-
-      const timeoutPromise = new Promise((_, reject) => {
-        /**
-         * note: we use a constant timeout of 30s (seems standard across many solana projects) for simplicity
-         * for now. in the future, we might opt to dynamically set this timeout based on various cluster stats,
-         * like ping time
-         */
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-        }, confirmationTimeoutMs);
-
-        signal.addEventListener('abort', () => {
+      subscriptionId = connection.onSignature(
+        transactionInfo.signature,
+        (result, context) => {
+          console.debug('WS result: ', transactionInfo.signature, result, context);
           clearTimeout(timeoutId);
-          reject(new Error('Transaction confirmation aborted'));
-        });
-      });
+          cancelSignatureSubscription(subscriptionId);
 
-      Promise.race([confirmTransactionPromise, timeoutPromise])
-        .then((result) => {
-          if ((result as any).value) {
-            const transactionHasError =
-              (result as RpcResponseAndContext<SignatureResult>).value.err !== null;
-
-            updateSingleTransactionInfo(transactionInfo.signature, id, () => ({
-              result: {
-                err: transactionHasError ? {} : null,
-              },
-            }));
-
-            setSuccessfulSignatureCount((state) => {
-              const current = state[id] ?? 0;
-              return {
-                ...state,
-                [id]: transactionHasError ? current : current + 1,
-              };
-            });
-          }
-        })
-        .catch((err) => {
-          console.error(
-            `an error occurred resolving transaction for signature [${transactionInfo.signature}]`,
-            err,
-          );
-
+          const transactionHasError = result.err !== null;
           updateSingleTransactionInfo(transactionInfo.signature, id, () => ({
-            status: TransactionStatus.TIMED_OUT,
+            result: {
+              err: transactionHasError ? {} : null,
+            },
           }));
-        });
+
+          setSuccessfulSignatureCount((state) => {
+            const current = state[id] ?? 0;
+            return {
+              ...state,
+              [id]: transactionHasError ? current : current + 1,
+            };
+          });
+        },
+        commitment,
+      );
     });
   };
 
@@ -344,19 +334,10 @@ export const useTransactionSender = <T extends Transaction>(args?: {
       if (txs.length === 0 || (txs[0] instanceof Array && txs[0].length === 0))
         throw new Error('No transactions passed');
 
-      const sequence = (
+      const sequence = toTransactionWithMetadataSequence(
         txs[0] instanceof Array
           ? (txs as (T | TransactionWithMetadata<T>)[][])
-          : ([txs] as (T | TransactionWithMetadata<T>)[][])
-      ).map((arr) =>
-        arr.map((el) =>
-          isTransactionWithMetadata(el)
-            ? el
-            : {
-                tx: el,
-                canonicalDescriptor: undefined,
-              },
-        ),
+          : ([txs] as (T | TransactionWithMetadata<T>)[][]),
       );
 
       const { blockhash } = await connection.getLatestBlockhash({
