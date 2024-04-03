@@ -16,8 +16,13 @@ export const BN_0 = new BN(0);
 
 const AUTOCRAT_V0_IDL: AutocratProgram = require('@/lib/idl/autocrat_v0.json');
 const AUTOCRAT_V0_1_IDL: AutocratProgram = require('@/lib/idl/autocrat_v0.1.json');
+const AUTOCRAT_V0_2_IDL: AutocratProgram = require('@/lib/idl/autocrat_v0.2.json');
 
 export const AUTOCRAT_VERSIONS: ProgramVersion[] = [
+  { label: 'V0.2',
+    programId: new PublicKey('metaRK9dUBnrAdZN6uUDKvxBVKW5pyCbPVmLtUZwtBp'),
+    idl: AUTOCRAT_V0_2_IDL,
+  },
   {
     label: 'V0.1',
     programId: new PublicKey('metaX99LHn3A7Gr7VAcCfXhpfocvpMpqQ3eyp3PGUUq'),

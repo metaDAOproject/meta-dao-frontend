@@ -14,9 +14,18 @@ import { useTransactionSender } from './useTransactionSender';
 export function useInitializeProposal() {
   const { connection } = useConnection();
   const sender = useTransactionSender();
-
-  const { initializeVault } = useConditionalVault();
-  const { autocratProgram: program, dao, daoTreasury, daoState, fetchProposals } = useAutocrat();
+  const {
+    autocratProgram: program,
+    dao, daoTreasury,
+    daoState,
+    fetchProposals,
+    programVersion,
+  } = useAutocrat();
+  let version = null;
+  if (programVersion?.label === 'V0.2') {
+    version = 2;
+  }
+  const { initializeVault } = useConditionalVault(version);
   const wallet = useWallet();
   const openbook = useOpenbook().program;
   const { program: openbookTwap } = useOpenbookTwap();

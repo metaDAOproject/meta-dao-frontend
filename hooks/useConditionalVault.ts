@@ -7,17 +7,25 @@ import {
 } from '@solana/spl-token';
 import numeral from 'numeral';
 import { ConditionalVault, IDL as CONDITIONAL_VAULT_IDL } from '../lib/idl/conditional_vault';
+import { ConditionalVaultV0, IDL as CONDITIONAL_VAULT_IDLV0 } from '../lib/idl/conditional_vault_v0.1';
 import { useProvider } from './useProvider';
 import { useTokens } from './useTokens';
 import { InitializedVault, ProposalAccount, VaultAccount, VaultAccountWithKey } from '../lib/types';
 
-export function useConditionalVault() {
+export function useConditionalVault(autocratVersion: number | null) {
   const provider = useProvider();
-  const programId = new PublicKey('vaU1tVLj8RFk7mNj1BxqgAsMKKaL8UvEUHvU3tdbZPe');
-  const program = useMemo(
+  let programId = new PublicKey('vaU1tVLj8RFk7mNj1BxqgAsMKKaL8UvEUHvU3tdbZPe');
+  let program: any = useMemo(
     () => new Program<ConditionalVault>(CONDITIONAL_VAULT_IDL, programId, provider),
     [provider, programId],
   );
+  if (autocratVersion !== null) {
+    programId = new PublicKey('vAuLTQjV5AZx5f3UgE75wcnkxnQowWxThn1hGjfCVwP');
+    program = useMemo(
+      () => new Program<ConditionalVaultV0>(CONDITIONAL_VAULT_IDLV0, programId, provider),
+      [provider, programId],
+    );
+  }
 
   const { tokens } = useTokens();
 

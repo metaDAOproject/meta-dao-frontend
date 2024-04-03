@@ -37,6 +37,7 @@ import {
   findOpenOrdersIndexer,
 } from '../lib/openbook';
 import { useConditionalVault } from './useConditionalVault';
+import { useAutocrat } from '@/contexts/AutocratContext';
 import { useOpenbook } from './useOpenbook';
 import { useTransactionSender } from './useTransactionSender';
 import { getTwapMarketKey } from '../lib/openbookTwap';
@@ -49,7 +50,12 @@ export function useOpenbookTwap() {
   const wallet = useWallet();
   const provider = useProvider();
   const sender = useTransactionSender();
-  const { getVaultMint } = useConditionalVault();
+  const { programVersion } = useAutocrat();
+  let version = null;
+  if (programVersion?.label === 'V0.2') {
+    version = 2;
+  }
+  const { getVaultMint } = useConditionalVault(version);
   const openbook = useOpenbook().program;
   const openbookTwap = useMemo(() => {
     if (!provider) {

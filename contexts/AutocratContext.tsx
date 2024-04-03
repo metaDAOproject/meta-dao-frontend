@@ -11,12 +11,12 @@ import { Program, utils } from '@coral-xyz/anchor';
 import { PublicKey } from '@solana/web3.js';
 import { useLocalStorage } from '@mantine/hooks';
 import { OpenbookV2, IDL as OPENBOOK_IDL } from '@openbook-dex/openbook-v2';
+import { useQuery } from '@tanstack/react-query';
 import { useProvider } from '@/hooks/useProvider';
 import { AUTOCRAT_VERSIONS, OPENBOOK_PROGRAM_ID } from '@/lib/constants';
 import { AutocratProgram, DaoState, ProgramVersion, Proposal } from '../lib/types';
 import { useNetworkConfiguration } from '../hooks/useNetworkConfiguration';
 import { useOpenbookTwap } from '../hooks/useOpenbookTwap';
-import { useQuery } from '@tanstack/react-query';
 
 export interface AutocratContext {
   dao?: PublicKey;

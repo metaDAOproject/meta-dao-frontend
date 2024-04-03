@@ -54,8 +54,12 @@ import useInitializeClusterDataSubscription from '@/hooks/useInitializeClusterDa
 
 export function ProposalDetailCard() {
   const wallet = useWallet();
-  const { fetchProposals, daoTreasury, daoState } = useAutocrat();
-  const { redeemTokensTransactions } = useConditionalVault();
+  const { fetchProposals, daoTreasury, daoState, programVersion } = useAutocrat();
+  let version = null;
+  if (programVersion?.label === 'V0.2') {
+    version = 2;
+  }
+  const { redeemTokensTransactions } = useConditionalVault(version);
   const { tokens } = useTokens();
   const { proposal, finalizeProposalTransactions } = useProposal();
   const {

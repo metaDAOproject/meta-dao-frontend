@@ -124,13 +124,17 @@ export function ProposalMarketsProvider({
   // TODO: do we need this variable when we have openbook from the autocrat hook below?
   const openBookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
   const client = useQueryClient();
-  const { openbook, openbookTwap, proposals } = useAutocrat();
+  const { openbook, openbookTwap, proposals, programVersion } = useAutocrat();
   const { connection } = useConnection();
   const wallet = useWallet();
   const sender = useTransactionSender();
   const { placeOrderTransactions, cancelAndSettleFundsTransactions } = useOpenbookTwap();
   const { program: openBookClient } = useOpenbook();
-  const { program: vaultProgram } = useConditionalVault();
+  let version = null;
+  if (programVersion?.label === 'V0.2') {
+    version = 2;
+  }
+  const { program: vaultProgram } = useConditionalVault(version);
   const [loading, setLoading] = useState(false);
   const [markets, setMarkets] = useState<Markets>();
   const [openOrders, setOpenOrders] = useState<OpenOrdersAccountWithKey[]>([]);
@@ -486,9 +490,7 @@ export function ProposalMarketsProvider({
         const allOrders = [...passBidOrders, ...passAskOrders, ...failBidOrders, ...failAskOrders];
 
         const userOrders = allOrders
-          .filter((o): o is OrderBookOrder => {
-            return !!o.market && openOrdersPks.includes(o.owner?.toString());
-          })
+          .filter((o): o is OrderBookOrder => !!o.market && openOrdersPks.includes(o.owner?.toString()))
           .map((o) => {
             const position: OpenOrdersAccountWithKey['account']['position'] =
               o.side === 'bids'

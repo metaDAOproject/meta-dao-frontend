@@ -1,11 +1,10 @@
-import { calculateTWAP, getLastObservedAndSlot } from '@/lib/openbookTwap';
 import { AccountInfo, PublicKey } from '@solana/web3.js';
-
 import { useConnection } from '@solana/wallet-adapter-react';
+import { calculateTWAP, getLastObservedAndSlot } from '@/lib/openbookTwap';
+
 import { Markets } from '@/lib/types';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import useAccountSubscription from './useAccountSubscription';
-import { useQuery } from '@tanstack/react-query';
 import { useProposal } from '@/contexts/ProposalContext';
 import useClusterDataSubscription from './useClusterDataSubscription';
 
@@ -74,9 +73,7 @@ const useTwapSubscription = (
   const twapSubscriptionCallback = async (
     accountInfo: AccountInfo<Buffer>,
     _: any,
-  ): Promise<TwapStructure> => {
-    return openbookTwap!.coder.accounts.decodeUnchecked('TWAPMarket', accountInfo.data);
-  };
+  ): Promise<TwapStructure> => openbookTwap!.coder.accounts.decodeUnchecked('TWAPMarket', accountInfo.data);
 
   const twapSubAccount = twapMarket ? { publicKey: twapMarket, metaData: {} } : undefined;
   const [{ data: twapData, isLoading: twapLoading }, _set] = useAccountSubscription<
