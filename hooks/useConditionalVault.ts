@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import { Program, utils, BN } from '@coral-xyz/anchor';
 import { Keypair, PublicKey } from '@solana/web3.js';
-import { Loader } from '@mantine/core';
 import {
   createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddressSync,
@@ -21,7 +20,7 @@ export function useConditionalVault() {
     () => new Program<ConditionalVault>(CONDITIONAL_VAULT_IDL, programId, provider),
     [provider, programId],
   );
-  if (programVersion.label === 'V0.2') {
+  if (programVersion?.label === 'V0.2') {
     programId = new PublicKey('vAuLTQjV5AZx5f3UgE75wcnkxnQowWxThn1hGjfCVwP');
     program = useMemo(
       () => new Program<ConditionalVaultV0>(CONDITIONAL_VAULT_IDLV0, programId, provider),
@@ -29,7 +28,8 @@ export function useConditionalVault() {
     );
   }
 
-  if (programVersion.label === 'V0.3') {
+  if (programVersion?.label === 'V0.3') {
+    // TODO: There will be a new vault.
     programId = new PublicKey('vAuLTQjV5AZx5f3UgE75wcnkxnQowWxThn1hGjfCVwP');
     program = useMemo(
       () => new Program<ConditionalVaultV0>(CONDITIONAL_VAULT_IDLV0, programId, provider),

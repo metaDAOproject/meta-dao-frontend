@@ -26,6 +26,7 @@ import { useConditionalVault } from '@/hooks/useConditionalVault';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _isOpenOrder,
   getLeafNodes,
   getUsersOpenOrderPks,
@@ -160,8 +161,11 @@ export function ProposalMarketsProvider({
   const fetchNonOpenOrders = useCallback(
     async (
       owner: PublicKey,
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       openbook: Program<OpenbookV2> | undefined,
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       proposal: Proposal | undefined,
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       markets: Markets | undefined,
     ) => {
       const nonOpenOrders = await client.fetchQuery({
@@ -195,9 +199,11 @@ export function ProposalMarketsProvider({
       if (nonOpenOrders.length > 0) {
         const [passUnsettledOrders, passUncrankedOrders, failUnsettledOrders, failUncrankedOrders] =
           nonOpenOrders;
+        // eslint-disable-next-line @typescript-eslint/no-shadow
         const unsettledOrders = [...passUnsettledOrders, ...failUnsettledOrders].sort((a, b) =>
           a.account.accountNum < b.account.accountNum ? 1 : -1,
         );
+        // eslint-disable-next-line @typescript-eslint/no-shadow
         const uncrankedOrders = [...passUncrankedOrders, ...failUncrankedOrders].sort((a, b) =>
           a.account.accountNum < b.account.accountNum ? 1 : -1,
         );
@@ -310,6 +316,7 @@ export function ProposalMarketsProvider({
 
   useEffect(() => {
     if (proposal && wallet.publicKey && markets) {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       refreshUserOpenOrders(
         openBookClient,
         proposal,
@@ -417,11 +424,17 @@ export function ProposalMarketsProvider({
 
   const refreshUserOpenOrders = useCallback(
     async (
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       client: OpenBookV2Client,
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       proposal: Proposal,
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       passBids: LeafNode[],
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       passAsks: LeafNode[],
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       failBids: LeafNode[],
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       failAsks: LeafNode[],
     ) => {
       if (wallet.publicKey) {
@@ -487,7 +500,9 @@ export function ProposalMarketsProvider({
         const allOrders = [...passBidOrders, ...passAskOrders, ...failBidOrders, ...failAskOrders];
 
         const userOrders = allOrders
-          .filter((o): o is OrderBookOrder => !!o.market && openOrdersPks.includes(o.owner?.toString()))
+          .filter((o): o is OrderBookOrder => (
+            !!o.market && openOrdersPks.includes(o.owner?.toString())
+          ))
           .map((o) => {
             const position: OpenOrdersAccountWithKey['account']['position'] =
               o.side === 'bids'
@@ -596,6 +611,7 @@ export function ProposalMarketsProvider({
       side: string,
       updatedAccountInfo: AccountInfo<Buffer>,
       market: PublicKey,
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       markets: Markets,
       ctx: Context,
     ): number[][] | undefined => {
@@ -803,8 +819,11 @@ export function ProposalMarketsProvider({
   }, [orderBookObject]);
 
   const listenOrderBooks = async (
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     proposal: Proposal,
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     markets: Markets,
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     openBookProgram: Program<OpenbookV2>,
   ) => {
     if (!proposal || !markets) return;

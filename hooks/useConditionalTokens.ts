@@ -60,8 +60,8 @@ export default function useConditionalTokens() {
   } = useBalance(quote.conditionalOnRevertTokenMint);
 
   const baseToken: ConditionalToken | undefined = {
-    token: tokens.baseToken as unknown as Token,
-    symbol: tokens.baseToken?.symbol as unknown as string,
+    token: tokens?.baseToken as unknown as Token,
+    symbol: tokens?.baseToken?.symbol as unknown as string,
     balanceSpot: baseBalance,
     balancePass: pBaseBalance,
     balanceFail: fBaseBalance,
@@ -70,8 +70,8 @@ export default function useConditionalTokens() {
     revert: base.conditionalOnRevertTokenMint,
   };
   const quoteToken: ConditionalToken | undefined = {
-    token: tokens.quoteToken as unknown as Token,
-    symbol: tokens.quoteToken?.symbol as unknown as string,
+    token: tokens?.quoteToken as unknown as Token,
+    symbol: tokens?.quoteToken?.symbol as unknown as string,
     balanceSpot: quoteBalance,
     balancePass: pQuoteBalance,
     balanceFail: fQuoteBalance,

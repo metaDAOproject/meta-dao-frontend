@@ -25,12 +25,15 @@ const useTwapSubscription = (
   twapMarket: PublicKey | undefined,
   midPrice: number | undefined,
 ): TwapSubscriptionRes => {
-  const openbookTwap = useOpenbookTwap();
+  const { program: openbookTwap } = useOpenbookTwap();
   const { connection } = useConnection();
   const { proposal } = useProposal();
   const {
     data: { slot },
   } = useClusterDataSubscription();
+  // TODO: Need to stub in new function for the new version or come up with an
+  // elegant way to handle new params / program deploys.
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   const getObservableTwap = (midPrice: number, lastObservationValue: number) => {
     if (midPrice > lastObservationValue) {
       const max_observation = (lastObservationValue * (10_000 + 100)) / 10_000 + 1;
@@ -45,14 +48,18 @@ const useTwapSubscription = (
   const getTotalImpact = (
     aggregateObservation: number,
     lastObservationValue: number,
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     midPrice: number,
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     slot: number,
   ): number => {
     const twapObserved = getObservableTwap(midPrice, lastObservationValue);
     if (twapObserved) {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       const _slotDiffObserved = twapObserved * (slot - lastObservedSlot);
       const newAggregate = aggregateObservation + _slotDiffObserved;
       const startSlot = proposal?.account.slotEnqueued.toNumber();
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       const proposalTimeInSlots: number = lastObservedSlot - startSlot;
       const oldValue = aggregateObservation / proposalTimeInSlots;
       const newValue = newAggregate / proposalTimeInSlots;
@@ -72,10 +79,12 @@ const useTwapSubscription = (
   };
   const twapSubscriptionCallback = async (
     accountInfo: AccountInfo<Buffer>,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _: any,
   ): Promise<TwapStructure> => openbookTwap!.coder.accounts.decodeUnchecked('TWAPMarket', accountInfo.data);
 
   const twapSubAccount = twapMarket ? { publicKey: twapMarket, metaData: {} } : undefined;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [{ data: twapData, isLoading: twapLoading }, _set] = useAccountSubscription<
     TwapStructure,
     any
@@ -87,7 +96,7 @@ const useTwapSubscription = (
 
   const twap = calculateTWAP(twapData?.twapOracle);
   const aggregateObservation =
-    Number.parseInt(twapData?.twapOracle.observationAggregator.toString()) ?? 0;
+    Number.parseInt(twapData?.twapOracle.observationAggregator.toString(), 10) ?? 0;
   const lastObservedAndSlot = getLastObservedAndSlot(twapData?.twapOracle);
   const lastObservedSlot = lastObservedAndSlot?.lastObservationSlot?.toNumber();
   const lastObservationValue = lastObservedAndSlot?.lastObservationValue;

@@ -425,7 +425,7 @@ export function ProposalDetailCard() {
             )}
           </>
         )}
-        {/* <JupSwapCard /> */}
+        <JupSwapCard />
       </Stack>
       <Divider orientation={isMedium ? 'horizontal' : 'vertical'} />
       <Container mt="1rem" p={isMedium ? '0' : 'sm'}>

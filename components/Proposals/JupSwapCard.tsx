@@ -1,4 +1,4 @@
-import { ActionIcon, Button, Divider, Group, Text, Title, TextInput } from '@mantine/core';
+import { ActionIcon, Button, Divider, Group, Text, Title, TextInput, Loader } from '@mantine/core';
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { IconArrowsDownUp, IconWallet } from '@tabler/icons-react';
@@ -8,26 +8,24 @@ import { useProvider } from '@/hooks/useProvider';
 import poweredByJup from '../../public/poweredbyjupiter-grayscale.svg';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { useBalance } from '@/hooks/useBalance';
-import { type Token, useTokens } from '@/hooks/useTokens';
+import { useAutocrat } from '@/contexts/AutocratContext';
 
 export function JupSwapCard() {
   const provider = useProvider();
+  const { daoTokens } = useAutocrat();
   const [inAmount, setInAmount] = useState<number>(1);
   const [outAmount, setOutAmount] = useState<number>();
   const [isSwapping, setIsSwapping] = useState(false);
   const jupiterQuoteApi = createJupiterApiClient();
   const sender = useTransactionSender();
-  // TODO: Have this work with PROPOSAL
-  const [base, setBase] = useState<string>('META');
-  const [quote, setQuote] = useState<string>('USDC');
 
-  const baseToken = Object.fromEntries(
-    Object.entries(tokens) as Entry<T>[]).filter((token: Token) => token.symbol === base
-  );
+  if (!daoTokens || !daoTokens.baseToken || !daoTokens.quoteToken) return <Loader />;
 
-  const quoteToken = Object.fromEntries(
-    Object.entries(tokens) as Entry<T>[]).filter((token: Token) => token.symbol === quote
-  );
+  const { baseToken } = daoTokens;
+  const { quoteToken } = daoTokens;
+
+  const [base, setBase] = useState<string>(baseToken.symbol);
+  const [quote, setQuote] = useState<string>(quoteToken.symbol);
 
   const { amount: { data: balance } } = useBalance(baseToken.publicKey);
 
@@ -36,8 +34,8 @@ export function JupSwapCard() {
     const quoteMint = quoteToken.publicKey;
 
     const quoteResponse = await jupiterQuoteApi.quoteGet({
-      inputMint: baseMint,
-      outputMint: quoteMint,
+      inputMint: baseMint.toString(),
+      outputMint: quoteMint.toString(),
       amount,
       slippageBps: slippage,
       swapMode: 'ExactIn',

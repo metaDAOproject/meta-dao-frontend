@@ -3,7 +3,6 @@ import { ComputeBudgetProgram, Keypair, PublicKey, Transaction } from '@solana/w
 import { BN, utils } from '@coral-xyz/anchor';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { useAutocrat } from '@/contexts/AutocratContext';
-import { useTokens } from './useTokens';
 import { useConditionalVault } from './useConditionalVault';
 import { InitializedVault, ProposalInstruction } from '../lib/types';
 import { createOpenbookMarket } from '../lib/openbook';
@@ -18,31 +17,29 @@ export function useInitializeProposal() {
     autocratProgram: program,
     dao, daoTreasury,
     daoState,
+    daoTokens,
     fetchProposals,
-    programVersion,
   } = useAutocrat();
-  let version = null;
-  if (programVersion?.label === 'V0.2') {
-    version = 2;
-  }
-  const { initializeVault } = useConditionalVault(version);
+  const { initializeVault } = useConditionalVault();
   const wallet = useWallet();
   const openbook = useOpenbook().program;
   const { program: openbookTwap } = useOpenbookTwap();
-  const { tokens } = useTokens();
   const baseNonce: BN = new BN(daoState?.proposalCount || 0);
   const [vaults, setVaults] = useState<{ base: InitializedVault; quote: InitializedVault }>();
   const [markets, setMarkets] = useState<{ pass: Keypair; fail: Keypair }>();
   const [twaps, setTwaps] = useState<{ pass: PublicKey; fail: PublicKey }>();
 
+  const baseToken = daoTokens?.baseToken;
+  const quoteToken = daoTokens?.quoteToken;
+
   useEffect(() => {
     const f = async () => {
-      if (!daoTreasury || !tokens?.meta || !tokens?.usdc) return;
+      if (!daoTreasury || !baseToken || !quoteToken) return;
 
-      const baseVault = await initializeVault(daoTreasury, tokens.meta.publicKey, baseNonce);
+      const baseVault = await initializeVault(daoTreasury, baseToken.publicKey, baseNonce);
       const quoteVault = await initializeVault(
         daoTreasury,
-        tokens.usdc.publicKey,
+        quoteToken.publicKey,
         baseNonce.or(new BN(1).shln(63)),
       );
 
@@ -55,16 +52,16 @@ export function useInitializeProposal() {
   }, [daoTreasury]);
 
   const initializeVaults = useCallback(async () => {
-    if (!tokens?.meta || !tokens?.usdc || !daoTreasury) {
+    if (!baseToken || !quoteToken || !daoTreasury) {
       return;
     }
 
     /// Init conditional vaults
-    const baseVault = await initializeVault(daoTreasury, tokens.meta.publicKey, baseNonce);
+    const baseVault = await initializeVault(daoTreasury, baseToken.publicKey, baseNonce);
 
     const quoteVault = await initializeVault(
       daoTreasury,
-      tokens.usdc.publicKey,
+      quoteToken.publicKey,
       baseNonce.or(new BN(1).shln(63)),
     );
 
@@ -75,14 +72,14 @@ export function useInitializeProposal() {
     await sender.send([vaultTx]);
     setVaults({ base: baseVault, quote: quoteVault });
     fetchProposals();
-  }, [daoTreasury, tokens]);
+  }, [daoTreasury, daoTokens]);
 
   const initializeMarkets = useCallback(async () => {
     if (
       !wallet?.publicKey ||
       !wallet.signAllTransactions ||
-      !tokens?.meta ||
-      !tokens?.usdc ||
+      !baseToken ||
+      !quoteToken ||
       !daoTreasury ||
       !program ||
       !openbookTwap ||
@@ -171,14 +168,14 @@ export function useInitializeProposal() {
     }
     setMarkets({ pass: openbookPassMarketKP, fail: openbookFailMarketKP });
     fetchProposals();
-  }, [dao, program, connection, wallet, tokens, vaults]);
+  }, [dao, program, connection, wallet, daoTokens, vaults]);
 
   const initializeTwaps = useCallback(async () => {
     if (
       !wallet?.publicKey ||
       !wallet.signAllTransactions ||
-      !tokens?.meta ||
-      !tokens?.usdc ||
+      !baseToken ||
+      !quoteToken ||
       !daoTreasury ||
       !program ||
       !openbookTwap ||
@@ -240,15 +237,15 @@ export function useInitializeProposal() {
     }
     setTwaps({ pass: openbookTwapPassMarket, fail: openbookTwapFailMarket });
     fetchProposals();
-  }, [dao, program, connection, wallet, tokens]);
+  }, [dao, program, connection, wallet, daoTokens]);
 
   const initializeProposal = useCallback(
     async (url: string, instruction: ProposalInstruction) => {
       if (
         !wallet?.publicKey ||
         !wallet.signAllTransactions ||
-        !tokens?.meta ||
-        !tokens?.usdc ||
+        !baseToken ||
+        !quoteToken ||
         !daoTreasury ||
         !program ||
         !openbookTwap ||
@@ -306,7 +303,7 @@ export function useInitializeProposal() {
       }
       fetchProposals();
     },
-    [dao, program, connection, wallet, tokens],
+    [dao, program, connection, wallet, daoTokens],
   );
 
   return {

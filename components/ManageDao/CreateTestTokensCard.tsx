@@ -1,18 +1,27 @@
 'use client';
 
-import { Button, Card, Group, Stack, Text } from '@mantine/core';
-import { useCallback } from 'react';
+import { Button, Card, Group, Loader, Stack, Text } from '@mantine/core';
+import { useCallback, useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { notifications } from '@mantine/notifications';
 import * as token from '@solana/spl-token';
 import { Keypair, LAMPORTS_PER_SOL, SystemProgram, Transaction } from '@solana/web3.js';
 import { useProvider } from '@/hooks/useProvider';
-import { useTokens } from '../../hooks/useTokens';
+import { useAutocrat } from '@/contexts/AutocratContext';
 
 export default function CreateTestTokensCard() {
   const wallet = useWallet();
   const { connection } = useConnection();
+  const { daoTokens } = useAutocrat();
   const provider = useProvider();
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [tokens, setTokens] = useState<any>();
+
+  if (!daoTokens || !daoTokens.baseToken || !daoTokens.quoteToken) return <Loader />;
+
+  const { baseToken } = daoTokens;
+  const { quoteToken } = daoTokens;
 
   const handleCreateDao = useCallback(async () => {
     if (!wallet.publicKey || !wallet.signTransaction || !wallet.signAllTransactions) return;
@@ -130,13 +139,13 @@ export default function CreateTestTokensCard() {
     <Card shadow="sm" radius="md" withBorder>
       <Card.Section>
         <Stack gap="15" p="xs">
-          {tokens?.meta ? (
-            <Text>Meta mint: {tokens.meta.publicKey.toString()}</Text>
+          {baseToken ? (
+            <Text>Meta mint: {baseToken.publicKey.toString()}</Text>
           ) : (
             <Text>No meta token yet</Text>
           )}
-          {tokens?.usdc ? (
-            <Text>Usdc mint: {tokens.usdc.publicKey.toString()}</Text>
+          {quoteToken ? (
+            <Text>Usdc mint: {quoteToken.publicKey.toString()}</Text>
           ) : (
             <Text>No usdc token yet</Text>
           )}
