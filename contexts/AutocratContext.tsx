@@ -13,7 +13,7 @@ import { useLocalStorage } from '@mantine/hooks';
 import { OpenbookV2, IDL as OPENBOOK_IDL } from '@openbook-dex/openbook-v2';
 import { useQuery } from '@tanstack/react-query';
 import { useProvider } from '@/hooks/useProvider';
-import { AUTOCRAT_VERSIONS, OPENBOOK_PROGRAM_ID, staticTokens, devnetTokens, mainnetTokens } from '@/lib/constants';
+import { AUTOCRAT_VERSIONS, OPENBOOK_PROGRAM_ID, staticTokens, devnetTokens, mainnetTokens, DAOS } from '@/lib/constants';
 import { AutocratProgram, DaoState, ProgramVersion, Proposal, TokensDict, Token } from '../lib/types';
 import { Networks, useNetworkConfiguration } from '../hooks/useNetworkConfiguration';
 
@@ -48,23 +48,45 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
     deserialize: (value) => AUTOCRAT_VERSIONS[Number(value)],
   });
   const { programId, idl } = programVersion!;
-  let dao = useMemo(
-    () =>
-      PublicKey.findProgramAddressSync(
-        [utils.bytes.utf8.encode('WWCACOTMICMIBMHAFTTWYGHMB')],
-        programId,
-      )[0],
-    [programId],
+  const autocratProgram = useMemo(
+    () => new Program<AutocratProgram>(idl as AutocratProgram, programId, provider),
+    [provider, programId, idl],
   );
-  // TODO: For v3 onwards we need to NOT do this...
+
+  // For V0.2 and below
+  let dao: PublicKey;
+  if (programVersion.label !== 'V0.3') {
+    dao = useMemo(
+      () =>
+        PublicKey.findProgramAddressSync(
+          [utils.bytes.utf8.encode('WWCACOTMICMIBMHAFTTWYGHMB')],
+          programId,
+        )[0],
+      [programId],
+    );
+  }
+
+  // TODO: We need to surface an option to select a DAO, so there's
+  // some point of reference from the user to allow us to sort on this.
+  // I've setup a list of DAOs hard coded, but this is still missing a
+  // selection given you may have many starting at v0.3
   if (programVersion.label === 'V0.3') {
-    // We need to get public key for the DAOs and somehow sort which one..
-    // const programAccounts = await provider.connection.getProgramAccounts(programId);
-
-    // const keysWeCareAbout = programAccounts.map((account) => account.pubkey)
-
-    // need to setup DAO as the KP
-    dao = new PublicKey('8tanoHEyJEQgaasEkv1DxN6umYNWDotbaEpuzstcEufb');
+    const { data: daos } = useQuery({
+      queryKey: ['daoList'],
+      // NOTE: this doesn't work due to the if check (React ordering),
+      // we CAN use this for all of our stuff, but a GPA is a BIG
+      // request and ideally we don't want to, however I'm not sure of
+      // anything outside either metaData program or allow list.
+      queryFn: () => autocratProgram.account.dao.all(),
+      staleTime: 30_000,
+      refetchOnMount: false,
+    });
+    const __dao = daos?.filter(
+      (_dao) => _dao.publicKey.toString() === DAOS[0].publicKey.toString()
+    )[0];
+    if (__dao) {
+      dao = __dao.publicKey;
+    }
   }
 
   const daoTreasury = useMemo(
@@ -72,10 +94,7 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
     [dao, programId],
   );
 
-  const autocratProgram = useMemo(
-    () => new Program<AutocratProgram>(idl as AutocratProgram, programId, provider),
-    [provider, programId, idl],
-  );
+  // TODO: I'm not sure why we have this here.
   const openbook = useMemo(() => {
     if (!provider) {
       return;

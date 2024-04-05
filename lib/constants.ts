@@ -20,6 +20,13 @@ const AUTOCRAT_V0_1_IDL: AutocratProgram = require('@/lib/idl/autocrat_v0.1.json
 const AUTOCRAT_V0_2_IDL: AutocratProgram = require('@/lib/idl/autocrat_v0.2.json');
 const AUTOCRAT_V0_3_IDL: AutocratProgram = require('@/lib/idl/autocrat_v0.3.json');
 
+// TODO: Need to stub in DaoStateWithKey
+export const DAOS: any[] = [
+  {
+    publicKey: new PublicKey('8tanoHEyJEQgaasEkv1DxN6umYNWDotbaEpuzstcEufb'),
+  },
+];
+
 export const AUTOCRAT_VERSIONS: ProgramVersion[] = [
   {
     label: 'V0.3',
