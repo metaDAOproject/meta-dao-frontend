@@ -3,17 +3,15 @@
 import { Button } from '@mantine/core';
 import { useCallback } from 'react';
 import { useAutocrat } from '../../contexts/AutocratContext';
-import { useTokens } from '../../hooks/useTokens';
 import { useAutocratDebug } from '../../hooks/useAutocratDebug';
 
 export default function CreateDaoButton() {
-  const { tokens } = useTokens();
-  const { autocratProgram } = useAutocrat();
+  const { autocratProgram, daoTokens } = useAutocrat();
   const { initializeDao } = useAutocratDebug();
 
   const handleCreateDao = useCallback(async () => {
     await initializeDao();
-  }, [autocratProgram, tokens]);
+  }, [autocratProgram, daoTokens]);
 
   return <Button onClick={() => handleCreateDao()}>Initialize DAO</Button>;
 }

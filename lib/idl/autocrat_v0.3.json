@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.3.0",
   "name": "autocrat_v0",
   "instructions": [
     {
@@ -8,7 +8,7 @@
         {
           "name": "dao",
           "isMut": true,
-          "isSigner": false
+          "isSigner": true
         },
         {
           "name": "payer",
@@ -21,7 +21,7 @@
           "isSigner": false
         },
         {
-          "name": "metaMint",
+          "name": "tokenMint",
           "isMut": false,
           "isSigner": false
         },
@@ -31,7 +31,16 @@
           "isSigner": false
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "baseLotSize",
+          "type": "i64"
+        },
+        {
+          "name": "twapExpectedValue",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "initializeProposal",
@@ -190,7 +199,7 @@
             "type": "publicKey"
           },
           {
-            "name": "metaMint",
+            "name": "tokenMint",
             "type": "publicKey"
           },
           {
@@ -232,6 +241,10 @@
           {
             "name": "maxObservationChangePerUpdateLots",
             "type": "u64"
+          },
+          {
+            "name": "baseLotSize",
+            "type": "i64"
           }
         ]
       }
@@ -387,6 +400,12 @@
             "name": "maxObservationChangePerUpdateLots",
             "type": {
               "option": "u64"
+            }
+          },
+          {
+            "name": "baseLotSize",
+            "type": {
+              "option": "i64"
             }
           }
         ]

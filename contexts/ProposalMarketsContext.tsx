@@ -124,17 +124,14 @@ export function ProposalMarketsProvider({
   // TODO: do we need this variable when we have openbook from the autocrat hook below?
   const openBookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
   const client = useQueryClient();
-  const { openbook, openbookTwap, proposals, programVersion } = useAutocrat();
+  const { openbook, proposals } = useAutocrat();
+  const { program: openbookTwap } = useOpenbookTwap();
   const { connection } = useConnection();
   const wallet = useWallet();
   const sender = useTransactionSender();
   const { placeOrderTransactions, cancelAndSettleFundsTransactions } = useOpenbookTwap();
   const { program: openBookClient } = useOpenbook();
-  let version = null;
-  if (programVersion?.label === 'V0.2') {
-    version = 2;
-  }
-  const { program: vaultProgram } = useConditionalVault(version);
+  const { program: vaultProgram } = useConditionalVault();
   const [loading, setLoading] = useState(false);
   const [markets, setMarkets] = useState<Markets>();
   const [openOrders, setOpenOrders] = useState<OpenOrdersAccountWithKey[]>([]);

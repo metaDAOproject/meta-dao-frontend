@@ -3,10 +3,10 @@ import { useConnection } from '@solana/wallet-adapter-react';
 import { calculateTWAP, getLastObservedAndSlot } from '@/lib/openbookTwap';
 
 import { Markets } from '@/lib/types';
-import { useAutocrat } from '@/contexts/AutocratContext';
 import useAccountSubscription from './useAccountSubscription';
 import { useProposal } from '@/contexts/ProposalContext';
 import useClusterDataSubscription from './useClusterDataSubscription';
+import { useOpenbookTwap } from './useOpenbookTwap';
 
 // these have the same structure but assigning them both to TwapStructure type for understanding
 export type TwapStructure = Markets['passTwap'] | Markets['failTwap'];
@@ -25,7 +25,7 @@ const useTwapSubscription = (
   twapMarket: PublicKey | undefined,
   midPrice: number | undefined,
 ): TwapSubscriptionRes => {
-  const { openbookTwap } = useAutocrat();
+  const openbookTwap = useOpenbookTwap();
   const { connection } = useConnection();
   const { proposal } = useProposal();
   const {

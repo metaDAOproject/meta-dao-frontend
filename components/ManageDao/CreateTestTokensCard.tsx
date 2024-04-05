@@ -13,7 +13,6 @@ export default function CreateTestTokensCard() {
   const wallet = useWallet();
   const { connection } = useConnection();
   const provider = useProvider();
-  const { tokens, setTokens } = useTokens();
 
   const handleCreateDao = useCallback(async () => {
     if (!wallet.publicKey || !wallet.signTransaction || !wallet.signAllTransactions) return;

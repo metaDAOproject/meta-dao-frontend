@@ -54,21 +54,17 @@ export function ProposalProvider({
   fromProposal?: ProposalAccountWithKey;
 }) {
   const client = useQueryClient();
-  const { autocratProgram, dao, daoState, daoTreasury, proposals, programVersion } = useAutocrat();
+  const { autocratProgram, dao, daoState, daoTreasury, proposals } = useAutocrat();
   const { connection } = useConnection();
   const { markets, fetchMarketsInfo } = useProposalMarkets();
   const wallet = useWallet();
   const sender = useTransactionSender();
-  let version = null;
-  if (programVersion?.label === 'V0.2') {
-    version = 2;
-  }
   const {
     program: vaultProgram,
     mintConditionalTokens,
     getVaultMint,
     createConditionalTokensAccounts,
-  } = useConditionalVault(version);
+  } = useConditionalVault();
   const [loading, setLoading] = useState(false);
   const [metaDisabled, setMetaDisabled] = useState(false);
   const [usdcDisabled, setUsdcDisabled] = useState(false);

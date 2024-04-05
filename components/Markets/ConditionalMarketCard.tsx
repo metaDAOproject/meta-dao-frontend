@@ -26,6 +26,7 @@ import { useBalance } from '@/hooks/useBalance';
 import TwapDisplay from './TwapDisplay';
 
 import { TwapSubscriptionRes } from '@/hooks/useTwapSubscription';
+import { useAutocrat } from '@/contexts/AutocratContext';
 
 type Props = {
   asks: any[][];
@@ -48,6 +49,7 @@ export function ConditionalMarketCard({
   isWinning,
   twapDescription,
 }: Props) {
+  const { daoTokens } = useAutocrat();
   const { proposal, isCranking, crankMarkets } = useProposal();
   const { orderBookObject, markets, placeOrder } = useProposalMarkets();
   const { setBalanceByMint } = useBalances();
@@ -377,7 +379,7 @@ export function ConditionalMarketCard({
               <TextInput
                 label={
                   <Group justify="space-between" align="center">
-                    <Text size="sm">Amount of META</Text>
+                    <Text size="sm">Amount of {daoTokens?.baseToken?.symbol}</Text>
                   </Group>
                 }
                 placeholder="Enter amount..."
@@ -419,10 +421,10 @@ export function ConditionalMarketCard({
                 <IconWallet height={12} />
                 <Text size="xs">
                   {isAskSide
-                    ? `${isPassMarket ? 'p' : 'f'}META ${
+                    ? `${isPassMarket ? 'p' : 'f'}${daoTokens?.baseToken?.symbol} ${
                         numeral(baseBalance?.data?.uiAmountString || 0).format(BASE_FORMAT) || ''
                       }`
-                    : `${isPassMarket ? 'p' : 'f'}USDC $${
+                    : `${isPassMarket ? 'p' : 'f'}${daoTokens?.quoteToken?.symbol} $${
                         numeral(quoteBalance?.data?.uiAmountString || 0).format(NUMERAL_FORMAT) ||
                         ''
                       }`}
@@ -445,7 +447,7 @@ export function ConditionalMarketCard({
                 disabled={!amount || (isLimitOrder ? !price : false)}
                 loading={isPlacingOrder}
               >
-                {orderSide} {isPassMarket ? 'p' : 'f'}META
+                {orderSide} {isPassMarket ? 'p' : 'f'}{daoTokens?.baseToken?.symbol}
               </Button>
             </GridCol>
           </Grid>

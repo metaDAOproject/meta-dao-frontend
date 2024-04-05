@@ -1,14 +1,13 @@
 import { useCallback } from 'react';
 import { Transaction } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { useTokens } from './useTokens';
 import { useAutocrat } from '../contexts/AutocratContext';
 
 export function useAutocratDebug() {
   const wallet = useWallet();
   const { connection } = useConnection();
-  const { tokens } = useTokens();
-  const { dao, daoState, daoTreasury, autocratProgram: program } = useAutocrat();
+  const { dao, daoState, daoTreasury, daoTokens, autocratProgram: program } = useAutocrat();
+  const tokens = daoTokens;
 
   const initializeDao = useCallback(async () => {
     if (
@@ -47,5 +46,5 @@ export function useAutocratDebug() {
     );
   }, [program, dao, wallet, tokens, connection, program]);
 
-  return { program, dao, daoTreasury, daoState, initializeDao, };
+  return { program, dao, daoTreasury, daoState, initializeDao };
 }

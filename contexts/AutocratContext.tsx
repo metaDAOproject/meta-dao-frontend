@@ -13,17 +13,16 @@ import { useLocalStorage } from '@mantine/hooks';
 import { OpenbookV2, IDL as OPENBOOK_IDL } from '@openbook-dex/openbook-v2';
 import { useQuery } from '@tanstack/react-query';
 import { useProvider } from '@/hooks/useProvider';
-import { AUTOCRAT_VERSIONS, OPENBOOK_PROGRAM_ID } from '@/lib/constants';
-import { AutocratProgram, DaoState, ProgramVersion, Proposal } from '../lib/types';
-import { useNetworkConfiguration } from '../hooks/useNetworkConfiguration';
-import { useOpenbookTwap } from '../hooks/useOpenbookTwap';
+import { AUTOCRAT_VERSIONS, OPENBOOK_PROGRAM_ID, staticTokens, devnetTokens, mainnetTokens } from '@/lib/constants';
+import { AutocratProgram, DaoState, ProgramVersion, Proposal, TokensDict, Token } from '../lib/types';
+import { Networks, useNetworkConfiguration } from '../hooks/useNetworkConfiguration';
 
 export interface AutocratContext {
   dao?: PublicKey;
   daoTreasury?: PublicKey;
   daoState?: DaoState;
+  daoTokens?: TokensDict;
   openbook?: Program<OpenbookV2>;
-  openbookTwap?: Program<any>;
   proposals?: Proposal[];
   autocratProgram?: Program<AutocratProgram>;
   programVersion?: ProgramVersion;
@@ -40,16 +39,16 @@ export const useAutocrat = () => {
 };
 
 export function AutocratProvider({ children }: { children: ReactNode; }) {
-  const { endpoint } = useNetworkConfiguration();
+  const { endpoint, network } = useNetworkConfiguration();
   const provider = useProvider();
   const [programVersion, setProgramVersion] = useLocalStorage<ProgramVersion>({
     key: 'program_version',
-    defaultValue: AUTOCRAT_VERSIONS[0],
+    defaultValue: AUTOCRAT_VERSIONS[1],
     serialize: (value) => String(AUTOCRAT_VERSIONS.indexOf(value)),
     deserialize: (value) => AUTOCRAT_VERSIONS[Number(value)],
   });
   const { programId, idl } = programVersion!;
-  const dao = useMemo(
+  let dao = useMemo(
     () =>
       PublicKey.findProgramAddressSync(
         [utils.bytes.utf8.encode('WWCACOTMICMIBMHAFTTWYGHMB')],
@@ -57,10 +56,22 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
       )[0],
     [programId],
   );
+  // TODO: For v3 onwards we need to NOT do this...
+  if (programVersion.label === 'V0.3') {
+    // We need to get public key for the DAOs and somehow sort which one..
+    // const programAccounts = await provider.connection.getProgramAccounts(programId);
+
+    // const keysWeCareAbout = programAccounts.map((account) => account.pubkey)
+
+    // need to setup DAO as the KP
+    dao = new PublicKey('8tanoHEyJEQgaasEkv1DxN6umYNWDotbaEpuzstcEufb');
+  }
+
   const daoTreasury = useMemo(
     () => PublicKey.findProgramAddressSync([dao.toBuffer()], programId)[0],
     [dao, programId],
   );
+
   const autocratProgram = useMemo(
     () => new Program<AutocratProgram>(idl as AutocratProgram, programId, provider),
     [provider, programId, idl],
@@ -72,14 +83,18 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
     return new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
   }, [provider]);
 
-  const { program: openbookTwap } = useOpenbookTwap();
+  let queryKey = 'getDao';
+  if (programVersion.label === 'V0.3') {
+    queryKey = 'getDaoV3';
+  }
   const { data: daoStateData } = useQuery({
-    queryKey: ['getDao'],
+    queryKey: [queryKey],
     queryFn: () => autocratProgram.account.dao.fetch(dao),
     staleTime: 30_000,
     refetchOnMount: false,
   });
   const daoState = daoStateData;
+
   const [proposals, setProposals] = useState<Proposal[]>();
 
   const fetchProposals = useCallback(async () => {
@@ -87,29 +102,83 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
       a.account.number < b.account.number ? 1 : -1,
     );
 
-    let _proposals: Proposal[] = props.map((prop) => ({
+    const _proposals: Proposal[] = props.map((prop) => ({
       title: `Proposal ${prop.account.number}`,
       description: '',
       ...prop,
     }));
     setProposals(_proposals);
-    _proposals = await Promise.all(
-      props.map(async (prop) => {
-        let resp;
-        if (prop.account.descriptionUrl.includes('hackmd.io')) {
-          resp = await fetch(`/api/hackmd?url=${prop.account.descriptionUrl}`, { method: 'GET' })
-            .then((r) => r.json())
-            .catch((e) => console.error(e));
-        }
-        return {
-          title: resp?.title || `Proposal ${prop.account.number}`,
-          description: resp?.description || '',
-          ...prop,
-        };
-      }),
-    );
-    setProposals(_proposals);
   }, [endpoint, autocratProgram]);
+
+  // Moved token stuff into the Autocrat, given this is where we reference core tokens
+  // NOTE: This doesn't handle conditional tokens.
+  const defaultTokens: TokensDict = useMemo(() => {
+    switch (network) {
+      case Networks.Devnet:
+        return { ...staticTokens, ...devnetTokens };
+      case Networks.Mainnet:
+        return { ...staticTokens, ...mainnetTokens };
+      case Networks.Custom:
+        // TODO: What if custom is devnet?
+        return { ...staticTokens, ...mainnetTokens };
+      default:
+        return staticTokens;
+    }
+  }, [network]);
+
+  const [daoTokens, setDaoTokens] = useLocalStorage<TokensDict>({
+    key: 'futarchy-tokens',
+    defaultValue: defaultTokens,
+    getInitialValueInEffect: true,
+    serialize: JSON.stringify,
+    deserialize: (s) => {
+      if (!s) return {};
+      const o: TokensDict = JSON.parse(s);
+      return Object.fromEntries(
+        Object.entries(o).map(([k, v]: [string, Token]) => [
+          k,
+          { ...v, publicKey: new PublicKey(v.publicKey) },
+        ]),
+      );
+    },
+  });
+
+  // We need to wait for the DAO state to be updated and fetched to pull from it
+  // and build our actually used tokens.
+  useEffect(() => {
+    if (daoState) {
+      let daoTokenPublicKey = daoState?.metaMint!;
+      if (programVersion?.label === 'V0.3') {
+        // Stub in to pull instead of metaMint, tokenMint
+        daoTokenPublicKey = daoState?.tokenMint!;
+      }
+
+      // This fetches and compares across the token list we maintain
+      const daoToken = Object.entries(defaultTokens).filter(
+        (token) => token[1].publicKey.toString() === daoTokenPublicKey.toString()
+      );
+
+      // Our "base" token which historically was called META, and in other version TOKEN
+      const baseToken = { baseToken: daoToken[0][1] };
+
+      // Our "quote" token, so far this is and is only planned to be USDC
+      let quoteToken = { quoteToken: defaultTokens.usdc };
+
+      // Needed as we want to start using real USDC on devnet from here on out
+      if (programVersion?.label !== 'V0.3' && network === 'devnet') {
+        quoteToken = { quoteToken: defaultTokens.musdc };
+      }
+
+      // Combine our tokens we want to use vs defaults
+      const usedTokens: TokensDict = { ...staticTokens, ...baseToken, ...quoteToken };
+
+      // Simple optimization to prevent unnecessary updates
+      const mergedTokens = { ...daoTokens, ...usedTokens };
+      if (JSON.stringify(mergedTokens) !== JSON.stringify(usedTokens)) {
+        setDaoTokens(mergedTokens);
+      }
+    }
+  }, [daoState]);
 
   useEffect(() => {
     fetchProposals();
@@ -121,8 +190,8 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
         dao,
         daoTreasury,
         daoState,
+        daoTokens,
         openbook,
-        openbookTwap,
         proposals,
         autocratProgram,
         programVersion,

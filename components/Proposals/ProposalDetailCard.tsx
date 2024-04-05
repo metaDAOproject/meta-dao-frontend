@@ -33,7 +33,6 @@ import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 import { useConditionalVault } from '@/hooks/useConditionalVault';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
-import { useTokens } from '@/hooks/useTokens';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { Proposal } from '@/lib/types';
 import { shortKey } from '@/lib/utils';
@@ -54,13 +53,10 @@ import useInitializeClusterDataSubscription from '@/hooks/useInitializeClusterDa
 
 export function ProposalDetailCard() {
   const wallet = useWallet();
-  const { fetchProposals, daoTreasury, daoState, programVersion } = useAutocrat();
-  let version = null;
-  if (programVersion?.label === 'V0.2') {
-    version = 2;
-  }
-  const { redeemTokensTransactions } = useConditionalVault(version);
-  const { tokens } = useTokens();
+  const { fetchProposals, daoTreasury, daoTokens, daoState } = useAutocrat();
+  if (!daoTokens) return <Loader />;
+  const tokens = daoTokens;
+  const { redeemTokensTransactions } = useConditionalVault();
   const { proposal, finalizeProposalTransactions } = useProposal();
   const {
     openOrders,
@@ -429,7 +425,7 @@ export function ProposalDetailCard() {
             )}
           </>
         )}
-        <JupSwapCard />
+        {/* <JupSwapCard /> */}
       </Stack>
       <Divider orientation={isMedium ? 'horizontal' : 'vertical'} />
       <Container mt="1rem" p={isMedium ? '0' : 'sm'}>

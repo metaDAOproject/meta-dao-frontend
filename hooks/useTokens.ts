@@ -3,73 +3,23 @@ import { PublicKey } from '@solana/web3.js';
 import { useLocalStorage } from '@mantine/hooks';
 import { useMemo } from 'react';
 import { Networks, useNetworkConfiguration } from './useNetworkConfiguration';
+import { DaoState, ProgramVersion, TokensDict, Token } from '@/lib/types';
+import { staticTokens } from '@/lib/constants';
 
 export const META_BASE_LOTS = 1_000_000_000;
 export const USDC_BASE_LOTS = 1_000_000;
 
-export interface Token {
-  name: string;
-  symbol: string;
-  icon?: string;
-  publicKey: PublicKey;
-  decimals: number;
-  tokenProgram: PublicKey;
-}
+// type Entry<T> = {
+//   [K in keyof T]: [K, T[K]]
+// }[keyof T];
 
-const staticTokens = {
-  wsol: {
-    name: 'Solana',
-    symbol: 'SOL',
-    icon: '',
-    publicKey: new PublicKey('So11111111111111111111111111111111111111112'),
-    decimals: 9,
-    tokenProgram: TOKEN_PROGRAM_ID,
-  },
-};
-
-const mainnetTokens: TokensDict = {
-  meta: {
-    name: 'Meta',
-    symbol: 'META',
-    icon: '',
-    publicKey: new PublicKey('METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr'),
-    decimals: 9,
-    tokenProgram: TOKEN_PROGRAM_ID,
-  },
-  usdc: {
-    name: 'USD Coin',
-    symbol: 'USDC',
-    icon: '',
-    publicKey: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
-    decimals: 6,
-    tokenProgram: TOKEN_PROGRAM_ID,
-  },
-};
-
-const devnetTokens: TokensDict = {
-  meta: {
-    name: 'Meta',
-    symbol: 'META',
-    icon: '',
-    publicKey: new PublicKey('METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr'),
-    decimals: 9,
-    tokenProgram: TOKEN_PROGRAM_ID,
-  },
-  usdc: {
-    name: 'USD Coin',
-    symbol: 'USDC',
-    icon: '',
-    publicKey: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
-    decimals: 6,
-    tokenProgram: TOKEN_PROGRAM_ID,
-  },
-};
-
-type TokenKeys = 'meta' | 'usdc' | keyof typeof staticTokens;
-type TokensDict = Partial<{ [key in TokenKeys]: Token }>;
-
-export function useTokens() {
+export function useTokens(daoState: DaoState, programVersion: ProgramVersion) {
   const { network } = useNetworkConfiguration();
+  let daoTokenPublicKey = daoState?.metaMint!;
+  if (programVersion?.label === 'V0.3') {
+    // Stub in to pull instead of metaMint, tokenMint
+    daoTokenPublicKey = daoState?.tokenMint;
+  }
 
   const defaultTokens: TokensDict = useMemo(() => {
     switch (network) {
@@ -78,15 +28,42 @@ export function useTokens() {
       case Networks.Mainnet:
         return { ...staticTokens, ...mainnetTokens };
       case Networks.Custom:
+        // TODO: What if custom is devnet?
         return { ...staticTokens, ...mainnetTokens };
       default:
         return staticTokens;
     }
   }, [network]);
 
+  const daoToken = Object.entries(defaultTokens).filter(
+    (token) => {
+      if (token[1].publicKey === daoTokenPublicKey) {
+        //console.log(token[0]);
+        console.log(token);
+        return token;
+      }
+      console.log(token[1].publicKey);
+      console.log('dao');
+      console.log(daoTokenPublicKey);
+      //console.log(index);
+      return null;
+    }
+  );
+  //console.log(daoToken);
+  //defaultTokens[daoTokenMint]
+  //daoToken.token = daoToken[1];
+  let quoteToken = defaultTokens.usdc;
+  if (programVersion?.label !== 'V0.3') {
+    quoteToken = defaultTokens.musdc;
+  }
+
+  const usedTokens: TokensDict = useMemo(() => (
+    { ...staticTokens, daoToken, quoteToken }
+  ), [network]);
+  //console.log(usedTokens);
   const [tokens, setTokens] = useLocalStorage<TokensDict>({
     key: 'futarchy-tokens',
-    defaultValue: defaultTokens,
+    defaultValue: usedTokens,
     getInitialValueInEffect: true,
     serialize: JSON.stringify,
     deserialize: (s) => {

@@ -1,5 +1,5 @@
 export type AutocratV0 = {
-  'version': '0.2.0',
+  'version': '0.3.0',
   'name': 'autocrat_v0',
   'instructions': [
     {
@@ -8,7 +8,7 @@ export type AutocratV0 = {
         {
           'name': 'dao',
           'isMut': true,
-          'isSigner': false
+          'isSigner': true
         },
         {
           'name': 'payer',
@@ -21,7 +21,7 @@ export type AutocratV0 = {
           'isSigner': false
         },
         {
-          'name': 'metaMint',
+          'name': 'tokenMint',
           'isMut': false,
           'isSigner': false
         },
@@ -31,7 +31,16 @@ export type AutocratV0 = {
           'isSigner': false
         }
       ],
-      'args': []
+      'args': [
+        {
+          'name': 'baseLotSize',
+          'type': 'i64'
+        },
+        {
+          'name': 'twapExpectedValue',
+          'type': 'u64'
+        }
+      ]
     },
     {
       'name': 'initializeProposal',
@@ -190,7 +199,7 @@ export type AutocratV0 = {
             'type': 'publicKey'
           },
           {
-            'name': 'metaMint',
+            'name': 'tokenMint',
             'type': 'publicKey'
           },
           {
@@ -232,6 +241,10 @@ export type AutocratV0 = {
           {
             'name': 'maxObservationChangePerUpdateLots',
             'type': 'u64'
+          },
+          {
+            'name': 'baseLotSize',
+            'type': 'i64'
           }
         ]
       }
@@ -388,6 +401,12 @@ export type AutocratV0 = {
             'type': {
               'option': 'u64'
             }
+          },
+          {
+            'name': 'baseLotSize',
+            'type': {
+              'option': 'i64'
+            }
           }
         ]
       }
@@ -465,7 +484,7 @@ export type AutocratV0 = {
 };
 
 export const IDL: AutocratV0 = {
-  version: '0.2.0',
+  version: '0.3.0',
   name: 'autocrat_v0',
   instructions: [
     {
@@ -474,7 +493,7 @@ export const IDL: AutocratV0 = {
         {
           name: 'dao',
           isMut: true,
-          isSigner: false,
+          isSigner: true,
         },
         {
           name: 'payer',
@@ -487,7 +506,7 @@ export const IDL: AutocratV0 = {
           isSigner: false,
         },
         {
-          name: 'metaMint',
+          name: 'tokenMint',
           isMut: false,
           isSigner: false,
         },
@@ -497,7 +516,16 @@ export const IDL: AutocratV0 = {
           isSigner: false,
         },
       ],
-      args: [],
+      args: [
+        {
+          name: 'baseLotSize',
+          type: 'i64',
+        },
+        {
+          name: 'twapExpectedValue',
+          type: 'u64',
+        },
+      ],
     },
     {
       name: 'initializeProposal',
@@ -656,7 +684,7 @@ export const IDL: AutocratV0 = {
             type: 'publicKey',
           },
           {
-            name: 'metaMint',
+            name: 'tokenMint',
             type: 'publicKey',
           },
           {
@@ -698,6 +726,10 @@ export const IDL: AutocratV0 = {
           {
             name: 'maxObservationChangePerUpdateLots',
             type: 'u64',
+          },
+          {
+            name: 'baseLotSize',
+            type: 'i64',
           },
         ],
       },
@@ -853,6 +885,12 @@ export const IDL: AutocratV0 = {
             name: 'maxObservationChangePerUpdateLots',
             type: {
               option: 'u64',
+            },
+          },
+          {
+            name: 'baseLotSize',
+            type: {
+              option: 'i64',
             },
           },
         ],

@@ -2,9 +2,10 @@ import { useMemo } from 'react';
 
 import { PublicKey } from '@solana/web3.js';
 import { BN } from '@coral-xyz/anchor';
-import { Token, useTokens } from './useTokens';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 import { useBalance } from './useBalance';
+import { useAutocrat } from '@/contexts/AutocratContext';
+import { Token } from '@/lib/types';
 
 export interface ConditionalToken {
   token: Token;
@@ -18,6 +19,8 @@ export interface ConditionalToken {
 }
 
 export default function useConditionalTokens() {
+  const { daoTokens } = useAutocrat();
+  const tokens = daoTokens;
   const { markets } = useProposalMarkets();
   if (!markets) {
     return {
@@ -31,7 +34,6 @@ export default function useConditionalTokens() {
       fBaseBalance: undefined,
     };
   }
-  const { tokens } = useTokens();
   const { base, quote } = useMemo(
     () => ({ base: markets.baseVault, quote: markets.quoteVault }),
     [markets],
@@ -58,8 +60,8 @@ export default function useConditionalTokens() {
   } = useBalance(quote.conditionalOnRevertTokenMint);
 
   const baseToken: ConditionalToken | undefined = {
-    token: tokens.meta as unknown as Token,
-    symbol: tokens.meta?.symbol as unknown as string,
+    token: tokens.baseToken as unknown as Token,
+    symbol: tokens.baseToken?.symbol as unknown as string,
     balanceSpot: baseBalance,
     balancePass: pBaseBalance,
     balanceFail: fBaseBalance,
@@ -68,8 +70,8 @@ export default function useConditionalTokens() {
     revert: base.conditionalOnRevertTokenMint,
   };
   const quoteToken: ConditionalToken | undefined = {
-    token: tokens.usdc as unknown as Token,
-    symbol: tokens.usdc?.symbol as unknown as string,
+    token: tokens.quoteToken as unknown as Token,
+    symbol: tokens.quoteToken?.symbol as unknown as string,
     balanceSpot: quoteBalance,
     balancePass: pQuoteBalance,
     balanceFail: fQuoteBalance,

@@ -17,9 +17,9 @@ import { PublicKey } from '@solana/web3.js';
 import { useProposal } from '@/contexts/ProposalContext';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 import { NUMERAL_FORMAT } from '../../lib/constants';
-import { Token } from '@/hooks/useTokens';
 import useConditionalTokens from '@/hooks/useConditionalTokens';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
+import { Token } from '@/lib/types';
 
 interface Balance {
   token: Token;
@@ -39,21 +39,26 @@ export function MintConditionalTokenCard() {
   const [isMinting, setIsMinting] = useState(false);
   if (!markets) return null;
 
-  const { baseToken, quoteToken } = useConditionalTokens();
-  const [token, setToken] = useState<Balance | undefined>(baseToken);
+  const {
+    baseToken: baseConditionalToken,
+    quoteToken: quoteConditionalToken,
+  } = useConditionalTokens();
+  const [token, setToken] = useState<Balance | undefined>(baseConditionalToken);
 
   useEffect(() => {
     setToken((prev) => {
-      if (!prev) return baseToken;
-      return prev.symbol === baseToken?.symbol ? baseToken : quoteToken;
+      if (!prev) return baseConditionalToken;
+      return (
+        prev.symbol === baseConditionalToken?.symbol ? baseConditionalToken : quoteConditionalToken
+      );
     });
     // not proud of this, TODO clean this up
-  }, [JSON.stringify(baseToken), JSON.stringify(quoteToken)]);
+  }, [JSON.stringify(baseConditionalToken), JSON.stringify(quoteConditionalToken)]);
 
   const updateSelectedToken = (e: string) => {
-    if (e === baseToken?.symbol) setToken(baseToken);
-    else if (e === quoteToken?.symbol) {
-      setToken(quoteToken);
+    if (e === baseConditionalToken?.symbol) setToken(baseConditionalToken);
+    else if (e === quoteConditionalToken?.symbol) {
+      setToken(quoteConditionalToken);
     }
   };
 
@@ -61,7 +66,7 @@ export function MintConditionalTokenCard() {
     if (!mintAmount) return;
 
     setIsMinting(true);
-    const fromBase = token?.symbol !== quoteToken?.symbol;
+    const fromBase = token?.symbol !== quoteConditionalToken?.symbol;
     try {
       const txs = await mintTokensTransactions(mintAmount, fromBase);
 
@@ -74,7 +79,10 @@ export function MintConditionalTokenCard() {
     }
   }, [mintTokensTransactions, sender, mintAmount, token]);
 
-  const selectOptions = [baseToken?.symbol, quoteToken?.symbol].filter((s): s is string => !!s);
+  const selectOptions = [
+    baseConditionalToken?.symbol,
+    quoteConditionalToken?.symbol,
+  ].filter((s): s is string => !!s);
 
   return !token ? (
     <Group justify="center">
@@ -92,8 +100,8 @@ export function MintConditionalTokenCard() {
           <Stack>
             <Text>
               Conditional tokens are the tokens used to trade on conditional markets. You can mint
-              some by depositing $META or $USDC. These tokens will be locked up until the proposal
-              is finalized.
+              some by depositing ${token.symbol} or $USDC. These tokens will be locked up until
+              the proposal is finalized.
             </Text>
             <Text size="sm">
               <Text span fw="bold">

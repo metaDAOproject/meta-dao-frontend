@@ -8,11 +8,13 @@ import { ProposalUnsettledOrdersTab } from '@/components/Orders/ProposalUnsettle
 import { useProposal } from '@/contexts/ProposalContext';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 import { useOpenbook } from '@/hooks/useOpenbook';
-import { totalMetaInOrder, totalUsdcInOrder } from '@/lib/openbook';
+import { totalBaseInOrder, totalUsdcInOrder } from '@/lib/openbook';
+import { useAutocrat } from '@/contexts/AutocratContext';
 
 export function ProposalOrdersCard() {
   const { publicKey: owner } = useWallet();
   const { proposal } = useProposal();
+  const { daoTokens } = useAutocrat();
   const {
     markets,
     openOrders,
@@ -63,14 +65,14 @@ export function ProposalOrdersCard() {
               <Text span fw="bold">
                 ${totalUsdcInOrder(openOrders)}
               </Text>{' '}
-              condUSDC
+              cond{daoTokens?.quoteToken?.symbol}
             </Text>
             <Text>|</Text>
             <Text size="lg">
               <Text span fw="bold">
-                {totalMetaInOrder(openOrders)}
+                {totalBaseInOrder(openOrders)}
               </Text>{' '}
-              condMETA
+              cond{daoTokens?.baseToken?.symbol}
             </Text>
           </Group>
           <ActionIcon

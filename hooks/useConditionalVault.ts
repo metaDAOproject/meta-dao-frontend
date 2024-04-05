@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { Program, utils, BN } from '@coral-xyz/anchor';
 import { Keypair, PublicKey } from '@solana/web3.js';
+import { Loader } from '@mantine/core';
 import {
   createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddressSync,
@@ -9,17 +10,18 @@ import numeral from 'numeral';
 import { ConditionalVault, IDL as CONDITIONAL_VAULT_IDL } from '../lib/idl/conditional_vault';
 import { ConditionalVaultV0, IDL as CONDITIONAL_VAULT_IDLV0 } from '../lib/idl/conditional_vault_v0.1';
 import { useProvider } from './useProvider';
-import { useTokens } from './useTokens';
 import { InitializedVault, ProposalAccount, VaultAccount, VaultAccountWithKey } from '../lib/types';
+import { useAutocrat } from '@/contexts/AutocratContext';
 
-export function useConditionalVault(autocratVersion: number | null) {
+export function useConditionalVault() {
   const provider = useProvider();
+  const { daoTokens, programVersion } = useAutocrat();
   let programId = new PublicKey('vaU1tVLj8RFk7mNj1BxqgAsMKKaL8UvEUHvU3tdbZPe');
   let program: any = useMemo(
     () => new Program<ConditionalVault>(CONDITIONAL_VAULT_IDL, programId, provider),
     [provider, programId],
   );
-  if (autocratVersion !== null) {
+  if (programVersion.label === 'V0.2') {
     programId = new PublicKey('vAuLTQjV5AZx5f3UgE75wcnkxnQowWxThn1hGjfCVwP');
     program = useMemo(
       () => new Program<ConditionalVaultV0>(CONDITIONAL_VAULT_IDLV0, programId, provider),
@@ -27,7 +29,15 @@ export function useConditionalVault(autocratVersion: number | null) {
     );
   }
 
-  const { tokens } = useTokens();
+  if (programVersion.label === 'V0.3') {
+    programId = new PublicKey('vAuLTQjV5AZx5f3UgE75wcnkxnQowWxThn1hGjfCVwP');
+    program = useMemo(
+      () => new Program<ConditionalVaultV0>(CONDITIONAL_VAULT_IDLV0, programId, provider),
+      [provider, programId],
+    );
+  }
+
+  const tokens = daoTokens;
 
   const getVaultMint = useCallback(
     async (vault: PublicKey) => {

@@ -1,6 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { BN } from '@coral-xyz/anchor';
-import { AutocratProgram, ProgramVersion } from './types';
+import { AutocratProgram, ProgramVersion, TokensDict } from './types';
 
 export const OPENBOOK_PROGRAM_ID = new PublicKey('opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb');
 export const OPENBOOK_TWAP_PROGRAM_ID = new PublicKey(
@@ -17,9 +18,16 @@ export const BN_0 = new BN(0);
 const AUTOCRAT_V0_IDL: AutocratProgram = require('@/lib/idl/autocrat_v0.json');
 const AUTOCRAT_V0_1_IDL: AutocratProgram = require('@/lib/idl/autocrat_v0.1.json');
 const AUTOCRAT_V0_2_IDL: AutocratProgram = require('@/lib/idl/autocrat_v0.2.json');
+const AUTOCRAT_V0_3_IDL: AutocratProgram = require('@/lib/idl/autocrat_v0.3.json');
 
 export const AUTOCRAT_VERSIONS: ProgramVersion[] = [
-  { label: 'V0.2',
+  {
+    label: 'V0.3',
+    programId: new PublicKey('FuTPR6ScKMPHtZFwacq9qrtf9VjscawNEFTb2wSYr1gY'),
+    idl: AUTOCRAT_V0_3_IDL,
+  },
+  {
+    label: 'V0.2',
     programId: new PublicKey('metaRK9dUBnrAdZN6uUDKvxBVKW5pyCbPVmLtUZwtBp'),
     idl: AUTOCRAT_V0_2_IDL,
   },
@@ -34,3 +42,75 @@ export const AUTOCRAT_VERSIONS: ProgramVersion[] = [
     idl: AUTOCRAT_V0_IDL,
   },
 ];
+export const staticTokens = {
+  wsol: {
+    name: 'Solana',
+    symbol: 'SOL',
+    icon: '',
+    publicKey: new PublicKey('So11111111111111111111111111111111111111112'),
+    decimals: 9,
+    tokenProgram: TOKEN_PROGRAM_ID,
+  },
+};
+
+export const mainnetTokens: TokensDict = {
+  meta: {
+    name: 'Meta',
+    symbol: 'META',
+    icon: '',
+    publicKey: new PublicKey('METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr'),
+    decimals: 9,
+    tokenProgram: TOKEN_PROGRAM_ID,
+  },
+  usdc: {
+    name: 'USD Coin',
+    symbol: 'USDC',
+    icon: '',
+    publicKey: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
+    decimals: 6,
+    tokenProgram: TOKEN_PROGRAM_ID,
+  },
+  future: {
+    name: 'Future',
+    symbol: 'FUTURE',
+    icon: '',
+    publicKey: new PublicKey('FUTURETnhzFApq2TiZiNbWLQDXMx4nWNpFtmvTf11pMy'),
+    decimals: 9,
+    tokenProgram: TOKEN_PROGRAM_ID,
+  },
+};
+
+export const devnetTokens: TokensDict = {
+  meta: {
+    name: 'Meta',
+    symbol: 'META',
+    icon: '',
+    publicKey: new PublicKey('METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr'),
+    decimals: 9,
+    tokenProgram: TOKEN_PROGRAM_ID,
+  },
+  usdc: {
+    name: 'USD Coin',
+    symbol: 'USDC',
+    icon: '',
+    publicKey: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
+    decimals: 6,
+    tokenProgram: TOKEN_PROGRAM_ID,
+  },
+  musdc: {
+    name: 'Meta USD Coin',
+    symbol: 'mUSDC',
+    icon: '',
+    publicKey: new PublicKey('B9CZDrwg7d34MiPiWoUSmddriCtQB5eB2h9EUSDHt48b'),
+    decimals: 6,
+    tokenProgram: TOKEN_PROGRAM_ID,
+  },
+  future: {
+    name: 'Future',
+    symbol: 'FUTURE',
+    icon: '',
+    publicKey: new PublicKey('DUMm13RrZZoJAaqr1Tz7hv44xUcrYWXADw7SEBGAvbcK'),
+    decimals: 9,
+    tokenProgram: TOKEN_PROGRAM_ID,
+  },
+};
