@@ -6,8 +6,8 @@ import {
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import numeral from 'numeral';
-import { ConditionalVault, IDL as CONDITIONAL_VAULT_IDL } from '../lib/idl/conditional_vault';
-import { ConditionalVaultV0, IDL as CONDITIONAL_VAULT_IDLV0 } from '../lib/idl/conditional_vault_v0.1';
+import { ConditionalVault as ConditionalVaultV0, IDL as CONDITIONAL_VAULT_IDLV0 } from '../lib/idl/conditional_vault';
+import { ConditionalVaultV0 as ConditionalVaultV0_1, IDL as CONDITIONAL_VAULT_IDLV0_1 } from '../lib/idl/conditional_vault_v0.1';
 import { useProvider } from './useProvider';
 import { InitializedVault, ProposalAccount, VaultAccount, VaultAccountWithKey } from '../lib/types';
 import { useAutocrat } from '@/contexts/AutocratContext';
@@ -15,27 +15,19 @@ import { useAutocrat } from '@/contexts/AutocratContext';
 export function useConditionalVault() {
   const provider = useProvider();
   const { daoTokens, programVersion } = useAutocrat();
-  let programId = new PublicKey('vaU1tVLj8RFk7mNj1BxqgAsMKKaL8UvEUHvU3tdbZPe');
-  let program: any = useMemo(
-    () => new Program<ConditionalVault>(CONDITIONAL_VAULT_IDL, programId, provider),
-    [provider, programId],
-  );
-  if (programVersion?.label === 'V0.2') {
-    programId = new PublicKey('vAuLTQjV5AZx5f3UgE75wcnkxnQowWxThn1hGjfCVwP');
-    program = useMemo(
-      () => new Program<ConditionalVaultV0>(CONDITIONAL_VAULT_IDLV0, programId, provider),
-      [provider, programId],
-    );
-  }
 
-  if (programVersion?.label === 'V0.3') {
-    // TODO: There will be a new vault.
-    programId = new PublicKey('vAuLTQjV5AZx5f3UgE75wcnkxnQowWxThn1hGjfCVwP');
-    program = useMemo(
-      () => new Program<ConditionalVaultV0>(CONDITIONAL_VAULT_IDLV0, programId, provider),
-      [provider, programId],
-    );
-  }
+  const vaultV0 = new PublicKey('vaU1tVLj8RFk7mNj1BxqgAsMKKaL8UvEUHvU3tdbZPe');
+  const vaultV0_2 = new PublicKey('vAuLTQjV5AZx5f3UgE75wcnkxnQowWxThn1hGjfCVwP');
+
+  const program: any = useMemo(
+    () => {
+      if (['V0.3', 'V0.2'].includes(programVersion?.label!)) {
+        return new Program<ConditionalVaultV0_1>(CONDITIONAL_VAULT_IDLV0_1, vaultV0_2, provider);
+      }
+      return new Program<ConditionalVaultV0>(CONDITIONAL_VAULT_IDLV0, vaultV0, provider);
+    },
+    [provider, programVersion, vaultV0, vaultV0_2],
+  );
 
   const tokens = daoTokens;
 

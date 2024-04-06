@@ -102,12 +102,12 @@ export function useOpenbookTwap() {
     const openOrdersIndexer = findOpenOrdersIndexer(signer);
     let accountIndex = new BN(1);
     try {
-      const indexer = await openbook.program.account.openOrdersIndexer.fetch(openOrdersIndexer);
+      const indexer = await openbook.account.openOrdersIndexer.fetch(openOrdersIndexer);
       accountIndex = new BN((indexer?.createdCounter || 0) + 1 + (indexOffset || 0));
     } catch {
       if (!indexOffset) {
         openTx.add(
-          await createOpenOrdersIndexerInstruction(openbook.program, openOrdersIndexer, signer),
+          await createOpenOrdersIndexerInstruction(openbook, openOrdersIndexer, signer),
         );
       } else {
         accountIndex = new BN(1 + (indexOffset || 0));
@@ -138,7 +138,7 @@ export function useOpenbookTwap() {
         signer: wallet.publicKey,
       });
       const [ixs, openOrdersAccount] = await createOpenOrdersInstruction(
-        openbook.program,
+        openbook,
         market.publicKey,
         accountIndex,
         `${shortKey(wallet.publicKey)}-${accountIndex.toString()}`,
@@ -176,20 +176,20 @@ export function useOpenbookTwap() {
         return;
       }
       let accounts: PublicKey[] = new Array<PublicKey>();
-      const _eventHeap = await openbook.program.account.eventHeap.fetch(eventHeap);
+      const _eventHeap = await openbook.account.eventHeap.fetch(eventHeap);
       // TODO: If null we should bail...
       if (!individualEvent) {
         if (_eventHeap != null) {
           // eslint-disable-next-line no-restricted-syntax
           for (const node of _eventHeap.nodes) {
             if (node.event.eventType === 0) {
-              const fillEvent: FillEvent = openbook.program.coder.types.decode(
+              const fillEvent: FillEvent = openbook.coder.types.decode(
                 'FillEvent',
                 Buffer.from([0, ...node.event.padding]),
               );
               accounts = accounts.filter((a) => a !== fillEvent.maker).concat([fillEvent.maker]);
             } else {
-              const outEvent: OutEvent = openbook.program.coder.types.decode(
+              const outEvent: OutEvent = openbook.coder.types.decode(
                 'OutEvent',
                 Buffer.from([0, ...node.event.padding]),
               );
@@ -205,13 +205,13 @@ export function useOpenbookTwap() {
         // eslint-disable-next-line no-restricted-syntax
         for (const node of _eventHeap.nodes) {
           if (node.event.eventType === 0) {
-            const fillEvent: FillEvent = openbook.program.coder.types.decode(
+            const fillEvent: FillEvent = openbook.coder.types.decode(
               'FillEvent',
               Buffer.from([0, ...node.event.padding]),
             );
             accounts = accounts.filter((a) => a !== fillEvent.maker).concat([fillEvent.maker]);
           } else {
-            const outEvent: OutEvent = openbook.program.coder.types.decode(
+            const outEvent: OutEvent = openbook.coder.types.decode(
               'OutEvent',
               Buffer.from([0, ...node.event.padding]),
             );
@@ -231,7 +231,7 @@ export function useOpenbookTwap() {
           (order) => order.pubkey.toString() === individualEvent.toString(),
         );
       }
-      const crankIx = await openbook.program.methods
+      const crankIx = await openbook.methods
         .consumeEvents(new BN(filteredAccounts.length))
         .accounts({
           consumeEventsAdmin: openbook.programId,
@@ -311,7 +311,7 @@ export function useOpenbookTwap() {
         userQuoteAccount = userQuotePass;
       }
       // TODO: 2x Txns for each side..
-      const placeTx = await openbook.program.methods
+      const placeTx = await openbook.methods
         .settleFunds()
         .accounts({
           owner: wallet.publicKey,
@@ -390,7 +390,7 @@ export function useOpenbookTwap() {
         userQuoteAccount = userQuotePass;
       }
       // TODO: 2x Txns for each side..
-      const placeTx = await openbook.program.methods
+      const placeTx = await openbook.methods
         .settleFunds()
         .accounts({
           owner: wallet.publicKey,
@@ -448,7 +448,7 @@ export function useOpenbookTwap() {
 
       const openOrdersIndexer = findOpenOrdersIndexer(wallet.publicKey);
       const openOrdersAccount = findOpenOrders(orderId, wallet.publicKey);
-      const closeTx = await openbook.program.methods
+      const closeTx = await openbook.methods
         .closeOpenOrdersAccount()
         .accounts({
           owner: wallet.publicKey,

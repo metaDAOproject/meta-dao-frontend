@@ -20,7 +20,6 @@ export interface ConditionalToken {
 
 export default function useConditionalTokens() {
   const { daoTokens } = useAutocrat();
-  const tokens = daoTokens;
   const { markets } = useProposalMarkets();
   if (!markets) {
     return {
@@ -60,8 +59,8 @@ export default function useConditionalTokens() {
   } = useBalance(quote.conditionalOnRevertTokenMint);
 
   const baseToken: ConditionalToken | undefined = {
-    token: tokens?.baseToken as unknown as Token,
-    symbol: tokens?.baseToken?.symbol as unknown as string,
+    token: daoTokens?.baseToken as unknown as Token,
+    symbol: daoTokens?.baseToken?.symbol as unknown as string,
     balanceSpot: baseBalance,
     balancePass: pBaseBalance,
     balanceFail: fBaseBalance,
@@ -70,8 +69,8 @@ export default function useConditionalTokens() {
     revert: base.conditionalOnRevertTokenMint,
   };
   const quoteToken: ConditionalToken | undefined = {
-    token: tokens?.quoteToken as unknown as Token,
-    symbol: tokens?.quoteToken?.symbol as unknown as string,
+    token: daoTokens?.quoteToken as unknown as Token,
+    symbol: daoTokens?.quoteToken?.symbol as unknown as string,
     balanceSpot: quoteBalance,
     balancePass: pQuoteBalance,
     balanceFail: fQuoteBalance,

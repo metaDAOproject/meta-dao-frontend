@@ -23,7 +23,7 @@ export function ProposalOrdersCard() {
     refreshUserOpenOrders,
     fetchNonOpenOrders,
   } = useProposalMarkets();
-  const { program: openBookClient } = useOpenbook();
+  const { program: openbook, client: openBookClient } = useOpenbook();
 
   if (!openOrders || !markets) return <></>;
 
@@ -43,7 +43,7 @@ export function ProposalOrdersCard() {
   const onTabChange = useCallback(
     (event: string | null) => {
       if ((event === 'unsettled' || event === 'uncranked') && owner) {
-        fetchNonOpenOrders(owner, openBookClient.program, proposal, markets);
+        fetchNonOpenOrders(owner, openbook, proposal, markets);
       }
     },
     [!!owner],

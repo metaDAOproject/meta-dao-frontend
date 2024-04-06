@@ -7,8 +7,6 @@ import {
   AnyNode,
   LeafNode,
   OpenbookV2,
-  IDL as OPENBOOK_IDL,
-  OPENBOOK_PROGRAM_ID,
   MarketAccount,
   OpenBookV2Client,
 } from '@openbook-dex/openbook-v2';
@@ -121,18 +119,27 @@ export function ProposalMarketsProvider({
   proposalNumber?: number | undefined;
   fromProposal?: ProposalAccountWithKey;
 }) {
+  // TODO: Do we need provider vs wallet vs sender?
   const provider = useProvider();
-  // TODO: do we need this variable when we have openbook from the autocrat hook below?
-  const openBookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
   const client = useQueryClient();
-  const { openbook, proposals } = useAutocrat();
-  const { program: openbookTwap } = useOpenbookTwap();
-  const { connection } = useConnection();
   const wallet = useWallet();
   const sender = useTransactionSender();
-  const { placeOrderTransactions, cancelAndSettleFundsTransactions } = useOpenbookTwap();
-  const { program: openBookClient } = useOpenbook();
+  // TODO: If we have network do we need connection?
+  const { connection } = useConnection();
+
+  // Futarchic DAO System
+  const { proposals } = useAutocrat();
   const { program: vaultProgram } = useConditionalVault();
+
+  // Markets
+  const {
+    placeOrderTransactions,
+    cancelAndSettleFundsTransactions,
+    program: openbookTwap,
+  } = useOpenbookTwap();
+  const { client: openBookClient, program: openbook } = useOpenbook();
+
+  // State management
   const [loading, setLoading] = useState(false);
   const [markets, setMarkets] = useState<Markets>();
   const [openOrders, setOpenOrders] = useState<OpenOrdersAccountWithKey[]>([]);
@@ -617,14 +624,14 @@ export function ProposalMarketsProvider({
     ): number[][] | undefined => {
       try {
         const isPassMarket = market === proposal?.account.openbookPassMarket;
-        const leafNodes = openBookProgram.coder.accounts.decode(
+        const leafNodes = openbook.coder.accounts.decode(
           'bookSide',
           updatedAccountInfo.data,
         );
         const leafNodesData: AnyNode[] = leafNodes.nodes.nodes.filter((x: AnyNode) => x.tag === 2);
 
         const leafNodeSide = leafNodesData.map((x) => {
-          const leafNode: LeafNode = openBookProgram.coder.types.decode(
+          const leafNode: LeafNode = openbook.coder.types.decode(
             'LeafNode',
             Buffer.from([0, ...x.data]),
           );
@@ -918,9 +925,9 @@ export function ProposalMarketsProvider({
 
   useEffect(() => {
     const handleOrderBooklistening = async () => {
-      if (!wsConnected && proposal && markets && openBookProgram) {
+      if (!wsConnected && proposal && markets && openbook) {
         // connect for both pass and fail market order books
-        const subscriptionIds = await listenOrderBooks(proposal, markets, openBookProgram);
+        const subscriptionIds = await listenOrderBooks(proposal, markets, openbook);
         return () => {
           subscriptionIds?.forEach((s) => {
             connection.removeAccountChangeListener(s);
@@ -929,7 +936,7 @@ export function ProposalMarketsProvider({
       }
     };
     handleOrderBooklistening();
-  }, [wsConnected, !!proposal, !!markets, !!openBookProgram]);
+  }, [wsConnected, !!proposal, !!markets, !!openbook]);
   useEffect(() => {
     fetchMarketsInfo();
   }, [proposal]);

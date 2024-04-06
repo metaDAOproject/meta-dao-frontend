@@ -14,13 +14,13 @@ import { useTransactionSender } from '../../hooks/useTransactionSender';
 
 export default function TransferTokensButton() {
   const wallet = useWallet();
-  const { autocratProgram, daoTreasury, daoTokens } = useAutocrat();
+  const { autocratProgram, daoTreasuryKey, daoTokens } = useAutocrat();
   if (!daoTokens) return <Loader />;
 
   const sender = useTransactionSender();
 
   const handleTransfer = useCallback(async () => {
-    if (!daoTokens || !daoTokens.baseToken || !wallet?.publicKey || !daoTreasury) {
+    if (!daoTokens || !daoTokens.baseToken || !wallet?.publicKey || !daoTreasuryKey) {
       return;
     }
     const { baseToken } = daoTokens;
@@ -29,15 +29,15 @@ export default function TransferTokensButton() {
         .add(
           createAssociatedTokenAccountIdempotentInstruction(
             wallet.publicKey,
-            getAssociatedTokenAddressSync(baseToken.publicKey, daoTreasury, true),
-            daoTreasury,
+            getAssociatedTokenAddressSync(baseToken.publicKey, daoTreasuryKey, true),
+            daoTreasuryKey,
             baseToken.publicKey,
           ),
         )
         .add(
           createTransferInstruction(
             getAssociatedTokenAddressSync(baseToken.publicKey, wallet.publicKey, true),
-            getAssociatedTokenAddressSync(baseToken.publicKey, daoTreasury, true),
+            getAssociatedTokenAddressSync(baseToken.publicKey, daoTreasuryKey, true),
             wallet.publicKey,
             1000000000n,
           ),

@@ -53,7 +53,7 @@ import useInitializeClusterDataSubscription from '@/hooks/useInitializeClusterDa
 
 export function ProposalDetailCard() {
   const wallet = useWallet();
-  const { fetchProposals, daoTreasury, daoTokens, daoState } = useAutocrat();
+  const { daoTreasuryKey, daoTokens, daoState } = useAutocrat();
   if (!daoTokens) return <Loader />;
   const tokens = daoTokens;
   const { redeemTokensTransactions } = useConditionalVault();
@@ -134,13 +134,13 @@ export function ProposalDetailCard() {
   }, [proposal, lastSlot, daoState]);
 
   const handleFinalize = useCallback(async () => {
-    if (!tokens?.meta || !daoTreasury || !wallet?.publicKey) return;
+    if (!tokens?.meta || !daoTreasuryKey || !wallet?.publicKey) return;
 
     setIsFinalizing(true);
     // HACK: Use a UI to add remaining accounts
     const txs = await finalizeProposalTransactions([
       {
-        pubkey: getAssociatedTokenAddressSync(tokens.meta.publicKey, daoTreasury, true),
+        pubkey: getAssociatedTokenAddressSync(tokens.meta.publicKey, daoTreasuryKey, true),
         isSigner: false,
         isWritable: true,
       },
@@ -150,7 +150,7 @@ export function ProposalDetailCard() {
         isWritable: true,
       },
       {
-        pubkey: daoTreasury,
+        pubkey: daoTreasuryKey,
         isSigner: false,
         isWritable: true,
       },
@@ -178,11 +178,11 @@ export function ProposalDetailCard() {
     if (!txs) return;
     try {
       await sender.send(txs);
-      await fetchProposals();
+      // await fetchProposals();
     } finally {
       setIsFinalizing(false);
     }
-  }, [tokens, daoTreasury, sender, finalizeProposalTransactions, fetchProposals]);
+  }, [tokens, daoTreasuryKey, sender, finalizeProposalTransactions]);
 
   const handleCloseOrders = useCallback(async () => {
     if (!proposal || !openOrders || !markets || !wallet.publicKey) {
@@ -263,7 +263,7 @@ export function ProposalDetailCard() {
     } finally {
       setIsRedeeming(false);
     }
-  }, [sender, redeemTokensTransactions, fetchProposals]);
+  }, [sender, redeemTokensTransactions]);
 
   const router = useRouter();
   const { proposals } = useAutocrat();

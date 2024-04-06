@@ -11,13 +11,13 @@ import { isClosableOrder, isPartiallyFilled } from '@/lib/openbook';
 import { ProposalUnsettledOrderRow } from './ProposalUnsettledOrderRow';
 import { useBalances } from '../../contexts/BalancesContext';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
-import { useAutocrat } from '@/contexts/AutocratContext';
+import { useOpenbook } from '@/hooks/useOpenbook';
 
 const headers = ['Order ID', 'Market', 'Claimable', 'Actions'];
 
 export function ProposalUnsettledOrdersTab({ orders }: { orders: OpenOrdersAccountWithKey[] }) {
   const sender = useTransactionSender();
-  const { openbook } = useAutocrat();
+  const { program: openbook } = useOpenbook();
   const wallet = useWallet();
   const { proposal } = useProposal();
   const { markets, fetchNonOpenOrders } = useProposalMarkets();

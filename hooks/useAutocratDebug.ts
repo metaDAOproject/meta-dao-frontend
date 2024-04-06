@@ -6,7 +6,7 @@ import { useAutocrat } from '../contexts/AutocratContext';
 export function useAutocratDebug() {
   const wallet = useWallet();
   const { connection } = useConnection();
-  const { dao, daoState, daoTreasury, daoTokens, autocratProgram: program } = useAutocrat();
+  const { daoKey, daoState, daoTreasuryKey, daoTokens, autocratProgram: program } = useAutocrat();
   const tokens = daoTokens;
 
   const initializeDao = useCallback(async () => {
@@ -27,7 +27,7 @@ export function useAutocratDebug() {
       await program.methods
         .initializeDao()
         .accounts({
-          dao,
+          dao: daoKey,
           metaMint: tokens.meta.publicKey,
           usdcMint: tokens.usdc.publicKey,
         })
@@ -44,7 +44,7 @@ export function useAutocratDebug() {
     await Promise.all(
       signedTxs.map((tx) => connection.sendRawTransaction(tx.serialize(), { skipPreflight: true })),
     );
-  }, [program, dao, wallet, tokens, connection, program]);
+  }, [program, daoKey, wallet, tokens, connection, program]);
 
-  return { program, dao, daoTreasury, daoState, initializeDao };
+  return { program, daoKey, daoTreasuryKey, daoState, initializeDao };
 }

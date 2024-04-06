@@ -37,7 +37,10 @@ export const useTransactionSender = () => {
           if (!(tx instanceof VersionedTransaction)) {
             tx.recentBlockhash = blockhask.blockhash;
             tx.feePayer = wallet.publicKey!;
-
+            // Compute limit ix
+            tx.instructions = [
+              ComputeBudgetProgram.setComputeUnitLimit({ units: 150_000 }),
+            ];
             // Priority fee ix
             tx.instructions = [
               ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityFee }),

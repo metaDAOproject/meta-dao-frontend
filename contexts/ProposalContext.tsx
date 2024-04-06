@@ -54,7 +54,7 @@ export function ProposalProvider({
   fromProposal?: ProposalAccountWithKey;
 }) {
   const client = useQueryClient();
-  const { autocratProgram, dao, daoState, daoTreasury, proposals } = useAutocrat();
+  const { autocratProgram, daoKey, daoState, daoTreasuryKey, proposals } = useAutocrat();
   const { connection } = useConnection();
   const { markets, fetchMarketsInfo } = useProposalMarkets();
   const wallet = useWallet();
@@ -183,7 +183,7 @@ export function ProposalProvider({
 
   const finalizeProposalTransactions = useCallback(
     async (remainingAccounts: AccountMeta[] = []) => {
-      if (!autocratProgram || !proposal || !dao || !daoState || !vaultProgram) return;
+      if (!autocratProgram || !proposal || !daoKey || !daoState || !vaultProgram) return;
 
       const tx = await autocratProgram.methods
         .finalizeProposal()
@@ -191,8 +191,8 @@ export function ProposalProvider({
           proposal: proposal.publicKey,
           openbookTwapPassMarket: proposal.account.openbookTwapPassMarket,
           openbookTwapFailMarket: proposal.account.openbookTwapFailMarket,
-          dao,
-          daoTreasury,
+          dao: daoKey,
+          daoTreasury: daoTreasuryKey,
           baseVault: proposal.account.baseVault,
           quoteVault: proposal.account.quoteVault,
           vaultProgram: vaultProgram.programId,
@@ -202,7 +202,7 @@ export function ProposalProvider({
 
       return [tx];
     },
-    [autocratProgram, proposal, vaultProgram, dao, daoTreasury],
+    [autocratProgram, proposal, vaultProgram, daoKey, daoTreasuryKey],
   );
 
   const mintTokensTransactions = useCallback(
@@ -237,7 +237,7 @@ export function ProposalProvider({
         await sender.send(txs);
         await fetchMarketsInfo();
       } catch (err) {
-        console.error(err);
+        // console.error(err);
       } finally {
         setLoading(false);
       }
@@ -267,7 +267,7 @@ export function ProposalProvider({
         const txs = [...passTxs, ...failTxs].filter(Boolean);
         await sender.send(txs as VersionedTransaction[]);
       } catch (err) {
-        console.error(err);
+        // console.error(err);
       } finally {
         setIsCranking(false);
       }
