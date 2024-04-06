@@ -106,6 +106,7 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
         amount: size,
         price,
         limitOrder: true,
+        postOnlyOrder: false,
         ask: !isBidSide,
         market: marketAccount,
       })
