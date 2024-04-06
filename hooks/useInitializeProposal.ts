@@ -19,7 +19,6 @@ export function useInitializeProposal() {
     daoTreasuryKey,
     daoState,
     daoTokens,
-    fetchProposals,
   } = useAutocrat();
   const { initializeVault } = useConditionalVault();
   const wallet = useWallet();
@@ -72,7 +71,6 @@ export function useInitializeProposal() {
 
     await sender.send([vaultTx]);
     setVaults({ base: baseVault, quote: quoteVault });
-    fetchProposals();
   }, [daoTreasuryKey, daoTokens]);
 
   const initializeMarkets = useCallback(async () => {
@@ -168,7 +166,6 @@ export function useInitializeProposal() {
       );
     }
     setMarkets({ pass: openbookPassMarketKP, fail: openbookFailMarketKP });
-    fetchProposals();
   }, [daoKey, program, connection, wallet, daoTokens, vaults]);
 
   const initializeTwaps = useCallback(async () => {
@@ -237,7 +234,6 @@ export function useInitializeProposal() {
       );
     }
     setTwaps({ pass: openbookTwapPassMarket, fail: openbookTwapFailMarket });
-    fetchProposals();
   }, [daoKey, program, connection, wallet, daoTokens]);
 
   const initializeProposal = useCallback(
@@ -302,7 +298,6 @@ export function useInitializeProposal() {
           'confirmed',
         );
       }
-      fetchProposals();
     },
     [daoKey, program, connection, wallet, daoTokens],
   );
