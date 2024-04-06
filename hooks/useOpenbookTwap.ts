@@ -13,14 +13,14 @@ import {
   createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
-import { PlaceOrderArgs } from '@openbook-dex/openbook-v2/dist/types/client';
+import { PlaceOrderArgs, uiPriceToLots, uiQuoteToLots, uiBaseToLots } from '@openbook-dex/openbook-v2';
 import {
   SelfTradeBehavior,
   OrderType,
   SideUtils,
 } from '@openbook-dex/openbook-v2/dist/cjs/utils/utils';
 import { OpenbookTwap } from '@/lib/idl/openbook_twap';
-import { OPENBOOK_PROGRAM_ID, OPENBOOK_TWAP_PROGRAM_ID, QUOTE_LOTS } from '@/lib/constants';
+import { OPENBOOK_PROGRAM_ID, OPENBOOK_TWAP_PROGRAM_ID } from '@/lib/constants';
 import {
   FillEvent,
   MarketAccountWithKey,
@@ -50,7 +50,7 @@ export function useOpenbookTwap() {
   const provider = useProvider();
   const sender = useTransactionSender();
   const { getVaultMint } = useConditionalVault();
-  const openbook = useOpenbook().program;
+  const { program: openbook } = useOpenbook();
   const openbookTwap = useMemo(() => {
     if (!provider) {
       return;
@@ -62,29 +62,48 @@ export function useOpenbookTwap() {
     amount,
     price,
     limitOrder,
+    postOnlyOrder,
     ask,
     accountIndex,
+    market,
   }: {
     amount: number;
     price: number;
-    accountIndex: number;
     limitOrder?: boolean;
+    postOnlyOrder?: boolean;
     ask?: boolean;
-  }): PlaceOrderArgs => {
-    let priceLots = new BN(Math.floor(price / QUOTE_LOTS));
-    const maxBaseLots = new BN(Math.floor(amount));
-    let maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
+    accountIndex: number;
+    market: MarketAccountWithKey;
+  }): PlaceOrderArgs | string => {
+    let priceLots = uiPriceToLots(market.account, price);
+    const _priceLots = uiPriceToLots(market.account, price);
+    const maxBaseLots = uiBaseToLots(market.account, amount);
+    let maxQuoteLotsIncludingFees = uiQuoteToLots(market.account, priceLots.mul(maxBaseLots));
+
     if (!limitOrder) {
-      priceLots = new BN(1_000_000_000_000_000);
-      maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
+      if (!ask) {
+        // TODO: Want to setup max price
+        priceLots = new BN(1_000_000_000_000_000);
+        maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
+      } else {
+        priceLots = new BN(market.account.quoteLotSize);
+        maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
+      }
     }
+    if (_priceLots === priceLots) {
+      return 'error price';
+    }
+    // Setup our order type
+    // eslint-disable-next-line max-len
+    const orderType = postOnlyOrder ? OrderType.PostOnly : limitOrder ? OrderType.Limit : OrderType.Market;
+
     return {
       side: ask ? SideUtils.Ask : SideUtils.Bid,
       priceLots,
       maxBaseLots,
       maxQuoteLotsIncludingFees,
       clientOrderId: accountIndex,
-      orderType: limitOrder ? OrderType.Limit : OrderType.Market,
+      orderType,
       expiryTimestamp: new BN(0),
       selfTradeBehavior: SelfTradeBehavior.AbortTransaction,
       limit: 255,
@@ -123,8 +142,8 @@ export function useOpenbookTwap() {
       price: number,
       market: MarketAccountWithKey,
       limitOrder?: boolean,
+      postOnlyOrder?: boolean,
       ask?: boolean,
-      pass?: boolean,
       indexOffset?: number,
     ) => {
       if (!wallet.publicKey || !openbook || !openbookTwap) {
@@ -147,7 +166,19 @@ export function useOpenbookTwap() {
       );
       openTx.add(...ixs);
 
-      const args = createPlaceOrderArgs({ amount, price, limitOrder, ask, accountIndex });
+      const args = createPlaceOrderArgs({
+        amount,
+        price,
+        limitOrder,
+        postOnlyOrder,
+        ask,
+        accountIndex,
+        market,
+      });
+      if (typeof args === 'string') {
+        console.error('Error matching price');
+        return;
+      }
 
       const placeTx = await openbookTwap.methods
         .placeOrder(args)
@@ -496,6 +527,7 @@ export function useOpenbookTwap() {
       amount,
       price,
       limitOrder,
+      postOnlyOrder,
       ask,
       market,
     }: {
@@ -503,6 +535,7 @@ export function useOpenbookTwap() {
       amount: number;
       price: number;
       limitOrder: boolean;
+      postOnlyOrder: boolean;
       ask: boolean;
       market: MarketAccountWithKey;
     }) => {
@@ -523,7 +556,19 @@ export function useOpenbookTwap() {
         wallet.publicKey,
         true,
       );
-      const args = createPlaceOrderArgs({ amount, price, limitOrder, ask, accountIndex: orderId });
+      const args = createPlaceOrderArgs({
+        amount,
+        price,
+        limitOrder,
+        postOnlyOrder,
+        ask,
+        accountIndex: orderId,
+        market,
+      });
+      if (typeof args === 'string') {
+        console.log('error with order');
+        return;
+      }
       const editTx = await openbookTwap.methods
         .cancelAndPlaceOrders([orderId], [args])
         .accounts({
@@ -567,6 +612,7 @@ export function useOpenbookTwap() {
       amount,
       price,
       limitOrder,
+      postOnlyOrder,
       ask,
       market,
     }: {
@@ -575,6 +621,7 @@ export function useOpenbookTwap() {
       amount: number;
       price: number;
       limitOrder: boolean;
+      postOnlyOrder: boolean;
       ask: boolean;
       market: MarketAccountWithKey;
     }) => {
@@ -587,9 +634,15 @@ export function useOpenbookTwap() {
         amount,
         price,
         limitOrder,
+        postOnlyOrder,
         ask,
         accountIndex,
+        market,
       });
+      if (typeof args === 'string') {
+        console.log('error with order');
+        return;
+      }
       const expectedCancelSize = ask
         ? order.account.position.asksBaseLots.sub(new BN(amount)).abs()
         : new BN(amount).sub(order.account.position.bidsBaseLots).abs();

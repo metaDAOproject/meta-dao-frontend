@@ -95,9 +95,9 @@ export function ConditionalMarketCard({
   const isLimitOrder = orderType === 'Limit';
 
   // TODO: Review this as anything less than this fails to work
-  const minMarketPrice = 10;
+  const minMarketPrice = markets.fail.quoteLotSize;
   // TODO: Review this number as max safe doesn't work
-  const maxMarketPrice = 10000000000;
+  const maxMarketPrice = 10_000_000_000;
 
   const updateOrderValue = () => {
     if (!Number.isNaN(amount) && !Number.isNaN(+price)) {

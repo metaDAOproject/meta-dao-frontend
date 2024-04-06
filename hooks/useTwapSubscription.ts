@@ -7,6 +7,7 @@ import useAccountSubscription from './useAccountSubscription';
 import { useProposal } from '@/contexts/ProposalContext';
 import useClusterDataSubscription from './useClusterDataSubscription';
 import { useOpenbookTwap } from './useOpenbookTwap';
+import { useAutocrat } from '@/contexts/AutocratContext';
 
 // these have the same structure but assigning them both to TwapStructure type for understanding
 export type TwapStructure = Markets['passTwap'] | Markets['failTwap'];
@@ -28,13 +29,26 @@ const useTwapSubscription = (
   const { program: openbookTwap } = useOpenbookTwap();
   const { connection } = useConnection();
   const { proposal } = useProposal();
+  const { daoState, programVersion } = useAutocrat();
+  const maxObservationChangePerUpdateLots = daoState?.maxObservationChangePerUpdateLots;
   const {
     data: { slot },
   } = useClusterDataSubscription();
   // TODO: Need to stub in new function for the new version or come up with an
   // elegant way to handle new params / program deploys.
+
   // eslint-disable-next-line @typescript-eslint/no-shadow
   const getObservableTwap = (midPrice: number, lastObservationValue: number) => {
+    if (programVersion && programVersion.label !== 'V0.2') {
+      if (midPrice > lastObservationValue) {
+        const max_observation = (lastObservationValue + maxObservationChangePerUpdateLots);
+        const evaluated = Math.min(midPrice, max_observation);
+        return evaluated;
+      }
+      const min_observation = (lastObservationValue - maxObservationChangePerUpdateLots);
+      const evaluated = Math.max(midPrice, min_observation);
+      return evaluated;
+    }
     if (midPrice > lastObservationValue) {
       const max_observation = (lastObservationValue * (10_000 + 100)) / 10_000 + 1;
       const evaluated = Math.min(midPrice, max_observation);
