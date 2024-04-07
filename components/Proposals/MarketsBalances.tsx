@@ -83,21 +83,29 @@ export default function MarketsBalances() {
         <Group gap={24} w="100%">
           <Fieldset legend="Pass market" flex={1}>
             <Stack>
-              <Balance token={baseToken} market="pass" imageSrc="/metaToken.png" />
+              <Balance
+                token={baseToken}
+                market="pass"
+                imageSrc={`/${baseToken.symbol.toLowerCase()}Token.png`}
+              />
               <Balance
                 token={quoteToken}
                 market="pass"
-                imageSrc="https://s3.coinmarketcap.com/static-gravity/image/5a8229787b5e4c809b5914eef709b59a.png"
+                imageSrc={`/${quoteToken.symbol.toLowerCase()}Token.png`}
               />
             </Stack>
           </Fieldset>
           <Fieldset legend="Fail market" flex={1}>
             <Stack>
-              <Balance token={baseToken} market="fail" imageSrc="/metaToken.png" />
+              <Balance
+                token={baseToken}
+                market="fail"
+                imageSrc={`/${baseToken.symbol.toLowerCase()}Token.png`}
+              />
               <Balance
                 token={quoteToken}
                 market="fail"
-                imageSrc="https://s3.coinmarketcap.com/static-gravity/image/5a8229787b5e4c809b5914eef709b59a.png"
+                imageSrc={`/${quoteToken.symbol.toLowerCase()}Token.png`}
               />
             </Stack>
           </Fieldset>

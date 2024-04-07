@@ -7,11 +7,9 @@ import React, {
   useState,
 } from 'react';
 import { Program } from '@coral-xyz/anchor';
-import { TOKEN_PROGRAM_ID, getTokenMetadata } from '@solana/spl-token';
 import { PublicKey } from '@solana/web3.js';
 import { useLocalStorage } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
-import { useConnection } from '@solana/wallet-adapter-react';
 import { useProvider } from '@/hooks/useProvider';
 import { AUTOCRAT_VERSIONS, staticTokens, devnetTokens, mainnetTokens, DAOS } from '@/lib/constants';
 import { AutocratProgram, DaoState, ProgramVersion, Proposal, TokensDict, Token } from '../lib/types';
@@ -37,7 +35,6 @@ export const useAutocrat = () => {
 
 export function AutocratProvider({ children }: { children: ReactNode; }) {
   const { network } = useNetworkConfiguration();
-  const { connection } = useConnection();
   const provider = useProvider();
   const [programVersion, setProgramVersion] = useLocalStorage<ProgramVersion>({
     key: 'program_version',
@@ -125,23 +122,40 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
   // TODO: The goal here is the fetch the token data to enrich it.
   // all we need is a URI for display within the application
   // NOTE: This is not working.
-  const { data: tokenMetaData } = useQuery({
-    queryKey: [`token-${daoTokens.baseToken?.publicKey}`],
-    queryFn: () => getTokenMetadata(
-      connection,
-      daoTokens.baseToken?.publicKey!,
-      undefined,
-      TOKEN_PROGRAM_ID
-    ),
-    staleTime: 10,
-    refetchOnMount: true,
-  });
-
-  useEffect(() => {
-    if (tokenMetaData) {
-      console.log(tokenMetaData.uri);
-    }
-  }, [selectedDao, programVersion]);
+  // const tokenMetadata = useQueries({
+  //   queries: [
+  //     {
+  //       queryKey: ['daoBase', connection.rpcEndpoint],
+  //       queryFn: async () => {
+  //         if (daoTokens && daoTokens.baseToken) {
+  //           return getTokenMetadata(
+  //             connection,
+  //             daoTokens.baseToken.publicKey,
+  //             undefined,
+  //             TOKEN_PROGRAM_ID
+  //           );
+  //         }
+  //       },
+  //       enabled: !!daoTokens.baseToken,
+  //       refetchOnMount: true,
+  //     },
+  //     {
+  //       queryKey: ['daoQuote', connection.rpcEndpoint],
+  //       queryFn: async () => {
+  //         if (daoTokens && daoTokens.quoteToken) {
+  //           return getTokenMetadata(
+  //             connection,
+  //             daoTokens.quoteToken.publicKey,
+  //             undefined,
+  //             TOKEN_PROGRAM_ID
+  //           );
+  //         }
+  //       },
+  //       enabled: !!daoTokens.quoteToken,
+  //       refetchOnMount: true,
+  //     },
+  //   ],
+  // });
 
   // We need to wait for the DAO state to be updated and fetched to pull from it
   // and build our actually used tokens.
@@ -180,7 +194,7 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
       }
     }
     // NOTE: Stub this "selectedDao" for use in a future version.
-  }, [selectedDao, programVersion]);
+  }, [selectedDao, programVersion, daoState]);
 
   useEffect(() => {
     const props = ((allProposals) || []).sort((a, b) =>

@@ -18,7 +18,7 @@ import {
   useMantineColorScheme,
   useMantineTheme,
 } from '@mantine/core';
-import { useDisclosure, useFavicon, useMediaQuery } from '@mantine/hooks';
+import { useDisclosure, useFavicon, useMediaQuery, useHeadroom } from '@mantine/hooks';
 import '@mantine/notifications/styles.css';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import numeral from 'numeral';
@@ -104,6 +104,7 @@ function useTokenPrice() {
 export function Layout({ children }: { children: React.ReactNode }) {
   const wallet = useWallet();
   const modal = useWalletModal();
+  const pinned = useHeadroom({ fixedAt: 200 });
   const { network, endpoint, setNetwork, setCustomEndpoint } = useNetworkConfiguration();
   const { explorer, setExplorer } = useExplorerConfiguration();
   const colorScheme = useMantineColorScheme();
@@ -114,6 +115,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [solPrice, setSolPrice] = useState<number>();
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(false);
+  const [collapseFooter, setCollapseFooter] = useState(false);
 
   useFavicon(_favicon.src);
   useEffect(() => {
@@ -157,13 +159,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
     />
   );
 
+  const hasScrollbar = () => document.body.clientHeight > window.innerHeight;
+
+  useEffect(() => {
+    if (pinned && hasScrollbar()) {
+      setCollapseFooter(true);
+    }
+    if (!pinned && hasScrollbar()) {
+      setCollapseFooter(false);
+    }
+  }, [pinned]);
+
   return (
     <div>
       <AppShell
         header={{ height: 60 }}
         navbar={{ breakpoint: 'md', width: 200, collapsed: { mobile: !mobileOpened, desktop: !desktopOpened } }}
         padding="md"
-        footer={{ height: 100 }}
+        footer={{ height: 100, collapsed: collapseFooter, offset: true }}
       >
         <AppShell.Header withBorder>
           <Flex justify="space-between" align="center" p="md" w="100%" h="100%">
