@@ -4,12 +4,11 @@ import { BN } from '@coral-xyz/anchor';
 import { AutocratProgram, ProgramVersion, TokensDict } from './types';
 
 export const OPENBOOK_PROGRAM_ID = new PublicKey('opnb2LAfJYbRMAHHvqjCwQxanZn7ReEHp1k81EohpZb');
-export const OPENBOOK_TWAP_PROGRAM_ID = new PublicKey(
-  'TWAPrdhADy2aTKN5iFZtNnkQYXERD9NvKjPFVPMSCNN',
-);
+export const OPENBOOK_TWAP_PROGRAM_IDV0_1 = new PublicKey('TWAPrdhADy2aTKN5iFZtNnkQYXERD9NvKjPFVPMSCNN');
+export const OPENBOOK_TWAP_PROGRAM_IDV0_2 = new PublicKey('twAP5sArq2vDS1mZCT7f4qRLwzTfHvf5Ay5R5Q5df1m');
 
-export const NUMERAL_FORMAT = '0,0.00';
-export const BASE_FORMAT = '0,0';
+export const NUMERAL_FORMAT = '0,0.00'; // TODO: Need to dynamically format these
+export const BASE_FORMAT = '0,0.000'; // TODO: Need to dynamically format these
 export const SLOTS_PER_10_SECS: number = 25;
 export const TEN_DAYS_IN_SLOTS: number = 10 * 24 * 60 * 6 * SLOTS_PER_10_SECS;
 export const QUOTE_LOTS = 0.0001;
@@ -100,7 +99,7 @@ export const devnetTokens: TokensDict = {
     name: 'USD Coin',
     symbol: 'USDC',
     icon: '',
-    publicKey: new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
+    publicKey: new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'),
     decimals: 6,
     tokenProgram: TOKEN_PROGRAM_ID,
   },

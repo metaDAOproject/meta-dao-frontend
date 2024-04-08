@@ -95,7 +95,7 @@ export function ConditionalMarketCard({
   const isLimitOrder = orderType === 'Limit';
 
   // TODO: Review this as anything less than this fails to work
-  const minMarketPrice = markets.fail.quoteLotSize;
+  const minMarketPrice = markets.fail.quoteLotSize.toNumber();
   // TODO: Review this number as max safe doesn't work
   const maxMarketPrice = 10_000_000_000;
 
@@ -105,10 +105,10 @@ export function ConditionalMarketCard({
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
-      const _price = formatter.format(parseFloat((+price * amount).toString()));
+      const _price = `$${formatter.format(parseFloat((+price * amount).toString()))}`;
       setOrderValue(_price);
     } else {
-      setOrderValue('0');
+      setOrderValue('$0');
     }
   };
 
@@ -230,15 +230,18 @@ export function ConditionalMarketCard({
 
   const handlePlaceOrder = useCallback(async () => {
     try {
+      const isPostOnly = false;
       setIsPlacingOrder(true);
       const txsSent = await placeOrder(
         amount,
         _orderPrice(),
         isLimitOrder,
+        isPostOnly,
         isAskSide,
         isPassMarket,
       );
       if (txsSent && txsSent.length > 0) {
+        // TODO: We're assessing market in multiple places, we should be doing this in one
         const marketAccount = isPassMarket
           ? { account: markets.pass, publicKey: proposal?.account.openbookPassMarket }
           : { account: markets.fail, publicKey: proposal?.account.openbookFailMarket };

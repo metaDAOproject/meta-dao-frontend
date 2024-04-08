@@ -1,5 +1,5 @@
 import { PublicKey } from '@solana/web3.js';
-import { OPENBOOK_TWAP_PROGRAM_ID, QUOTE_LOTS } from './constants';
+import { QUOTE_LOTS } from './constants';
 import { DaoState, TWAPOracle } from './types';
 
 export const calculateTWAP = (twapOracle?: TWAPOracle) => {
@@ -27,10 +27,11 @@ export const getLastObservedAndSlot = (twapOracle?: TWAPOracle) => {
   };
 };
 
-export const getTwapMarketKey = (market: PublicKey) =>
+export const getTwapMarketKey = (market: PublicKey, program: PublicKey) =>
+  // TODO: Use TWAP v0.2 vs 0.1
   PublicKey.findProgramAddressSync(
     [Buffer.from('twap_market'), market.toBuffer()],
-    OPENBOOK_TWAP_PROGRAM_ID,
+    program,
   )[0];
 
 export const getWinningTwap = (

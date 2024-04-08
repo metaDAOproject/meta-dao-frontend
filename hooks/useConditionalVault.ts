@@ -6,10 +6,10 @@ import {
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import numeral from 'numeral';
-import { ConditionalVault as ConditionalVaultV0, IDL as CONDITIONAL_VAULT_IDLV0 } from '../lib/idl/conditional_vault';
-import { ConditionalVaultV0 as ConditionalVaultV0_1, IDL as CONDITIONAL_VAULT_IDLV0_1 } from '../lib/idl/conditional_vault_v0.1';
+import { ConditionalVault as ConditionalVaultV0, IDL as CONDITIONAL_VAULT_IDLV0 } from '@/lib/idl/conditional_vault';
+import { ConditionalVaultV0_2, IDL as CONDITIONAL_VAULT_IDLV0_2 } from '@/lib/idl/conditional_vault_v0.2';
 import { useProvider } from './useProvider';
-import { InitializedVault, ProposalAccount, VaultAccount, VaultAccountWithKey } from '../lib/types';
+import { InitializedVault, ProposalAccount, VaultAccount, VaultAccountWithKey } from '@/lib/types';
 import { useAutocrat } from '@/contexts/AutocratContext';
 
 export function useConditionalVault() {
@@ -22,7 +22,7 @@ export function useConditionalVault() {
   const program: any = useMemo(
     () => {
       if (['V0.3', 'V0.2'].includes(programVersion?.label!)) {
-        return new Program<ConditionalVaultV0_1>(CONDITIONAL_VAULT_IDLV0_1, vaultV0_2, provider);
+        return new Program<ConditionalVaultV0_2>(CONDITIONAL_VAULT_IDLV0_2, vaultV0_2, provider);
       }
       return new Program<ConditionalVaultV0>(CONDITIONAL_VAULT_IDLV0, vaultV0, provider);
     },
@@ -159,6 +159,8 @@ export function useConditionalVault() {
       const token = Object.values(tokens).find(
         (e) => e.publicKey.toString() === vault.underlyingTokenMint.toString(),
       );
+
+      console.log(tokens);
 
       return {
         ixs: [

@@ -4,10 +4,11 @@ import { AutocratV0 } from './idl/autocrat_v0';
 import { AutocratV0 as AutocratV0_1 } from './idl/autocrat_v0.1';
 import { AutocratV0 as AutocratV0_2 } from './idl/autocrat_v0.2';
 import { AutocratV0 as AutocratV0_3 } from './idl/autocrat_v0.3';
-import { OpenbookTwap } from './idl/openbook_twap';
+import { OpenbookTwapV0_1 } from './idl/openbook_twap_v0.1';
+import { OpenbookTwapV0_2 } from './idl/openbook_twap_v0.2';
 import { OpenbookV2 } from './idl/openbook_v2';
 import { ConditionalVault as ConditionalVaultV0 } from './idl/conditional_vault';
-import { ConditionalVaultV0 as ConditionalVaultV0_1 } from './idl/conditional_vault_v0.1';
+import { ConditionalVaultV0_2 } from './idl/conditional_vault_v0.2';
 
 type MergeWithOptionalFields<T, U> = {
   [K in keyof (T | U)]: U[K];
@@ -19,7 +20,7 @@ type MergeWithOptionalFields<T, U> = {
 export type AccountWithKey<T> = { publicKey: PublicKey; account: T };
 export type ProgramVersion = { label: string; programId: PublicKey; idl: Idl };
 export type AutocratProgram = AutocratV0 | AutocratV0_1 | AutocratV0_2 | AutocratV0_3;
-export type ConditionalVault = ConditionalVaultV0 | ConditionalVaultV0_1;
+export type ConditionalVault = ConditionalVaultV0 | ConditionalVaultV0_2;
 export type DaoStateV0_1 = MergeWithOptionalFields<
   IdlAccounts<AutocratV0>['dao'],
   IdlAccounts<AutocratV0_1>['dao']
@@ -40,11 +41,17 @@ export type ProposalInstruction = MergeWithOptionalFields<
   IdlTypes<AutocratV0>['ProposalInstruction'],
   IdlTypes<AutocratV0_1>['ProposalInstruction']
 >;
+export type TwapMarketAccount = MergeWithOptionalFields<
+  IdlAccounts<OpenbookTwapV0_1>['twapMarket'],
+  IdlAccounts<OpenbookTwapV0_2>['twapMarket']
+>;
+export type TWAPOracle = MergeWithOptionalFields<
+  IdlTypes<OpenbookTwapV0_1>['TWAPOracle'],
+  IdlTypes<OpenbookTwapV0_2>['TWAPOracle']
+>;
 export type ProposalAccountWithKey = AccountWithKey<ProposalAccount>;
 export type VaultAccount = IdlAccounts<ConditionalVault>['conditionalVault'];
 export type VaultAccountWithKey = AccountWithKey<VaultAccount>;
-export type TwapMarketAccount = IdlAccounts<OpenbookTwap>['twapMarket'];
-export type TWAPOracle = IdlTypes<OpenbookTwap>['TWAPOracle'];
 export type OrderBookSide = {
   parsed: {
     price: any;
