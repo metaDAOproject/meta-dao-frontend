@@ -32,6 +32,7 @@ import {
   IconSun,
   IconMoonStars,
   IconExternalLink,
+  IconPlugConnected,
 } from '@tabler/icons-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -209,19 +210,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             <Group>
               {wallet?.publicKey ? (
+                <>
                 <Menu position="bottom-end">
                   <Menu.Target>
-                    <Button variant="secondary">{shortKey(wallet.publicKey)}</Button>
+                    <Button variant="secondary"><IconPlugConnected strokeWidth={0.85} /></Button>
                   </Menu.Target>
                   <Menu.Dropdown>
                     <Stack p="md" align="center">
-                      <NativeSelect
-                        w="100%"
-                        label="Network"
-                        data={networks}
-                        value={network}
-                        onChange={(e) => setNetwork(e.target.value as Networks)}
-                      />
+                    <NativeSelect
+                      w="100%"
+                      label="Network"
+                      data={networks}
+                      value={network}
+                      onChange={(e) => setNetwork(e.target.value as Networks)}
+                    />
                       {network === Networks.Custom ? (
                         <TextInput
                           label="RPC URL"
@@ -230,6 +232,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                           defaultValue={endpoint}
                         />
                       ) : null}
+                    </Stack>
+                  </Menu.Dropdown>
+                </Menu>
+                <Menu position="bottom-end">
+                  <Menu.Target>
+                    <Button variant="secondary">{shortKey(wallet.publicKey)}</Button>
+                  </Menu.Target>
+                  <Menu.Dropdown>
+                    <Stack p="md" align="center">
                       <NativeSelect
                         w="100%"
                         label="Explorer"
@@ -254,7 +265,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     </Stack>
                   </Menu.Dropdown>
                 </Menu>
-              ) : (
+                </>) : (
                 <Button
                   variant="outline"
                   onClick={() => modal.setVisible(true)}

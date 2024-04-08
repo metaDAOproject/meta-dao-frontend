@@ -24,6 +24,13 @@ const AUTOCRAT_V0_3_IDL: AutocratProgram = require('@/lib/idl/autocrat_v0.3.json
 export const DAOS: any[] = [
   {
     publicKey: new PublicKey('8tanoHEyJEQgaasEkv1DxN6umYNWDotbaEpuzstcEufb'),
+    name: 'MetaDAO',
+    icon: 'metaToken.png',
+  },
+  {
+    publicKey: new PublicKey('8tanoHEyJEQgaasEkv1DxN6umYNWDotbaEpuzstcEufb'),
+    name: 'FutureDAO',
+    icon: 'futureToken.png',
   },
 ];
 
