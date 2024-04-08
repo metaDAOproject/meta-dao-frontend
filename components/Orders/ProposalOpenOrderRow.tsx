@@ -105,9 +105,9 @@ export function ProposalOpenOrderRow({ order }: { order: OpenOrdersAccountWithKe
         accountIndex: order.account.openOrders[0].clientId,
         amount: size,
         price,
-        limitOrder: true,
-        postOnlyOrder: false,
-        ask: !isBidSide,
+        isLimitOrder: true,
+        isPostOnlyOrder: false,
+        isAsk: !isBidSide,
         market: marketAccount,
       })
     )
