@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { Divider, Group, Loader, Stack, Text, Title, NativeSelect, Code, Menu, Button, Image, UnstyledButton } from '@mantine/core';
 import { IconSwitchVertical } from '@tabler/icons-react';
-import { useNetwork } from '@mantine/hooks';
+import { useNetworkConfiguration } from '@/hooks/useNetworkConfiguration';
 import { useAutocrat } from '@/contexts/AutocratContext';
 import { ProposalPreview } from './ProposalPreview';
 import { AUTOCRAT_VERSIONS, DAOS } from '@/lib/constants';
@@ -15,7 +15,7 @@ const programVersions = AUTOCRAT_VERSIONS.map((version, i) => ({
 
 export default function ProposalList() {
   const { proposals, programVersion, setProgramVersion } = useAutocrat();
-  const { network } = useNetwork();
+  const { network } = useNetworkConfiguration();
   const pendingProposals = useMemo(
     () => proposals?.filter((proposal) => proposal.account.state.pending),
     [proposals],
@@ -68,13 +68,13 @@ export default function ProposalList() {
           // set the DAO public key and that's what we'll use as reference
           // THIS IS A STUB TO TEST SOME IDEAS
           <UnstyledButton style={{ width: 120, height: 120 }}>
-            <Text key={i}>{dao.name}</Text>
-            <Image src={`/${dao.icon}`} width={90} height={90} />
+            <Text key={`dao name-${i}`}>{dao.name}</Text>
+            <Image key={`dao icon-${i}`} src={`/${dao.icon}`} width={90} height={90} />
           </UnstyledButton>
         ))}
         <UnstyledButton style={{ width: 120, height: 120 }}>
           <Text key="YOURDAO">YOUR DAO</Text>
-          <Image src="/" width={90} height={90} />
+          <Image key="YOURDAO Icon" src="/" width={90} height={90} />
         </UnstyledButton>
         </Group>
       )}
