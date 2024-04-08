@@ -56,7 +56,7 @@ export function ConditionalMarketCard({
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
-  const [price, setPrice] = useState<string>('');
+  const [price, setPrice] = useState<number | undefined>(undefined);
   const [priceError, setPriceError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
   const [orderValue, setOrderValue] = useState<string>('0');
@@ -100,7 +100,7 @@ export function ConditionalMarketCard({
   const maxMarketPrice = 10_000_000_000;
 
   const updateOrderValue = () => {
-    if (!Number.isNaN(amount) && !Number.isNaN(+price)) {
+    if (price && !Number.isNaN(amount) && !Number.isNaN(+price)) {
       const formatter = new Intl.NumberFormat('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
@@ -126,7 +126,7 @@ export function ConditionalMarketCard({
     return maxMarketPrice;
   };
 
-  const priceValidator = (value: string) => {
+  const priceValidator = (value: number) => {
     if (isLimitOrder) {
       if (Number(value) > 0) {
         if (isAskSide) {
@@ -164,7 +164,7 @@ export function ConditionalMarketCard({
     }
   };
 
-  const setPriceFromOrderBook = (value: string) => {
+  const setPriceFromOrderBook = (value: number) => {
     priceValidator(value);
     setPrice(value);
   };
@@ -213,13 +213,13 @@ export function ConditionalMarketCard({
     // Check and change values to match order type
     if (isLimitOrder) {
       // We can safely reset our price to nothing
-      setPrice('');
+      setPrice(undefined);
     } else if (side === 'Buy') {
       // Sets up the market order for the largest value
-      setPrice(maxMarketPrice.toString());
+      setPrice(maxMarketPrice);
     } else {
       // Sets up the market order for the smallest value
-      setPrice(minMarketPrice.toString());
+      setPrice(minMarketPrice);
     }
   };
 
@@ -266,12 +266,12 @@ export function ConditionalMarketCard({
 
   useEffect(() => {
     updateOrderValue();
-    if (amount !== 0) amountValidator(amount);
+    if (amount && amount !== 0) amountValidator(amount);
   }, [amount]);
 
   useEffect(() => {
     updateOrderValue();
-    if (price !== '') priceValidator(price);
+    if (price && price !== 0) priceValidator(price);
   }, [price]);
 
   const winningMarket = () => {
@@ -352,12 +352,12 @@ export function ConditionalMarketCard({
               setOrderType(e.target.value);
               if (e.target.value === 'Market') {
                 if (isAskSide) {
-                  setPrice(minMarketPrice.toString());
+                  setPrice(minMarketPrice);
                 } else {
-                  setPrice(maxMarketPrice.toString());
+                  setPrice(maxMarketPrice);
                 }
               } else {
-                setPrice('');
+                setPrice(undefined);
               }
               setPriceError(null);
               setAmountError(null);
@@ -370,11 +370,11 @@ export function ConditionalMarketCard({
                 placeholder="Enter price..."
                 type="number"
                 w="100%"
-                value={!isLimitOrder ? '' : price}
+                value={!isLimitOrder ? undefined : price}
                 disabled={!isLimitOrder}
                 error={priceError}
                 onChange={(e) => {
-                  setPrice(e.target.value);
+                  setPrice(Number(e.target.value));
                 }}
               />
             </Grid.Col>
@@ -387,8 +387,7 @@ export function ConditionalMarketCard({
                 }
                 placeholder="Enter amount..."
                 type="number"
-                value={amount || ''}
-                defaultValue={amount || ''}
+                value={amount || undefined}
                 rightSectionWidth={70}
                 rightSection={
                   <ActionIcon
@@ -403,11 +402,6 @@ export function ConditionalMarketCard({
                   >
                     <Text size="xs">
                       Max{' '}
-                      {maxOrderAmount() && maxOrderAmount() < 1000
-                        ? !isOrderAmountNan()
-                          ? numeral(maxOrderAmount()).format(BASE_FORMAT)
-                          : ''
-                        : ''}
                     </Text>
                   </ActionIcon>
                 }

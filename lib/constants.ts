@@ -9,6 +9,7 @@ export const OPENBOOK_TWAP_PROGRAM_IDV0_2 = new PublicKey('twAP5sArq2vDS1mZCT7f4
 
 export const NUMERAL_FORMAT = '0,0.00'; // TODO: Need to dynamically format these
 export const BASE_FORMAT = '0,0.000'; // TODO: Need to dynamically format these
+export const MAX_FORMAT = '0,0.00';
 export const SLOTS_PER_10_SECS: number = 25;
 export const TEN_DAYS_IN_SLOTS: number = 10 * 24 * 60 * 6 * SLOTS_PER_10_SECS;
 export const QUOTE_LOTS = 0.0001;
