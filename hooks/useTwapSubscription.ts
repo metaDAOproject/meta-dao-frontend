@@ -34,11 +34,9 @@ const useTwapSubscription = (
   const {
     data: { slot },
   } = useClusterDataSubscription();
-  // TODO: Need to stub in new function for the new version or come up with an
-  // elegant way to handle new params / program deploys.
-
   // eslint-disable-next-line @typescript-eslint/no-shadow
   const getObservableTwap = (midPrice: number, lastObservationValue: number) => {
+    // NOTE: Forumla has changed across versions.
     if (programVersion && programVersion.label !== 'V0.2') {
       if (midPrice > lastObservationValue) {
         const max_observation = (lastObservationValue + maxObservationChangePerUpdateLots);

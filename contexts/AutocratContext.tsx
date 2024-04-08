@@ -95,7 +95,6 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
       case Networks.Mainnet:
         return { ...staticTokens, ...mainnetTokens };
       case Networks.Custom:
-        // TODO: What if custom is devnet?
         return { ...staticTokens, ...mainnetTokens, ...devnetTokens };
       default:
         return staticTokens;

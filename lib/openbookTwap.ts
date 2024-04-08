@@ -28,7 +28,6 @@ export const getLastObservedAndSlot = (twapOracle?: TWAPOracle) => {
 };
 
 export const getTwapMarketKey = (market: PublicKey, program: PublicKey) =>
-  // TODO: Use TWAP v0.2 vs 0.1
   PublicKey.findProgramAddressSync(
     [Buffer.from('twap_market'), market.toBuffer()],
     program,

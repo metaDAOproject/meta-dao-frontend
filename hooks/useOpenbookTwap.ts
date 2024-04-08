@@ -41,6 +41,7 @@ import { useConditionalVault } from './useConditionalVault';
 import { useOpenbook } from './useOpenbook';
 import { useTransactionSender } from './useTransactionSender';
 import { getTwapMarketKey } from '../lib/openbookTwap';
+import { useAutocrat } from '@/contexts/AutocratContext';
 
 const OPENBOOK_TWAP_IDLV0_1: OpenbookTwapV0_1 = require('@/lib/idl/openbook_twap_v0.1.json');
 const OPENBOOK_TWAP_IDLV0_2: OpenbookTwapV0_2 = require('@/lib/idl/openbook_twap_v0.2.json');
@@ -50,6 +51,7 @@ const SYSTEM_PROGRAM: PublicKey = new PublicKey('1111111111111111111111111111111
 export function useOpenbookTwap() {
   const wallet = useWallet();
   const provider = useProvider();
+  const { programVersion } = useAutocrat();
   const sender = useTransactionSender();
   const { getVaultMint } = useConditionalVault();
   const { program: openbook } = useOpenbook();
@@ -59,8 +61,7 @@ export function useOpenbookTwap() {
     if (!provider) {
       return;
     }
-    // TODO: Check for program version...
-    if (true) {
+    if (['V0.2', 'V0.3'].includes(programVersion?.label!)) {
       return new Program<OpenbookTwapV0_2>(
         OPENBOOK_TWAP_IDLV0_2,
         OPENBOOK_TWAP_PROGRAM_IDV0_2,
@@ -98,10 +99,11 @@ export function useOpenbookTwap() {
 
     if (!isLimitOrder) {
       if (!isAsk) {
-        // TODO: Want to setup max price
+        // TODO: Want to setup max price (TBD)
         priceLots = new BN(1_000_000_000_000_000);
         maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
       } else {
+        // TODO: Check working
         priceLots = market.account.quoteLotSize;
         maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
       }
@@ -371,7 +373,7 @@ export function useOpenbookTwap() {
           marketQuoteVault: market.account.marketQuoteVault,
           userBaseAccount,
           userQuoteAccount,
-          //TODO Add this
+          //TODO Add this for fee..
           referrerAccount: null,
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SYSTEM_PROGRAM,

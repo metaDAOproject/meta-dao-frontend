@@ -31,6 +31,8 @@ export function ProposalOrdersCard() {
     if (proposal && markets) {
       refreshUserOpenOrders(
         openBookClient,
+        markets.pass,
+        markets.fail,
         proposal,
         markets.passBids,
         markets.passAsks,
