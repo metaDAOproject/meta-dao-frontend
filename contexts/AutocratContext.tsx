@@ -45,19 +45,21 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
 
   const { programId, idl } = programVersion!;
 
-  // TOOD: Use memo? Or?
-  const autocratProgram = new Program<AutocratProgram>(idl as AutocratProgram, programId, provider);
+  const autocratProgram = useMemo(
+    () => new Program<AutocratProgram>(idl as AutocratProgram, programId, provider),
+    [programId.toString(), !!provider, network]
+  );
 
   // TODO: We need to surface an option to select a DAO, so there's
   // some point of reference from the user to allow us to sort on this.
   // I've setup a list of DAOs hard coded, but this is still missing a
   // selection given you may have many starting at v0.3
-  const daosQueryKey = `${programVersion.label}DaoList`;
+  const daosQueryKey = `${network}-${programVersion.label}-daolist`;
   const { data: daos } = useQuery({
     queryKey: [daosQueryKey],
     queryFn: () => autocratProgram.account.dao.all(),
     staleTime: 30_000,
-    refetchOnMount: true,
+    refetchOnMount: false,
   });
 
   // TODO: THIS NEEDS TO BE HANDLED WHEN MULTI DAO
@@ -79,12 +81,12 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
 
   const [proposals, setProposals] = useState<Proposal[]>();
 
-  const proposalsQueryKey = `${programVersion.label}Proposals`;
+  const proposalsQueryKey = `${network}-${programVersion.label}-proposals`;
   const { data: allProposals } = useQuery({
     queryKey: [proposalsQueryKey],
     queryFn: () => autocratProgram?.account.proposal?.all(),
     staleTime: 30_000,
-    refetchOnMount: true,
+    refetchOnMount: false,
   });
 
   // Moved token stuff into the Autocrat, given this is where we reference core tokens
@@ -97,9 +99,10 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
       case Networks.Custom:
         return { ...staticTokens, ...mainnetTokens, ...devnetTokens };
       default:
-        return staticTokens;
+        // TODO: Dunno, got stuck on this.
+        return { ...staticTokens, ...mainnetTokens, ...devnetTokens };
     }
-  }, [network]);
+  }, [network, programVersion.label]);
 
   const [daoTokens, setDaoTokens] = useLocalStorage<TokensDict>({
     key: 'futarchy-tokens',
@@ -193,7 +196,7 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
       }
     }
     // NOTE: Stub this "selectedDao" for use in a future version.
-  }, [selectedDao, programVersion, daoState]);
+  }, [selectedDao, programVersion.label, network, daoState, defaultTokens]);
 
   useEffect(() => {
     const props = ((allProposals) || []).sort((a, b) =>
@@ -206,7 +209,7 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
       ...prop,
     }));
     setProposals(_proposals);
-  }, [allProposals, programVersion]);
+  }, [allProposals, programVersion.label, network]);
 
   return (
     <contextAutocrat.Provider

@@ -159,9 +159,6 @@ export function useConditionalVault() {
       const token = Object.values(tokens).find(
         (e) => e.publicKey.toString() === vault.underlyingTokenMint.toString(),
       );
-
-      console.log(tokens);
-
       return {
         ixs: [
           createAssociatedTokenAccountIdempotentInstruction(

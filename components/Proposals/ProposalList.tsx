@@ -46,7 +46,8 @@ export default function ProposalList() {
               <Stack p="md" align="center">
                 <NativeSelect
                   label="Program version"
-                  data={programVersions}
+                  // NOTE: A slice for removing this from render given devnet
+                  data={Array.prototype.slice.call(programVersions, network === 'devnet' ? 0 : 1)}
                   value={AUTOCRAT_VERSIONS.indexOf(programVersion!)}
                   onChange={(e) => setProgramVersion(Number(e.target.value))}
                 />
@@ -60,7 +61,7 @@ export default function ProposalList() {
           </>
         )}
       </Group>
-      {(programVersion !== null && programVersion?.label === 'V0.3' && network === 'devnet') && (
+      {(network === 'devnet' && programVersion !== null && programVersion?.label === 'V0.3') && (
         <Group justify="space-between" p={20}>
         {DAOS.map((dao, i) => (
           // TODO: Need to setup something here once we go live for v0.3

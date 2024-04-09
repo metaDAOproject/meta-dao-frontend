@@ -8,6 +8,7 @@ import * as token from '@solana/spl-token';
 import { Keypair, LAMPORTS_PER_SOL, SystemProgram, Transaction } from '@solana/web3.js';
 import { useProvider } from '@/hooks/useProvider';
 import { useAutocrat } from '@/contexts/AutocratContext';
+import { TokensDict } from '@/lib/types';
 
 export default function CreateTestTokensCard() {
   const wallet = useWallet();
@@ -16,7 +17,7 @@ export default function CreateTestTokensCard() {
   const provider = useProvider();
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [tokens, setTokens] = useState<any>();
+  const [tokens, setTokens] = useState<TokensDict>();
 
   if (!daoTokens || !daoTokens.baseToken || !daoTokens.quoteToken) return <Loader />;
 
@@ -140,9 +141,9 @@ export default function CreateTestTokensCard() {
       <Card.Section>
         <Stack gap="15" p="xs">
           {baseToken ? (
-            <Text>Meta mint: {baseToken.publicKey.toString()}</Text>
+            <Text>Base mint: {baseToken.publicKey.toString()}</Text>
           ) : (
-            <Text>No meta token yet</Text>
+            <Text>No base token yet</Text>
           )}
           {quoteToken ? (
             <Text>Usdc mint: {quoteToken.publicKey.toString()}</Text>
