@@ -9,7 +9,7 @@ import { ProposalPreview } from './ProposalPreview';
 import { AUTOCRAT_VERSIONS, DAOS } from '@/lib/constants';
 
 const programVersions = AUTOCRAT_VERSIONS.map((version, i) => ({
-  label: version.label,
+  label: `${version.label}-${version.dao}`,
   value: i.toString(),
 }));
 
@@ -56,7 +56,7 @@ export default function ProposalList() {
           </Menu>
           <Group>
             <Text>Autocrat Program</Text>
-            <Code>{programVersion?.label}</Code>
+            <Code>{programVersion?.label}-{programVersion?.dao}</Code>
           </Group>
           </>
         )}

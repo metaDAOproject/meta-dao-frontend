@@ -38,7 +38,7 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
   const provider = useProvider();
   const [programVersion, setProgramVersion] = useLocalStorage<ProgramVersion>({
     key: 'program_version',
-    defaultValue: AUTOCRAT_VERSIONS[1],
+    defaultValue: AUTOCRAT_VERSIONS[2],
     serialize: (value) => String(AUTOCRAT_VERSIONS.indexOf(value)),
     deserialize: (value) => AUTOCRAT_VERSIONS[Number(value)],
   });
@@ -54,7 +54,7 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
   // some point of reference from the user to allow us to sort on this.
   // I've setup a list of DAOs hard coded, but this is still missing a
   // selection given you may have many starting at v0.3
-  const daosQueryKey = `${network}-${programVersion.label}-daolist`;
+  const daosQueryKey = `${network}-${programVersion.label}-${programVersion.dao}-daolist`;
   const { data: daos } = useQuery({
     queryKey: [daosQueryKey],
     queryFn: () => autocratProgram.account.dao.all(),
@@ -81,7 +81,7 @@ export function AutocratProvider({ children }: { children: ReactNode; }) {
 
   const [proposals, setProposals] = useState<Proposal[]>();
 
-  const proposalsQueryKey = `${network}-${programVersion.label}-proposals`;
+  const proposalsQueryKey = `${network}-${programVersion.label}-${programVersion.dao}-proposals`;
   const { data: allProposals } = useQuery({
     queryKey: [proposalsQueryKey],
     queryFn: () => autocratProgram?.account.proposal?.all(),

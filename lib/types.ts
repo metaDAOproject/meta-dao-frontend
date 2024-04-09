@@ -18,7 +18,7 @@ type MergeWithOptionalFields<T, U> = {
   [K in keyof Omit<T, keyof U>]?: NonNullable<T[K]>;
 };
 export type AccountWithKey<T> = { publicKey: PublicKey; account: T };
-export type ProgramVersion = { label: string; programId: PublicKey; idl: Idl };
+export type ProgramVersion = { label: string; programId: PublicKey; idl: Idl, dao: string };
 export type AutocratProgram = AutocratV0 | AutocratV0_1 | AutocratV0_2 | AutocratV0_3;
 export type ConditionalVault = ConditionalVaultV0 | ConditionalVaultV0_2;
 export type DaoStateV0_1 = MergeWithOptionalFields<
