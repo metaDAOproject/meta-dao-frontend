@@ -9,7 +9,7 @@ export default function ProposalsPage() {
     <Layout>
       <Container p="0">
         <Stack gap="15">
-          <ProposalList />
+          <ProposalList programKey={null} />
         </Stack>
       </Container>
     </Layout>
