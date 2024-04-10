@@ -18,7 +18,7 @@ import {
   useMantineColorScheme,
   useMantineTheme,
 } from '@mantine/core';
-import { useDisclosure, useFavicon, useMediaQuery } from '@mantine/hooks';
+import { useDisclosure, useFavicon, useMediaQuery, useHeadroom } from '@mantine/hooks';
 import '@mantine/notifications/styles.css';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import numeral from 'numeral';
@@ -32,6 +32,7 @@ import {
   IconSun,
   IconMoonStars,
   IconExternalLink,
+  IconPlugConnected,
 } from '@tabler/icons-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -46,6 +47,7 @@ import classes from '../../app/globals.module.css';
 import { usePriorityFee } from '../../hooks/usePriorityFee';
 import { NUMERAL_FORMAT } from '../../lib/constants';
 import { NavigationLinks } from './NavigationLinks';
+import { DialectNotificationComponent } from '@/components/Plugins/DialectNotification';
 
 const links = [
   {
@@ -104,6 +106,7 @@ function useTokenPrice() {
 export function Layout({ children }: { children: React.ReactNode }) {
   const wallet = useWallet();
   const modal = useWalletModal();
+  const pinned = useHeadroom({ fixedAt: 200 });
   const { network, endpoint, setNetwork, setCustomEndpoint } = useNetworkConfiguration();
   const { explorer, setExplorer } = useExplorerConfiguration();
   const colorScheme = useMantineColorScheme();
@@ -114,6 +117,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [solPrice, setSolPrice] = useState<number>();
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(false);
+  const [collapseFooter, setCollapseFooter] = useState(false);
 
   useFavicon(_favicon.src);
   useEffect(() => {
@@ -157,13 +161,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
     />
   );
 
+  const hasScrollbar = () => document.body.clientHeight > window.innerHeight;
+
+  useEffect(() => {
+    if (pinned && hasScrollbar()) {
+      setCollapseFooter(true);
+    }
+    if (!pinned && hasScrollbar()) {
+      setCollapseFooter(false);
+    }
+  }, [pinned]);
+
   return (
     <div>
       <AppShell
         header={{ height: 60 }}
         navbar={{ breakpoint: 'md', width: 200, collapsed: { mobile: !mobileOpened, desktop: !desktopOpened } }}
         padding="md"
-        footer={{ height: 100 }}
+        footer={{ height: 100, collapsed: collapseFooter, offset: true }}
       >
         <AppShell.Header withBorder>
           <Flex justify="space-between" align="center" p="md" w="100%" h="100%">
@@ -196,19 +211,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
             <Group>
               {wallet?.publicKey ? (
+                <>
+                <DialectNotificationComponent />
                 <Menu position="bottom-end">
                   <Menu.Target>
-                    <Button variant="secondary">{shortKey(wallet.publicKey)}</Button>
+                    <Button variant="secondary"><IconPlugConnected strokeWidth={0.85} /></Button>
                   </Menu.Target>
                   <Menu.Dropdown>
                     <Stack p="md" align="center">
-                      <NativeSelect
-                        w="100%"
-                        label="Network"
-                        data={networks}
-                        value={network}
-                        onChange={(e) => setNetwork(e.target.value as Networks)}
-                      />
+                    <NativeSelect
+                      w="100%"
+                      label="Network"
+                      data={networks}
+                      value={network}
+                      onChange={(e) => setNetwork(e.target.value as Networks)}
+                    />
                       {network === Networks.Custom ? (
                         <TextInput
                           label="RPC URL"
@@ -217,6 +234,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
                           defaultValue={endpoint}
                         />
                       ) : null}
+                    </Stack>
+                  </Menu.Dropdown>
+                </Menu>
+                <Menu position="bottom-end">
+                  <Menu.Target>
+                    <Button variant="secondary">{shortKey(wallet.publicKey)}</Button>
+                  </Menu.Target>
+                  <Menu.Dropdown>
+                    <Stack p="md" align="center">
                       <NativeSelect
                         w="100%"
                         label="Explorer"
@@ -241,7 +267,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     </Stack>
                   </Menu.Dropdown>
                 </Menu>
-              ) : (
+                </>) : (
                 <Button
                   variant="outline"
                   onClick={() => modal.setVisible(true)}

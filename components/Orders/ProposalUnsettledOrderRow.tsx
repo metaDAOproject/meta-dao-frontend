@@ -32,7 +32,7 @@ export function ProposalUnsettledOrderRow({ order }: { order: OpenOrdersAccountW
   const { generateExplorerLink } = useExplorerConfiguration();
   const { proposal, crankMarkets, isCranking } = useProposal();
   const { settleFundsTransactions, closeOpenOrdersAccountTransactions } = useOpenbookTwap();
-  const { program: openbookClient } = useOpenbook();
+  const { client: openbookClient } = useOpenbook();
   const isBidSide = isBid(order);
   const pass = proposal ? order.account.market.equals(proposal.account.openbookPassMarket) : null;
 

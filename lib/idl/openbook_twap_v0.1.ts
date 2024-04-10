@@ -1,5 +1,5 @@
-export type OpenbookTwap = {
-  version: '1.0.0';
+export type OpenbookTwapV0_1 = {
+  version: '0.1.0';
   name: 'openbook_twap';
   instructions: [
     {
@@ -729,8 +729,8 @@ export type OpenbookTwap = {
   ];
 };
 
-export const IDL: OpenbookTwap = {
-  version: '1.0.0',
+export const IDL: OpenbookTwapV0_1 = {
+  version: '0.1.0',
   name: 'openbook_twap',
   instructions: [
     {

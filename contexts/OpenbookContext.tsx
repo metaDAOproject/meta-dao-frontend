@@ -38,13 +38,13 @@ export function OpenbookProvider({
   const provider = useProvider();
   const [markets, setMarkets] = useState<Market[]>();
 
+  const program = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
+
   const findAllMarkets = useCallback(
     async () => {
       if (provider == null) {
         return;
       }
-      const program = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
-
       const [eventAuthority] = PublicKey.findProgramAddressSync(
         [Buffer.from('__event_authority')],
         OPENBOOK_PROGRAM_ID,

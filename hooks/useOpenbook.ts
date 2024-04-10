@@ -3,11 +3,10 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import {
   PublicKey,
   Transaction,
-  //Keypair,
 } from '@solana/web3.js';
-import { OPENBOOK_PROGRAM_ID, OpenBookV2Client, uiPriceToLots, uiQuoteToLots, uiBaseToLots } from '@openbook-dex/openbook-v2';
+import { OPENBOOK_PROGRAM_ID, OpenBookV2Client, uiPriceToLots, uiQuoteToLots, uiBaseToLots, OpenbookV2, IDL as OPENBOOK_IDL } from '@openbook-dex/openbook-v2';
 import { PlaceOrderArgs } from '@openbook-dex/openbook-v2/dist/types/client';
-import { BN } from '@coral-xyz/anchor';
+import { BN, Program } from '@coral-xyz/anchor';
 import {
   SelfTradeBehavior,
   OrderType,
@@ -35,7 +34,12 @@ const SYSTEM_PROGRAM: PublicKey = new PublicKey('1111111111111111111111111111111
 export function useOpenbook() {
   const wallet = useWallet();
   const provider = useProvider();
-  const openbook = useMemo(() => new OpenBookV2Client(provider, OPENBOOK_PROGRAM_ID), [provider]);
+  const openbook = useMemo(
+    () => new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider), [provider]
+  );
+  const openbookClient = useMemo(
+    () => new OpenBookV2Client(provider, OPENBOOK_PROGRAM_ID), [provider]
+  );
 
   const createPlaceOrderArgs = (market: any, {
     amount,
@@ -78,12 +82,12 @@ export function useOpenbook() {
     const openOrdersIndexer = findOpenOrdersIndexer(signer);
     let accountIndex = new BN(1);
     try {
-      const indexer = await openbook.program.account.openOrdersIndexer.fetch(openOrdersIndexer);
+      const indexer = await openbook.account.openOrdersIndexer.fetch(openOrdersIndexer);
       accountIndex = new BN((indexer?.createdCounter || 0) + 1 + (indexOffset || 0));
     } catch {
       if (!indexOffset) {
         openTx.add(
-          await createOpenOrdersIndexerInstruction(openbook.program, openOrdersIndexer, signer),
+          await createOpenOrdersIndexerInstruction(openbook, openOrdersIndexer, signer),
         );
       } else {
         accountIndex = new BN(1 + (indexOffset || 0));
@@ -115,7 +119,7 @@ export function useOpenbook() {
         signer: pubkey,
       });
       const [ixs, openOrdersAccount] = await createOpenOrdersInstruction(
-        openbook.program,
+        openbook,
         market.publicKey,
         accountIndex,
         `${shortKey(pubkey)}-${accountIndex.toString()}`,
@@ -123,10 +127,10 @@ export function useOpenbook() {
         openOrdersIndexer,
       );
       openTx.add(...ixs);
-      const _market = await openbook.deserializeMarketAccount(market.publicKey);
+      const _market = await openbookClient.deserializeMarketAccount(market.publicKey);
       const args = createPlaceOrderArgs(_market, { amount, price, limitOrder, ask, accountIndex });
 
-      const placeTx = await openbook.program.methods
+      const placeTx = await openbook.methods
         .placeOrder(args)
         .accounts({
           openOrdersAccount,
@@ -174,7 +178,7 @@ export function useOpenbook() {
       const userBaseAccount = userBase;
       const userQuoteAccount = userQuote;
 
-      const placeTx = await openbook.program.methods
+      const placeTx = await openbook.methods
         .settleFunds()
         .accounts({
           owner: wallet.publicKey,
@@ -218,7 +222,7 @@ export function useOpenbook() {
 
       const openOrdersIndexer = findOpenOrdersIndexer(wallet.publicKey);
       const openOrdersAccount = findOpenOrders(orderId, wallet.publicKey);
-      const closeTx = await openbook.program.methods
+      const closeTx = await openbook.methods
         .closeOpenOrdersAccount()
         .accounts({
           owner: wallet.publicKey,
@@ -240,7 +244,7 @@ export function useOpenbook() {
       }
 
       const openOrdersAccount = findOpenOrders(orderId, wallet.publicKey);
-      const placeTx = await openbook.program.methods
+      const placeTx = await openbook.methods
         .cancelOrderByClientOrderId(orderId)
         .accounts({
           openOrdersAccount,
@@ -280,7 +284,7 @@ export function useOpenbook() {
       const userBaseAccount = userBase;
       const userQuoteAccount = userQuote;
 
-      const placeTx = await openbook.program.methods
+      const placeTx = await openbook.methods
         .settleFunds()
         .accounts({
           owner: wallet.publicKey,
@@ -297,7 +301,7 @@ export function useOpenbook() {
           systemProgram: SYSTEM_PROGRAM,
         })
         .preInstructions([
-          await openbook.program.methods
+          await openbook.methods
             .cancelOrderByClientOrderId(orderId)
             .accounts({
               openOrdersAccount,
@@ -331,6 +335,7 @@ export function useOpenbook() {
     closeOpenOrdersAccountTransactions,
     cancelAndSettleFundsTransactions,
     settleFundsTransactions,
+    client: openbookClient,
     program: openbook,
   };
 }

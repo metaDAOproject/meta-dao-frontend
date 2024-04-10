@@ -5,14 +5,26 @@ import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { StateBadge } from './StateBadge';
 import { Proposal } from '@/lib/types';
 import ExternalLink from '../ExternalLink';
-import { shortKey } from '../../lib/utils';
+import { shortKey } from '@/lib/utils';
 
-export function ProposalPreview({ proposal }: { proposal: Proposal }) {
+export type ProposalPreviewProps = {
+  proposal: Proposal;
+  programIdKey: string;
+  proposalNumber: number;
+};
+
+export function ProposalPreview(props: ProposalPreviewProps) {
+  const { proposal, programIdKey, proposalNumber } = props;
   const router = useRouter();
   const { generateExplorerLink } = useExplorerConfiguration();
 
   return (
-    <UnstyledButton onClick={() => router.push(`/proposal?id=${proposal.account.number}`)}>
+    <UnstyledButton
+      onClick={(e) => {
+        e.preventDefault();
+        router.push(`/program/proposal?programKey=${programIdKey}&proposalNumber=${proposalNumber}`);
+      }}
+    >
       <Card
         key={proposal.publicKey.toString()}
         shadow="sm"
@@ -29,11 +41,6 @@ export function ProposalPreview({ proposal }: { proposal: Proposal }) {
             </Text>
             <StateBadge proposal={proposal} />
           </Group>
-          {proposal.description && (
-            <Group mt="-20px" h="120" style={{ overflow: 'hidden' }}>
-              {/* <Markdown>{proposal.description.replaceAll('\n', '')}</Markdown> */}
-            </Group>
-          )}
           <Group justify="space-between">
             <ExternalLink href={proposal.account.descriptionUrl} text="See more" />
             <Text opacity={0.6}>

@@ -7,10 +7,10 @@ import {
   AnyNode,
   LeafNode,
   OpenbookV2,
-  IDL as OPENBOOK_IDL,
-  OPENBOOK_PROGRAM_ID,
   MarketAccount,
   OpenBookV2Client,
+  priceLotsToUi,
+  baseLotsToUi,
 } from '@openbook-dex/openbook-v2';
 import {
   MarketAccountWithKey,
@@ -26,6 +26,7 @@ import { useConditionalVault } from '@/hooks/useConditionalVault';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _isOpenOrder,
   getLeafNodes,
   getUsersOpenOrderPks,
@@ -66,6 +67,8 @@ export interface ProposalInterface {
   lastFailSlotUpdated: number;
   refreshUserOpenOrders: (
     openBookClient: OpenBookV2Client,
+    passMarket: MarketAccount,
+    failMarket: MarketAccount,
     proposal: Proposal,
     passBids: LeafNode[],
     passAsks: LeafNode[],
@@ -83,17 +86,18 @@ export interface ProposalInterface {
     amount: number,
     price: number,
     market: MarketAccountWithKey,
-    limitOrder?: boolean | undefined,
-    ask?: boolean | undefined,
-    pass?: boolean | undefined,
+    isLimitOrder?: boolean | undefined,
+    isPostOnly?: boolean | undefined,
+    isAsk?: boolean | undefined,
     indexOffset?: number | undefined,
   ) => Promise<any>;
   placeOrder: (
     amount: number,
     price: number,
-    limitOrder?: boolean,
-    ask?: boolean,
-    pass?: boolean,
+    isLimitOrder?: boolean,
+    isPostOnly?: boolean,
+    isAsk?: boolean,
+    isPassMarket?: boolean,
   ) => Promise<string[] | void>;
   cancelAndSettleOrder: (
     order: OpenOrdersAccountWithKey,
@@ -120,17 +124,27 @@ export function ProposalMarketsProvider({
   proposalNumber?: number | undefined;
   fromProposal?: ProposalAccountWithKey;
 }) {
+  // TODO: Do we need provider vs wallet vs sender?
   const provider = useProvider();
-  // TODO: do we need this variable when we have openbook from the autocrat hook below?
-  const openBookProgram = new Program<OpenbookV2>(OPENBOOK_IDL, OPENBOOK_PROGRAM_ID, provider);
   const client = useQueryClient();
-  const { openbook, openbookTwap, proposals } = useAutocrat();
-  const { connection } = useConnection();
   const wallet = useWallet();
   const sender = useTransactionSender();
-  const { placeOrderTransactions, cancelAndSettleFundsTransactions } = useOpenbookTwap();
-  const { program: openBookClient } = useOpenbook();
+  // TODO: If we have network do we need connection?
+  const { connection } = useConnection();
+
+  // Futarchic DAO System
+  const { proposals } = useAutocrat();
   const { program: vaultProgram } = useConditionalVault();
+
+  // Markets
+  const {
+    placeOrderTransactions,
+    cancelAndSettleFundsTransactions,
+    program: openbookTwap,
+  } = useOpenbookTwap();
+  const { client: openBookClient, program: openbook } = useOpenbook();
+
+  // State management
   const [loading, setLoading] = useState(false);
   const [markets, setMarkets] = useState<Markets>();
   const [openOrders, setOpenOrders] = useState<OpenOrdersAccountWithKey[]>([]);
@@ -159,8 +173,11 @@ export function ProposalMarketsProvider({
   const fetchNonOpenOrders = useCallback(
     async (
       owner: PublicKey,
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       openbook: Program<OpenbookV2> | undefined,
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       proposal: Proposal | undefined,
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       markets: Markets | undefined,
     ) => {
       const nonOpenOrders = await client.fetchQuery({
@@ -194,9 +211,11 @@ export function ProposalMarketsProvider({
       if (nonOpenOrders.length > 0) {
         const [passUnsettledOrders, passUncrankedOrders, failUnsettledOrders, failUncrankedOrders] =
           nonOpenOrders;
+        // eslint-disable-next-line @typescript-eslint/no-shadow
         const unsettledOrders = [...passUnsettledOrders, ...failUnsettledOrders].sort((a, b) =>
           a.account.accountNum < b.account.accountNum ? 1 : -1,
         );
+        // eslint-disable-next-line @typescript-eslint/no-shadow
         const uncrankedOrders = [...passUncrankedOrders, ...failUncrankedOrders].sort((a, b) =>
           a.account.accountNum < b.account.accountNum ? 1 : -1,
         );
@@ -309,8 +328,11 @@ export function ProposalMarketsProvider({
 
   useEffect(() => {
     if (proposal && wallet.publicKey && markets) {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       refreshUserOpenOrders(
         openBookClient,
+        markets.pass,
+        markets.fail,
         proposal,
         markets.passBids,
         markets.passAsks,
@@ -327,14 +349,14 @@ export function ProposalMarketsProvider({
   }, [markets, fetchMarketsInfo, proposal]);
 
   const orderBookObject = useMemo(() => {
-    const getSide = (side: LeafNode[], isBidSide?: boolean) => {
+    const getSide = (market: MarketAccount, side: LeafNode[], isBidSide?: boolean) => {
       if (side.length === 0) {
         return null;
       }
       const parsed = side
         .map((e) => ({
-          price: e.key.shrn(64).toNumber(),
-          size: e.quantity.toNumber(),
+          price: priceLotsToUi(market, e.key.shrn(64)),
+          size: baseLotsToUi(market, e.quantity),
         }))
         .sort((a, b) => a.price - b.price);
 
@@ -358,12 +380,16 @@ export function ProposalMarketsProvider({
       return { parsed, total, deduped };
     };
 
-    const orderBookSide = (orderBookForSide: LeafNode[], isBidSide?: boolean) => {
+    const orderBookSide = (
+      market: MarketAccount,
+      orderBookForSide: LeafNode[],
+      isBidSide?: boolean
+    ) => {
       if (orderBookForSide) {
-        const _orderBookSide = getSide(orderBookForSide, isBidSide);
+        const _orderBookSide = getSide(market, orderBookForSide, isBidSide);
         if (_orderBookSide) {
           return Array.from(_orderBookSide.deduped?.entries()).map((side) => [
-            (side[0] / 10_000).toFixed(4),
+            side[0],
             side[1],
           ]);
         }
@@ -374,9 +400,9 @@ export function ProposalMarketsProvider({
       return [[69, 0]];
     };
 
-    const getToB = (bids: LeafNode[], asks: LeafNode[]) => {
-      const _bids = orderBookSide(bids, true);
-      const _asks = orderBookSide(asks);
+    const getToB = (market: MarketAccount, bids: LeafNode[], asks: LeafNode[]) => {
+      const _bids = orderBookSide(market, bids, true);
+      const _asks = orderBookSide(market, asks);
       const tobAsk: number = Number(_asks[0][0]);
       const tobBid: number = Number(_bids[0][0]);
       return {
@@ -384,9 +410,9 @@ export function ProposalMarketsProvider({
         topBid: tobBid,
       };
     };
-
-    const getSpreadString = (bids: LeafNode[], asks: LeafNode[]) => {
-      const { topAsk, topBid } = getToB(bids, asks);
+    // TODO: This is broken on update
+    const getSpreadString = (market: MarketAccount, bids: LeafNode[], asks: LeafNode[]) => {
+      const { topAsk, topBid } = getToB(market, bids, asks);
       const spread: number = topAsk - topBid;
       const spreadPercent: string = ((spread / topBid) * 100).toFixed(2);
 
@@ -397,18 +423,18 @@ export function ProposalMarketsProvider({
 
     if (markets) {
       return {
-        passBidsProcessed: getSide(markets.passBids, true),
-        passAsksProcessed: getSide(markets.passAsks),
-        passBidsArray: orderBookSide(markets.passBids, true),
-        passAsksArray: orderBookSide(markets.passAsks),
-        failBidsProcessed: getSide(markets.failBids, true),
-        failAsksProcessed: getSide(markets.failAsks),
-        failBidsArray: orderBookSide(markets.failBids, true),
-        failAsksArray: orderBookSide(markets.failAsks),
-        passToB: getToB(markets.passBids, markets.passAsks),
-        failToB: getToB(markets.failBids, markets.failAsks),
-        passSpreadString: getSpreadString(markets.passBids, markets.passAsks),
-        failSpreadString: getSpreadString(markets.failBids, markets.failAsks),
+        passBidsProcessed: getSide(markets.pass, markets.passBids, true),
+        passAsksProcessed: getSide(markets.pass, markets.passAsks),
+        passBidsArray: orderBookSide(markets.pass, markets.passBids, true),
+        passAsksArray: orderBookSide(markets.pass, markets.passAsks),
+        failBidsProcessed: getSide(markets.fail, markets.failBids, true),
+        failAsksProcessed: getSide(markets.fail, markets.failAsks),
+        failBidsArray: orderBookSide(markets.fail, markets.failBids, true),
+        failAsksArray: orderBookSide(markets.fail, markets.failAsks),
+        passToB: getToB(markets.pass, markets.passBids, markets.passAsks),
+        failToB: getToB(markets.fail, markets.failBids, markets.failAsks),
+        passSpreadString: getSpreadString(markets.pass, markets.passBids, markets.passAsks),
+        failSpreadString: getSpreadString(markets.fail, markets.failBids, markets.failAsks),
       };
     }
     return undefined;
@@ -416,17 +442,25 @@ export function ProposalMarketsProvider({
 
   const refreshUserOpenOrders = useCallback(
     async (
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       client: OpenBookV2Client,
+      passMarket: MarketAccount,
+      failMarket: MarketAccount,
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       proposal: Proposal,
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       passBids: LeafNode[],
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       passAsks: LeafNode[],
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       failBids: LeafNode[],
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       failAsks: LeafNode[],
     ) => {
       if (wallet.publicKey) {
         const passBidOrders = passBids.map((leafNode) => {
-          const size = leafNode.quantity.toNumber();
-          const price = leafNode.key.shrn(64).toNumber() / 10_000;
+          const size = baseLotsToUi(passMarket, leafNode.quantity);
+          const price = priceLotsToUi(passMarket, leafNode.key.shrn(64));
           return {
             price,
             size,
@@ -439,8 +473,8 @@ export function ProposalMarketsProvider({
           };
         });
         const passAskOrders = passAsks.map((leafNode) => {
-          const size = leafNode.quantity.toNumber();
-          const price = leafNode.key.shrn(64).toNumber() / 10_000;
+          const size = baseLotsToUi(passMarket, leafNode.quantity);
+          const price = priceLotsToUi(passMarket, leafNode.key.shrn(64));
           return {
             price,
             size,
@@ -453,8 +487,8 @@ export function ProposalMarketsProvider({
           };
         });
         const failBidOrders = failBids.map((leafNode) => {
-          const size = leafNode.quantity.toNumber();
-          const price = leafNode.key.shrn(64).toNumber() / 10_000;
+          const size = baseLotsToUi(failMarket, leafNode.quantity);
+          const price = priceLotsToUi(failMarket, leafNode.key.shrn(64));
           return {
             price,
             size,
@@ -467,8 +501,8 @@ export function ProposalMarketsProvider({
           };
         });
         const failAskOrders = failAsks.map((leafNode) => {
-          const size = leafNode.quantity.toNumber();
-          const price = leafNode.key.shrn(64).toNumber() / 10_000;
+          const size = baseLotsToUi(failMarket, leafNode.quantity);
+          const price = priceLotsToUi(failMarket, leafNode.key.shrn(64));
           return {
             price,
             size,
@@ -486,9 +520,9 @@ export function ProposalMarketsProvider({
         const allOrders = [...passBidOrders, ...passAskOrders, ...failBidOrders, ...failAskOrders];
 
         const userOrders = allOrders
-          .filter((o): o is OrderBookOrder => {
-            return !!o.market && openOrdersPks.includes(o.owner?.toString());
-          })
+          .filter((o): o is OrderBookOrder => (
+            !!o.market && openOrdersPks.includes(o.owner?.toString())
+          ))
           .map((o) => {
             const position: OpenOrdersAccountWithKey['account']['position'] =
               o.side === 'bids'
@@ -552,12 +586,21 @@ export function ProposalMarketsProvider({
   );
 
   const placeOrder = useCallback(
-    async (amount: number, price: number, limitOrder?: boolean, ask?: boolean, pass?: boolean) => {
+    async (
+      amount: number,
+      price: number,
+      isLimitOrder?: boolean,
+      isPostOnly?: boolean,
+      isAsk?: boolean,
+      isPassMarket?: boolean
+    ) => {
       if (!proposal || !markets) return;
-      const market = pass
+      const market = isPassMarket
         ? { publicKey: proposal?.account.openbookPassMarket, account: markets?.pass }
         : { publicKey: proposal?.account.openbookFailMarket, account: markets?.fail };
-      const placeTxs = await placeOrderTransactions(amount, price, market, limitOrder, ask, pass);
+      const placeTxs = await placeOrderTransactions(
+        amount, price, market, isLimitOrder, isPostOnly, isAsk
+      );
 
       if (!placeTxs || !wallet.publicKey) {
         return;
@@ -597,27 +640,29 @@ export function ProposalMarketsProvider({
       side: string,
       updatedAccountInfo: AccountInfo<Buffer>,
       market: PublicKey,
+      // eslint-disable-next-line @typescript-eslint/no-shadow
       markets: Markets,
       ctx: Context,
     ): number[][] | undefined => {
       try {
         const isPassMarket = market === proposal?.account.openbookPassMarket;
-        const leafNodes = openBookProgram.coder.accounts.decode(
+        const sideMarket = isPassMarket ? markets.pass : markets.fail;
+        const leafNodes = openbook.coder.accounts.decode(
           'bookSide',
           updatedAccountInfo.data,
         );
         const leafNodesData: AnyNode[] = leafNodes.nodes.nodes.filter((x: AnyNode) => x.tag === 2);
 
         const leafNodeSide = leafNodesData.map((x) => {
-          const leafNode: LeafNode = openBookProgram.coder.types.decode(
+          const leafNode: LeafNode = openbook.coder.types.decode(
             'LeafNode',
             Buffer.from([0, ...x.data]),
           );
           return leafNode;
         });
         const _side = leafNodeSide.map((leafNode) => {
-          const size = leafNode.quantity.toNumber();
-          const price = leafNode.key.shrn(64).toNumber() / 10_000;
+          const size = baseLotsToUi(sideMarket, leafNode.quantity);
+          const price = priceLotsToUi(sideMarket, leafNode.key.shrn(64));
           return {
             price,
             size,
@@ -659,7 +704,7 @@ export function ProposalMarketsProvider({
         let __side: any[][];
         if (_aggreateSide) {
           __side = Array.from(_aggreateSide.entries()).map((_side_) => [
-            _side_[0].toFixed(4),
+            _side_[0],
             _side_[1],
           ]);
         } else {
@@ -677,6 +722,8 @@ export function ProposalMarketsProvider({
               setMarkets({ ...markets });
               refreshUserOpenOrders(
                 openBookClient,
+                markets.pass,
+                markets.fail,
                 proposal,
                 markets.passBids,
                 leafNodeSide,
@@ -691,6 +738,8 @@ export function ProposalMarketsProvider({
               setMarkets({ ...markets });
               refreshUserOpenOrders(
                 openBookClient,
+                markets.pass,
+                markets.fail,
                 proposal,
                 leafNodeSide,
                 markets.passAsks,
@@ -708,6 +757,8 @@ export function ProposalMarketsProvider({
               setMarkets({ ...markets });
               refreshUserOpenOrders(
                 openBookClient,
+                markets.pass,
+                markets.fail,
                 proposal,
                 markets.passBids,
                 markets.passAsks,
@@ -722,6 +773,8 @@ export function ProposalMarketsProvider({
               setMarkets({ ...markets });
               refreshUserOpenOrders(
                 openBookClient,
+                markets.pass,
+                markets.fail,
                 proposal,
                 markets.passBids,
                 markets.passAsks,
@@ -804,8 +857,11 @@ export function ProposalMarketsProvider({
   }, [orderBookObject]);
 
   const listenOrderBooks = async (
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     proposal: Proposal,
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     markets: Markets,
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     openBookProgram: Program<OpenbookV2>,
   ) => {
     if (!proposal || !markets) return;
@@ -900,9 +956,9 @@ export function ProposalMarketsProvider({
 
   useEffect(() => {
     const handleOrderBooklistening = async () => {
-      if (!wsConnected && proposal && markets && openBookProgram) {
+      if (!wsConnected && proposal && markets && openbook) {
         // connect for both pass and fail market order books
-        const subscriptionIds = await listenOrderBooks(proposal, markets, openBookProgram);
+        const subscriptionIds = await listenOrderBooks(proposal, markets, openbook);
         return () => {
           subscriptionIds?.forEach((s) => {
             connection.removeAccountChangeListener(s);
@@ -911,7 +967,7 @@ export function ProposalMarketsProvider({
       }
     };
     handleOrderBooklistening();
-  }, [wsConnected, !!proposal, !!markets, !!openBookProgram]);
+  }, [wsConnected, !!proposal, !!markets, !!openbook]);
   useEffect(() => {
     fetchMarketsInfo();
   }, [proposal]);

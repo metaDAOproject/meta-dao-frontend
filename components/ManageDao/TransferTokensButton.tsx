@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@mantine/core';
+import { Button, Loader } from '@mantine/core';
 import { useCallback } from 'react';
 import {
   createAssociatedTokenAccountIdempotentInstruction,
@@ -10,41 +10,41 @@ import {
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Transaction } from '@solana/web3.js';
 import { useAutocrat } from '../../contexts/AutocratContext';
-import { useTokens } from '../../hooks/useTokens';
 import { useTransactionSender } from '../../hooks/useTransactionSender';
 
 export default function TransferTokensButton() {
   const wallet = useWallet();
-  const { tokens } = useTokens();
-  const { autocratProgram, daoTreasury } = useAutocrat();
+  const { autocratProgram, daoTreasuryKey, daoTokens } = useAutocrat();
+  if (!daoTokens) return <Loader />;
+
   const sender = useTransactionSender();
 
   const handleTransfer = useCallback(async () => {
-    if (!tokens.meta?.publicKey || !wallet?.publicKey || !daoTreasury) {
+    if (!daoTokens || !daoTokens.baseToken || !wallet?.publicKey || !daoTreasuryKey) {
       return;
     }
+    const { baseToken } = daoTokens;
     const txs = [
       new Transaction()
         .add(
           createAssociatedTokenAccountIdempotentInstruction(
             wallet.publicKey,
-            getAssociatedTokenAddressSync(tokens.meta.publicKey, daoTreasury, true),
-            daoTreasury,
-            tokens.meta.publicKey,
+            getAssociatedTokenAddressSync(baseToken.publicKey, daoTreasuryKey, true),
+            daoTreasuryKey,
+            baseToken.publicKey,
           ),
         )
         .add(
           createTransferInstruction(
-            getAssociatedTokenAddressSync(tokens.meta.publicKey, wallet.publicKey, true),
-            getAssociatedTokenAddressSync(tokens.meta.publicKey, daoTreasury, true),
+            getAssociatedTokenAddressSync(baseToken.publicKey, wallet.publicKey, true),
+            getAssociatedTokenAddressSync(baseToken.publicKey, daoTreasuryKey, true),
             wallet.publicKey,
             1000000000n,
           ),
         ),
     ];
-    console.log(txs);
     await sender.send(txs);
-  }, [autocratProgram, tokens]);
+  }, [autocratProgram]);
 
   return <Button onClick={() => handleTransfer()}>Transfer tokens</Button>;
 }

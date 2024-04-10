@@ -1,13 +1,13 @@
-import { calculateTWAP, getLastObservedAndSlot } from '@/lib/openbookTwap';
 import { AccountInfo, PublicKey } from '@solana/web3.js';
-
 import { useConnection } from '@solana/wallet-adapter-react';
+import { calculateTWAP, getLastObservedAndSlot } from '@/lib/openbookTwap';
+
 import { Markets } from '@/lib/types';
-import { useAutocrat } from '@/contexts/AutocratContext';
 import useAccountSubscription from './useAccountSubscription';
-import { useQuery } from '@tanstack/react-query';
 import { useProposal } from '@/contexts/ProposalContext';
 import useClusterDataSubscription from './useClusterDataSubscription';
+import { useOpenbookTwap } from './useOpenbookTwap';
+import { useAutocrat } from '@/contexts/AutocratContext';
 
 // these have the same structure but assigning them both to TwapStructure type for understanding
 export type TwapStructure = Markets['passTwap'] | Markets['failTwap'];
@@ -26,13 +26,27 @@ const useTwapSubscription = (
   twapMarket: PublicKey | undefined,
   midPrice: number | undefined,
 ): TwapSubscriptionRes => {
-  const { openbookTwap } = useAutocrat();
+  const { program: openbookTwap } = useOpenbookTwap();
   const { connection } = useConnection();
   const { proposal } = useProposal();
+  const { daoState, programVersion } = useAutocrat();
+  const maxObservationChangePerUpdateLots = daoState?.maxObservationChangePerUpdateLots;
   const {
     data: { slot },
   } = useClusterDataSubscription();
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   const getObservableTwap = (midPrice: number, lastObservationValue: number) => {
+    // NOTE: Forumla has changed across versions.
+    if (programVersion && programVersion.label !== 'V0.2') {
+      if (midPrice > lastObservationValue) {
+        const max_observation = (lastObservationValue + maxObservationChangePerUpdateLots);
+        const evaluated = Math.min(midPrice, max_observation);
+        return evaluated;
+      }
+      const min_observation = (lastObservationValue - maxObservationChangePerUpdateLots);
+      const evaluated = Math.max(midPrice, min_observation);
+      return evaluated;
+    }
     if (midPrice > lastObservationValue) {
       const max_observation = (lastObservationValue * (10_000 + 100)) / 10_000 + 1;
       const evaluated = Math.min(midPrice, max_observation);
@@ -46,14 +60,18 @@ const useTwapSubscription = (
   const getTotalImpact = (
     aggregateObservation: number,
     lastObservationValue: number,
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     midPrice: number,
+    // eslint-disable-next-line @typescript-eslint/no-shadow
     slot: number,
   ): number => {
     const twapObserved = getObservableTwap(midPrice, lastObservationValue);
     if (twapObserved) {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       const _slotDiffObserved = twapObserved * (slot - lastObservedSlot);
       const newAggregate = aggregateObservation + _slotDiffObserved;
       const startSlot = proposal?.account.slotEnqueued.toNumber();
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       const proposalTimeInSlots: number = lastObservedSlot - startSlot;
       const oldValue = aggregateObservation / proposalTimeInSlots;
       const newValue = newAggregate / proposalTimeInSlots;
@@ -73,12 +91,12 @@ const useTwapSubscription = (
   };
   const twapSubscriptionCallback = async (
     accountInfo: AccountInfo<Buffer>,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _: any,
-  ): Promise<TwapStructure> => {
-    return openbookTwap!.coder.accounts.decodeUnchecked('TWAPMarket', accountInfo.data);
-  };
+  ): Promise<TwapStructure> => openbookTwap!.coder.accounts.decodeUnchecked('TWAPMarket', accountInfo.data);
 
   const twapSubAccount = twapMarket ? { publicKey: twapMarket, metaData: {} } : undefined;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [{ data: twapData, isLoading: twapLoading }, _set] = useAccountSubscription<
     TwapStructure,
     any
@@ -90,7 +108,7 @@ const useTwapSubscription = (
 
   const twap = calculateTWAP(twapData?.twapOracle);
   const aggregateObservation =
-    Number.parseInt(twapData?.twapOracle.observationAggregator.toString()) ?? 0;
+    Number.parseInt(twapData?.twapOracle.observationAggregator.toString(), 10) ?? 0;
   const lastObservedAndSlot = getLastObservedAndSlot(twapData?.twapOracle);
   const lastObservedSlot = lastObservedAndSlot?.lastObservationSlot?.toNumber();
   const lastObservationValue = lastObservedAndSlot?.lastObservationValue;

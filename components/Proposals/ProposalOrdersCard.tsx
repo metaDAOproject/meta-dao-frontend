@@ -8,11 +8,13 @@ import { ProposalUnsettledOrdersTab } from '@/components/Orders/ProposalUnsettle
 import { useProposal } from '@/contexts/ProposalContext';
 import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 import { useOpenbook } from '@/hooks/useOpenbook';
-import { totalMetaInOrder, totalUsdcInOrder } from '@/lib/openbook';
+import { totalBaseInOrder, totalUsdcInOrder } from '@/lib/openbook';
+import { useAutocrat } from '@/contexts/AutocratContext';
 
 export function ProposalOrdersCard() {
   const { publicKey: owner } = useWallet();
   const { proposal } = useProposal();
+  const { daoTokens } = useAutocrat();
   const {
     markets,
     openOrders,
@@ -21,7 +23,7 @@ export function ProposalOrdersCard() {
     refreshUserOpenOrders,
     fetchNonOpenOrders,
   } = useProposalMarkets();
-  const { program: openBookClient } = useOpenbook();
+  const { program: openbook, client: openBookClient } = useOpenbook();
 
   if (!openOrders || !markets) return <></>;
 
@@ -29,6 +31,8 @@ export function ProposalOrdersCard() {
     if (proposal && markets) {
       refreshUserOpenOrders(
         openBookClient,
+        markets.pass,
+        markets.fail,
         proposal,
         markets.passBids,
         markets.passAsks,
@@ -41,7 +45,7 @@ export function ProposalOrdersCard() {
   const onTabChange = useCallback(
     (event: string | null) => {
       if ((event === 'unsettled' || event === 'uncranked') && owner) {
-        fetchNonOpenOrders(owner, openBookClient.program, proposal, markets);
+        fetchNonOpenOrders(owner, openbook, proposal, markets);
       }
     },
     [!!owner],
@@ -63,14 +67,14 @@ export function ProposalOrdersCard() {
               <Text span fw="bold">
                 ${totalUsdcInOrder(openOrders)}
               </Text>{' '}
-              condUSDC
+              cond{daoTokens?.quoteToken?.symbol}
             </Text>
             <Text>|</Text>
             <Text size="lg">
               <Text span fw="bold">
-                {totalMetaInOrder(openOrders)}
+                {totalBaseInOrder(openOrders)}
               </Text>{' '}
-              condMETA
+              cond{daoTokens?.baseToken?.symbol}
             </Text>
           </Group>
           <ActionIcon

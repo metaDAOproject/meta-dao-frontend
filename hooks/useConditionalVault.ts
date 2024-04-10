@@ -6,20 +6,30 @@ import {
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import numeral from 'numeral';
-import { ConditionalVault, IDL as CONDITIONAL_VAULT_IDL } from '../lib/idl/conditional_vault';
+import { ConditionalVault as ConditionalVaultV0, IDL as CONDITIONAL_VAULT_IDLV0 } from '@/lib/idl/conditional_vault';
+import { ConditionalVaultV0_2, IDL as CONDITIONAL_VAULT_IDLV0_2 } from '@/lib/idl/conditional_vault_v0.2';
 import { useProvider } from './useProvider';
-import { useTokens } from './useTokens';
-import { InitializedVault, ProposalAccount, VaultAccount, VaultAccountWithKey } from '../lib/types';
+import { InitializedVault, ProposalAccount, VaultAccount, VaultAccountWithKey } from '@/lib/types';
+import { useAutocrat } from '@/contexts/AutocratContext';
 
 export function useConditionalVault() {
   const provider = useProvider();
-  const programId = new PublicKey('vaU1tVLj8RFk7mNj1BxqgAsMKKaL8UvEUHvU3tdbZPe');
-  const program = useMemo(
-    () => new Program<ConditionalVault>(CONDITIONAL_VAULT_IDL, programId, provider),
-    [provider, programId],
+  const { daoTokens, programVersion } = useAutocrat();
+
+  const vaultV0 = new PublicKey('vaU1tVLj8RFk7mNj1BxqgAsMKKaL8UvEUHvU3tdbZPe');
+  const vaultV0_2 = new PublicKey('vAuLTQjV5AZx5f3UgE75wcnkxnQowWxThn1hGjfCVwP');
+
+  const program: any = useMemo(
+    () => {
+      if (['V0.3', 'V0.2'].includes(programVersion?.label!)) {
+        return new Program<ConditionalVaultV0_2>(CONDITIONAL_VAULT_IDLV0_2, vaultV0_2, provider);
+      }
+      return new Program<ConditionalVaultV0>(CONDITIONAL_VAULT_IDLV0, vaultV0, provider);
+    },
+    [provider, programVersion, vaultV0, vaultV0_2],
   );
 
-  const { tokens } = useTokens();
+  const tokens = daoTokens;
 
   const getVaultMint = useCallback(
     async (vault: PublicKey) => {
@@ -149,7 +159,6 @@ export function useConditionalVault() {
       const token = Object.values(tokens).find(
         (e) => e.publicKey.toString() === vault.underlyingTokenMint.toString(),
       );
-
       return {
         ixs: [
           createAssociatedTokenAccountIdempotentInstruction(
