@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import {
   ActionIcon,
   Card,
@@ -98,7 +98,10 @@ export function ConditionalMarketCard({
 
   // TODO: Review this as anything less than this fails to work
   // const minMarketPriceIncrement: number = new BN(1).div(markets.fail.quoteLotSize).toString();
-  const minMarketPriceIncrement = 1 / markets.fail.quoteLotSize.toNumber();
+  const minMarketPriceIncrement = useMemo(() => ((10 ** (
+    markets.fail.baseDecimals - markets.fail.quoteDecimals
+  )) * markets.fail.quoteLotSize.toNumber()) / markets.fail.baseLotSize.toNumber(),
+  [markets.fail.baseLotSize]);
 
   // const testPrice = new BN(10)
   //   .pow(
@@ -109,11 +112,15 @@ export function ConditionalMarketCard({
   //   .div(markets.fail.baseLotSize)
   //   .toNumber();
 
-  const lotsToUI: number = markets.fail.baseLotSize
+  const minMarketBaseIncrement = useMemo(() => markets.fail.baseLotSize.toNumber() / (
+    10 ** markets.fail.baseDecimals
+  ), [markets.fail.baseLotSize]);
+
+  const lotsToUI: number = useMemo(() => markets.fail.baseLotSize
     .div(new BN(10)
       .pow(new BN(markets.fail.baseDecimals.toString()))
     )
-    .toNumber();
+    .toNumber(), [markets.fail.baseLotSize]);
   // TODO: Review this number as max safe doesn't work
   const maxMarketPrice = 10_000_000_000;
 
@@ -146,6 +153,12 @@ export function ConditionalMarketCard({
 
   const priceValidator = (value: number) => {
     if (isLimitOrder) {
+      const valueAsFlaot = parseFloat(value.toString());
+      const minPriceAsFloat = parseFloat(minMarketPriceIncrement.toString());
+      if (valueAsFlaot < minPriceAsFloat) {
+        setPriceError('You must set a higher price');
+        return;
+      }
       if (Number(value) > 0) {
         if (isAskSide) {
           if (isPassMarket) {
@@ -203,35 +216,40 @@ export function ConditionalMarketCard({
     return 0;
   };
 
-  const minOrderAmount = () => lotsToUI;
+  const minOrderAmount = () => lotsToUI > 0 ? lotsToUI : minMarketBaseIncrement;
 
   const minOrderByStepSize = (value: number) => {
-    if (value > 0 && value !== lotsToUI) {
-      if (value % lotsToUI === 0) {
+    const unitFactor = lotsToUI > 0 ? lotsToUI : minMarketBaseIncrement;
+    if (value > 0 && value !== unitFactor) {
+      if (value % unitFactor === 0) {
         return value;
       }
       // TODO: Dunno if we should ceil
-      const _minAmountRatio = Math.round(value / lotsToUI) * lotsToUI;
+      const _minAmountRatio = Math.round(value / unitFactor) * unitFactor;
       return _minAmountRatio;
     }
-    return lotsToUI;
+    return unitFactor;
   };
 
   const amountValidator = (value: number) => {
     if (value > 0) {
-      const minRoundedAmount = minOrderByStepSize(value);
+      const unitFactor = lotsToUI > 0 ? lotsToUI : minMarketBaseIncrement;
+      const valueAsFloat = parseFloat(value.toString());
+      const maxOrderAmountAsFloat = parseFloat(maxOrderAmount().toString());
+      const minOrderAmountAsFloat = parseFloat(minOrderAmount().toString());
+      const minRoundedAmountAsFloat = parseFloat(minOrderByStepSize(value).toString());
       if (!isLimitOrder) {
         setAmountError(`A market order may execute at an 
         extremely ${isAskSide ? 'low' : 'high'} price
         be sure you know what you're doing`);
         return;
       }
-      if (value > maxOrderAmount()) {
+      if (valueAsFloat > maxOrderAmountAsFloat) {
         setAmountError("You don't have enough funds");
-      } else if (value < minOrderAmount()) {
-        setAmountError(`You must trade at least ${lotsToUI}`);
-      } else if (value < minRoundedAmount || value > minRoundedAmount) {
-        setAmountError(`You must trade whole increments of ${lotsToUI}. Suggested ${minRoundedAmount}`);
+      } else if (valueAsFloat < minOrderAmountAsFloat) {
+        setAmountError(`You must trade at least ${unitFactor}`);
+      } else if (valueAsFloat < minRoundedAmountAsFloat || value > minRoundedAmountAsFloat) {
+        setAmountError(`You must trade whole increments of ${unitFactor}. Suggested ${minRoundedAmountAsFloat.toString()}`);
       } else {
         setAmountError(null);
       }
