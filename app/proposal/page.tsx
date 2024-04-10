@@ -14,7 +14,7 @@ export default function ProposalsPage() {
     <Layout>
       <ProposalMarketsProvider proposalNumber={proposalNumber}>
         <ProposalProvider proposalNumber={proposalNumber}>
-          <ProposalDetailCard />
+          <ProposalDetailCard programKey={null} proposalNumber={proposalNumber} />
         </ProposalProvider>
       </ProposalMarketsProvider>
     </Layout>
