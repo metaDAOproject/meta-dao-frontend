@@ -9,6 +9,7 @@ import poweredByJup from '../../public/poweredbyjupiter-grayscale.svg';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { useBalance } from '@/hooks/useBalance';
 import { useAutocrat } from '@/contexts/AutocratContext';
+import { toCompactNumber } from '@/lib/utils';
 
 export function JupSwapCard() {
   const provider = useProvider();
@@ -122,7 +123,7 @@ export function JupSwapCard() {
           <Group p={0} m={0}>
             <Text ml={0} size="xs">
               <IconWallet height={12} />
-              {balance.uiAmount}
+              {toCompactNumber(balance.uiAmount)}
             </Text>
           </Group>
         )}

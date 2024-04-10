@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { MintConditionalTokenCard } from './MintConditionalTokenCard';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import useConditionalTokens, { ConditionalToken } from '@/hooks/useConditionalTokens';
+import { toCompactNumber } from '@/lib/utils';
 
 function Balance({
   token,
@@ -21,11 +22,14 @@ function Balance({
   const { balance, address } = useMemo(() => {
     if (market === 'pass') {
       return {
-        balance: token.balancePass?.uiAmountString || 0,
+        balance: toCompactNumber(token.balancePass?.uiAmountString) || 0,
         address: token.finalize.toString(),
       };
     }
-    return { balance: token.balanceFail?.uiAmountString || 0, address: token.revert.toString() };
+    return {
+      balance: toCompactNumber(token.balanceFail?.uiAmountString) || 0,
+      address: token.revert.toString(),
+    };
   }, [market, token]);
 
   return (
