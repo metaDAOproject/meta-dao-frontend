@@ -17,7 +17,7 @@ import {
   useMantineColorScheme,
   useMantineTheme,
 } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
+import { useMediaQuery, useNetwork } from '@mantine/hooks';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { SystemProgram } from '@solana/web3.js';
@@ -47,14 +47,29 @@ import { ProposalOrdersCard } from './ProposalOrdersCard';
 import { StateBadge } from './StateBadge';
 import useTwapSubscription from '@/hooks/useTwapSubscription';
 import { getWinningTwap } from '@/lib/openbookTwap';
-import { NUMERAL_FORMAT } from '@/lib/constants';
+import { NUMERAL_FORMAT, AUTOCRAT_VERSIONS } from '@/lib/constants';
 import useClusterDataSubscription from '@/hooks/useClusterDataSubscription';
 import useInitializeClusterDataSubscription from '@/hooks/useInitializeClusterDataSubscription';
 
-export function ProposalDetailCard() {
+export type ProposalProps = {
+  programKey: string | null;
+  proposalNumber: number | null;
+};
+
+export function ProposalDetailCard(props: ProposalProps) {
+  const { programKey, proposalNumber } = props;
   const wallet = useWallet();
-  const { daoTreasuryKey, daoTokens, daoState } = useAutocrat();
-  if (!daoTokens) return <Loader />;
+  const network = useNetwork();
+  const { daoTreasuryKey, daoTokens, daoState, programVersion, setProgramVersion } = useAutocrat();
+  const haveUrlProgram = useMemo(
+    () => AUTOCRAT_VERSIONS.find(
+      (program) => program.programId.toString() === programKey
+    ), [network, programVersion?.programId.toString()]
+  );
+  if (
+    !daoTokens || !daoState || !programVersion
+    || (!programVersion?.programId.toString() && programKey)
+  ) return <Loader />;
   const tokens = daoTokens;
   const { redeemTokensTransactions } = useConditionalVault();
   const { proposal, finalizeProposalTransactions } = useProposal();
@@ -101,6 +116,15 @@ export function ProposalDetailCard() {
     proposal?.account.openbookTwapFailMarket,
     failMidPrice,
   );
+
+  // NOTE: Added as we don't want to willy nilly just update stuff already set.
+  const isSameProgram = programVersion.programId.toString() === programKey;
+
+  if (programKey && proposalNumber && haveUrlProgram && !isSameProgram) {
+    // NOTE: This sets up our autocrat from using the URL
+    setProgramVersion(AUTOCRAT_VERSIONS.indexOf(haveUrlProgram));
+  }
+
   const winningMarket = getWinningTwap(passTwapStructure?.twap, failTwapStructure?.twap, daoState);
 
   const daoPercentageMargin = daoState
@@ -280,11 +304,11 @@ export function ProposalDetailCard() {
     const proposalId = pendingProposals?.filter((p) => p?.title === title)[0]?.account.number;
 
     if (proposalId) {
-      router.replace(`/proposal?id=${proposalId}`);
+      router.replace(`/program/proposal?programKey=${programKey || programVersion.programId.toString()}&proposalNumber=${proposalId}`);
     }
   };
 
-  return !proposal || !markets ? (
+  return !proposal || !markets || !programVersion ? (
     <Group justify="center">
       <Loader />
     </Group>
@@ -315,7 +339,7 @@ export function ProposalDetailCard() {
                 <ActionIcon
                   my="auto"
                   className={classes.colorschemebutton}
-                  href="/"
+                  href={`/program?programKey=${programKey || programVersion.programId.toString()}`}
                   component="a"
                   style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
                 >
@@ -324,7 +348,7 @@ export function ProposalDetailCard() {
                   <Button
                     className={classes.colorschemebutton}
                     leftSection={<IconChevronLeft />}
-                    href="/"
+                    href={`/program?programKey=${programKey || programVersion.programId.toString()}`}
                     component="a"
                     style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
                   >
@@ -335,7 +359,7 @@ export function ProposalDetailCard() {
               <Button
                 className={classes.colorschemebutton}
                 leftSection={<IconChevronLeft />}
-                href="/"
+                href={`/program?programKey=${programKey || programVersion.programId.toString()}`}
                 component="a"
                 style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
               >

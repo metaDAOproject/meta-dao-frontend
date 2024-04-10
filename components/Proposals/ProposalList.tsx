@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Divider, Group, Loader, Stack, Text, Title, NativeSelect, Code, Menu, Button, Image, UnstyledButton } from '@mantine/core';
 import { IconSwitchVertical } from '@tabler/icons-react';
 import { useNetworkConfiguration } from '@/hooks/useNetworkConfiguration';
@@ -13,7 +14,13 @@ const programVersions = AUTOCRAT_VERSIONS.map((version, i) => ({
   value: i.toString(),
 }));
 
-export default function ProposalList() {
+export type ProposalListProps = {
+  programKey: string | null;
+};
+
+export default function ProposalList(props: ProposalListProps) {
+  const { programKey } = props;
+  const router = useRouter();
   const { proposals, programVersion, setProgramVersion } = useAutocrat();
   const { network } = useNetworkConfiguration();
   const pendingProposals = useMemo(
@@ -25,12 +32,27 @@ export default function ProposalList() {
     [proposals],
   );
 
-  if (proposals === undefined) {
+  const haveUrlProgram = useMemo(
+    () => AUTOCRAT_VERSIONS.find(
+      (program) => program.programId.toString() === programKey
+    ), [network, programVersion?.programId]
+  );
+
+  if (!proposals || !network || !programVersion?.programId.toString()) {
     return (
       <Group justify="center">
         <Loader />
       </Group>
     );
+  }
+  // NOTE: Added as we don't want to willy nilly just update stuff already set.
+  const isSameProgram = programVersion.programId.toString() === programKey;
+
+  if (programKey && haveUrlProgram && !isSameProgram) {
+    // TODO: This seems to be re-rendering a lot...
+    // console.log('WE FOUND IT AND DIFFERENT');
+    // NOTE: This sets up our autocrat from using the URL
+    setProgramVersion(AUTOCRAT_VERSIONS.indexOf(haveUrlProgram));
   }
 
   return (
@@ -49,7 +71,12 @@ export default function ProposalList() {
                   // NOTE: A slice for removing this from render given devnet
                   data={Array.prototype.slice.call(programVersions, network === 'devnet' ? 0 : 1)}
                   value={AUTOCRAT_VERSIONS.indexOf(programVersion!)}
-                  onChange={(e) => setProgramVersion(Number(e.target.value))}
+                  onChange={
+                    (e) => {
+                      setProgramVersion(Number(e.target.value));
+                      router.push('/');
+                    }
+                  }
                 />
               </Stack>
             </Menu.Dropdown>
@@ -82,14 +109,24 @@ export default function ProposalList() {
       {proposals.length > 0 ? (
         <Stack gap="xl">
           {pendingProposals?.map((proposal, i) => (
-            <ProposalPreview proposal={proposal} key={`pending proposal-${i}`} />
+            <ProposalPreview
+              proposal={proposal}
+              proposalNumber={proposal.account.number}
+              programIdKey={programKey || programVersion.programId.toString()}
+              key={`pending proposal-${i}`}
+            />
           ))}
           {pendingProposals?.length !== 0 && otherProposals?.length !== 0 && <Divider />}
           {otherProposals && otherProposals?.length !== 0 && (
             <Stack gap="md">
               <Title order={2}>Archived</Title>
               {otherProposals.map((proposal, i) => (
-                <ProposalPreview proposal={proposal} key={`archived proposal-${i}`} />
+                <ProposalPreview
+                  proposal={proposal}
+                  proposalNumber={proposal.account.number}
+                  programIdKey={programKey || programVersion.programId.toString()}
+                  key={`archived proposal-${i}`}
+                />
               ))}
             </Stack>
           )}
