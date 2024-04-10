@@ -17,14 +17,13 @@ import {
   useMantineColorScheme,
   useMantineTheme,
 } from '@mantine/core';
-import { useMediaQuery, useNetwork } from '@mantine/hooks';
+import { useMediaQuery } from '@mantine/hooks';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { SystemProgram } from '@solana/web3.js';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-
 import numeral from 'numeral';
 import classes from '@/app/globals.module.css';
 import { useAutocrat } from '@/contexts/AutocratContext';
@@ -59,17 +58,14 @@ export type ProposalProps = {
 export function ProposalDetailCard(props: ProposalProps) {
   const { programKey, proposalNumber } = props;
   const wallet = useWallet();
-  const network = useNetwork();
   const { daoTreasuryKey, daoTokens, daoState, programVersion, setProgramVersion } = useAutocrat();
-  const haveUrlProgram = useMemo(
-    () => AUTOCRAT_VERSIONS.find(
-      (program) => program.programId.toString() === programKey
-    ), [network, programVersion?.programId.toString()]
-  );
   if (
     !daoTokens || !daoState || !programVersion
     || (!programVersion?.programId.toString() && programKey)
   ) return <Loader />;
+  // NOTE: Added as we don't want to willy nilly just update stuff already set.
+  const isSameProgram = programVersion.programId.toString() === programKey;
+
   const tokens = daoTokens;
   const { redeemTokensTransactions } = useConditionalVault();
   const { proposal, finalizeProposalTransactions } = useProposal();
@@ -117,12 +113,14 @@ export function ProposalDetailCard(props: ProposalProps) {
     failMidPrice,
   );
 
-  // NOTE: Added as we don't want to willy nilly just update stuff already set.
-  const isSameProgram = programVersion.programId.toString() === programKey;
-
-  if (programKey && proposalNumber && haveUrlProgram && !isSameProgram) {
-    // NOTE: This sets up our autocrat from using the URL
-    setProgramVersion(AUTOCRAT_VERSIONS.indexOf(haveUrlProgram));
+  if (programKey && proposalNumber && !isSameProgram) {
+    const haveUrlProgram = AUTOCRAT_VERSIONS.find(
+      (program) => program.programId.toString() === programKey
+    );
+    if (haveUrlProgram) {
+      // NOTE: This sets up our autocrat from using the URL
+      setProgramVersion(AUTOCRAT_VERSIONS.indexOf(haveUrlProgram));
+    }
   }
 
   const winningMarket = getWinningTwap(passTwapStructure?.twap, failTwapStructure?.twap, daoState);

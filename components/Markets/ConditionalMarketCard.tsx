@@ -12,9 +12,11 @@ import {
   Tooltip,
   NativeSelect,
   Group,
+  Loader,
 } from '@mantine/core';
 import numeral from 'numeral';
 import { Icon12Hours, IconWallet } from '@tabler/icons-react';
+import { BN } from '@coral-xyz/anchor';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
@@ -56,7 +58,7 @@ export function ConditionalMarketCard({
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
-  const [price, setPrice] = useState<number | undefined>(undefined);
+  const [price, setPrice] = useState<number | undefined>(0);
   const [priceError, setPriceError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
   const [orderValue, setOrderValue] = useState<string>('0');
@@ -90,12 +92,28 @@ export function ConditionalMarketCard({
       : markets?.quoteVault.conditionalOnRevertTokenMint,
   );
 
-  if (!markets) return <></>;
+  if (!markets) return <Loader />;
   const isAskSide = orderSide === 'Sell';
   const isLimitOrder = orderType === 'Limit';
 
   // TODO: Review this as anything less than this fails to work
-  const minMarketPrice = markets.fail.quoteLotSize.toNumber();
+  // const minMarketPriceIncrement: number = new BN(1).div(markets.fail.quoteLotSize).toString();
+  const minMarketPriceIncrement = 1 / markets.fail.quoteLotSize.toNumber();
+
+  // const testPrice = new BN(10)
+  //   .pow(
+  //     new BN(markets.fail.baseDecimals.toString())
+  //     .sub(new BN(markets.fail.quoteDecimals.toString()))
+  //   )
+  //   .mul(markets.fail.quoteLotSize)
+  //   .div(markets.fail.baseLotSize)
+  //   .toNumber();
+
+  const lotsToUI: number = markets.fail.baseLotSize
+    .div(new BN(10)
+      .pow(new BN(markets.fail.baseDecimals.toString()))
+    )
+    .toNumber();
   // TODO: Review this number as max safe doesn't work
   const maxMarketPrice = 10_000_000_000;
 
@@ -121,7 +139,7 @@ export function ConditionalMarketCard({
       return 0;
     }
     if (orderSide === 'Sell') {
-      return minMarketPrice;
+      return minMarketPriceIncrement;
     }
     return maxMarketPrice;
   };
@@ -178,15 +196,30 @@ export function ConditionalMarketCard({
     }
     if (quoteBalance && price) {
       const _maxAmountRatio = Math.floor(
-        Number(quoteBalance?.data?.uiAmountString) / Number(price),
+        Number(quoteBalance.data?.uiAmountString) / Number(price),
       );
       return _maxAmountRatio;
     }
     return 0;
   };
 
+  const minOrderAmount = () => lotsToUI;
+
+  const minOrderByStepSize = (value: number) => {
+    if (value > 0 && value !== lotsToUI) {
+      if (value % lotsToUI === 0) {
+        return value;
+      }
+      // TODO: Dunno if we should ceil
+      const _minAmountRatio = Math.round(value / lotsToUI) * lotsToUI;
+      return _minAmountRatio;
+    }
+    return lotsToUI;
+  };
+
   const amountValidator = (value: number) => {
     if (value > 0) {
+      const minRoundedAmount = minOrderByStepSize(value);
       if (!isLimitOrder) {
         setAmountError(`A market order may execute at an 
         extremely ${isAskSide ? 'low' : 'high'} price
@@ -195,6 +228,10 @@ export function ConditionalMarketCard({
       }
       if (value > maxOrderAmount()) {
         setAmountError("You don't have enough funds");
+      } else if (value < minOrderAmount()) {
+        setAmountError(`You must trade at least ${lotsToUI}`);
+      } else if (value < minRoundedAmount || value > minRoundedAmount) {
+        setAmountError(`You must trade whole increments of ${lotsToUI}. Suggested ${minRoundedAmount}`);
       } else {
         setAmountError(null);
       }
@@ -219,7 +256,7 @@ export function ConditionalMarketCard({
       setPrice(maxMarketPrice);
     } else {
       // Sets up the market order for the smallest value
-      setPrice(minMarketPrice);
+      setPrice(minMarketPriceIncrement);
     }
   };
 
@@ -352,7 +389,7 @@ export function ConditionalMarketCard({
               setOrderType(e.target.value);
               if (e.target.value === 'Market') {
                 if (isAskSide) {
-                  setPrice(minMarketPrice);
+                  setPrice(minMarketPriceIncrement);
                 } else {
                   setPrice(maxMarketPrice);
                 }
@@ -370,7 +407,7 @@ export function ConditionalMarketCard({
                 placeholder="Enter price..."
                 type="number"
                 w="100%"
-                value={!isLimitOrder ? undefined : price}
+                value={!isLimitOrder ? undefined : (price || undefined)}
                 disabled={!isLimitOrder}
                 error={priceError}
                 onChange={(e) => {
