@@ -23,6 +23,7 @@ export default function ProposalList(props: ProposalListProps) {
   const router = useRouter();
   const { proposals, programVersion, setProgramVersion } = useAutocrat();
   const { network } = useNetworkConfiguration();
+
   const pendingProposals = useMemo(
     () => proposals?.filter((proposal) => proposal.account.state.pending),
     [proposals],
@@ -35,7 +36,7 @@ export default function ProposalList(props: ProposalListProps) {
   const haveUrlProgram = useMemo(
     () => AUTOCRAT_VERSIONS.find(
       (program) => program.programId.toString() === programKey
-    ), [network, programVersion?.programId]
+    ), [network, programKey]
   );
 
   if (!proposals || !network || !programVersion?.programId.toString()) {
@@ -45,6 +46,7 @@ export default function ProposalList(props: ProposalListProps) {
       </Group>
     );
   }
+
   // NOTE: Added as we don't want to willy nilly just update stuff already set.
   const isSameProgram = programVersion.programId.toString() === programKey;
 
@@ -54,6 +56,13 @@ export default function ProposalList(props: ProposalListProps) {
     // NOTE: This sets up our autocrat from using the URL
     setProgramVersion(AUTOCRAT_VERSIONS.indexOf(haveUrlProgram));
   }
+
+  const updateProgramVersion = (e: any) => {
+    if (Number(e.target.value) === AUTOCRAT_VERSIONS.indexOf(programVersion)) return;
+    const _programKey = AUTOCRAT_VERSIONS[Number(e.target.value)].programId.toString();
+    setProgramVersion(Number(e.target.value));
+    router.push(`/program?programKey=${_programKey}`);
+  };
 
   return (
     <Stack>
@@ -72,10 +81,10 @@ export default function ProposalList(props: ProposalListProps) {
                   data={Array.prototype.slice.call(programVersions, network === 'devnet' ? 0 : 1)}
                   value={AUTOCRAT_VERSIONS.indexOf(programVersion!)}
                   onChange={
-                    (e) => {
-                      setProgramVersion(Number(e.target.value));
-                      router.push('/');
-                    }
+
+                      // TODO: This needs to set it, then push to the UI otherwise its still two clicks
+                      updateProgramVersion
+
                   }
                 />
               </Stack>
