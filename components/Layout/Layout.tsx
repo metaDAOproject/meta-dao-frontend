@@ -47,6 +47,7 @@ import classes from '../../app/globals.module.css';
 import { usePriorityFee } from '../../hooks/usePriorityFee';
 import { NUMERAL_FORMAT } from '../../lib/constants';
 import { NavigationLinks } from './NavigationLinks';
+import { DialectNotificationComponent } from '@/components/Plugins/DialectNotification';
 
 const links = [
   {
@@ -211,6 +212,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Group>
               {wallet?.publicKey ? (
                 <>
+                <DialectNotificationComponent />
                 <Menu position="bottom-end">
                   <Menu.Target>
                     <Button variant="secondary"><IconPlugConnected strokeWidth={0.85} /></Button>
