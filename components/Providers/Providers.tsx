@@ -20,7 +20,13 @@ import { theme } from '@/theme';
 import { useNetworkConfiguration } from '@/hooks/useNetworkConfiguration';
 import { AutocratProvider } from '@/contexts/AutocratContext';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 export function Providers({ children }: { children: React.ReactNode; }) {
   const { endpoint } = useNetworkConfiguration();
