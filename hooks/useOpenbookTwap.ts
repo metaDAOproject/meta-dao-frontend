@@ -43,6 +43,7 @@ import { useTransactionSender } from './useTransactionSender';
 import { getTwapMarketKey } from '../lib/openbookTwap';
 import { useAutocrat } from '@/contexts/AutocratContext';
 
+// const OPENBOOK_TWAP_IDLV0: OpenbookTwapV0 = require('@/lib/idl')
 const OPENBOOK_TWAP_IDLV0_1: OpenbookTwapV0_1 = require('@/lib/idl/openbook_twap_v0.1.json');
 const OPENBOOK_TWAP_IDLV0_2: OpenbookTwapV0_2 = require('@/lib/idl/openbook_twap_v0.2.json');
 
@@ -56,9 +57,17 @@ export function useOpenbookTwap() {
   const { getVaultMint } = useConditionalVault();
   const { program: openbook } = useOpenbook();
 
-  const OPENBOOK_TWAP_PROGRAM_ID = OPENBOOK_TWAP_PROGRAM_IDV0_2;
+  const OPENBOOK_TWAP_PROGRAM_ID = useMemo(() => {
+    if (!provider || !programVersion) {
+      return;
+    }
+    if (['V0.2', 'V0.3'].includes(programVersion?.label!)) {
+      return OPENBOOK_TWAP_PROGRAM_IDV0_2;
+    }
+    return OPENBOOK_TWAP_PROGRAM_IDV0_1;
+  }, [provider, programVersion]) || OPENBOOK_TWAP_PROGRAM_IDV0_1;
   const openbookTwap = useMemo(() => {
-    if (!provider) {
+    if (!provider || !programVersion) {
       return;
     }
     if (['V0.2', 'V0.3'].includes(programVersion?.label!)) {
@@ -68,12 +77,13 @@ export function useOpenbookTwap() {
         provider
       );
     }
+    // TODO: Need v0
     return new Program<OpenbookTwapV0_1>(
       OPENBOOK_TWAP_IDLV0_1,
       OPENBOOK_TWAP_PROGRAM_IDV0_1,
       provider
     );
-  }, [provider]);
+  }, [provider, programVersion]);
 
   const createPlaceOrderArgs = ({
     amount,
@@ -412,32 +422,29 @@ export function useOpenbookTwap() {
       const quoteVault = await getVaultMint(proposal.account.quoteVault);
       const baseVault = await getVaultMint(proposal.account.baseVault);
       const openOrdersAccount = findOpenOrders(new BN(orderId), wallet.publicKey);
-      // TODO: Determine if order is on pass or fail market?
-      const userBasePass = getAssociatedTokenAddressSync(
-        baseVault.conditionalOnFinalizeTokenMint,
-        wallet.publicKey,
-        true,
-      );
-      const userQuotePass = getAssociatedTokenAddressSync(
-        quoteVault.conditionalOnFinalizeTokenMint,
-        wallet.publicKey,
-        true,
-      );
-      const userBaseFail = getAssociatedTokenAddressSync(
+
+      // NOTE: Difference here is calling the different revert vs finalize
+      let userBaseAccount = getAssociatedTokenAddressSync(
         baseVault.conditionalOnRevertTokenMint,
         wallet.publicKey,
         true,
       );
-      const userQuoteFail = getAssociatedTokenAddressSync(
+      let userQuoteAccount = getAssociatedTokenAddressSync(
         quoteVault.conditionalOnRevertTokenMint,
         wallet.publicKey,
         true,
       );
-      let userBaseAccount = userBaseFail;
-      let userQuoteAccount = userQuoteFail;
       if (passMarket) {
-        userBaseAccount = userBasePass;
-        userQuoteAccount = userQuotePass;
+        userBaseAccount = getAssociatedTokenAddressSync(
+          baseVault.conditionalOnFinalizeTokenMint,
+          wallet.publicKey,
+          true,
+        );
+        userQuoteAccount = getAssociatedTokenAddressSync(
+          quoteVault.conditionalOnFinalizeTokenMint,
+          wallet.publicKey,
+          true,
+        );
       }
       // TODO: 2x Txns for each side..
       const placeTx = await openbook.methods
