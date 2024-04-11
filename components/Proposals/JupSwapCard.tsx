@@ -28,6 +28,9 @@ export function JupSwapCard() {
   const [base, setBase] = useState<string>(baseToken.symbol);
   const [quote, setQuote] = useState<string>(quoteToken.symbol);
 
+  const baseSymbolLower = baseToken.symbol.toLowerCase();
+  const quoteSymbolLower = quoteToken.symbol.toLowerCase();
+
   const { amount: { data: balance } } = useBalance(baseToken.publicKey);
 
   const fetchQuote = async (amount: number, slippage: number) => {
@@ -105,8 +108,8 @@ export function JupSwapCard() {
   }, [updateAndFetchQuote, buildTransaction, inAmount]);
 
   const swapBase = () => {
-    setBase((_base) => (_base === 'meta' ? 'usdc' : 'meta'));
-    setQuote((_quote) => (_quote === 'usdc' ? 'meta' : 'usdc'));
+    setBase((_base) => (_base === baseSymbolLower ? quoteSymbolLower : baseSymbolLower));
+    setQuote((_quote) => (_quote === quoteSymbolLower ? baseSymbolLower : quoteSymbolLower));
   };
 
   useEffect(() => {

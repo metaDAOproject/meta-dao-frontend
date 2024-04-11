@@ -366,7 +366,7 @@ export function ConditionalMarketCard({
           twapMarket={
             isPassMarket
               ? proposal!.account.openbookTwapPassMarket
-              : proposal!.account.openbookTwapPassMarket
+              : proposal!.account.openbookTwapFailMarket
           }
           lastObservationValue={lastObservationValue ?? 0}
           lastObservedSlot={lastObservedSlot}
