@@ -144,11 +144,11 @@ export function useInitializeProposal() {
     const passMarketTx = new Transaction().add(...openbookPassMarket.instructions);
     const failMarketTx = new Transaction().add(...openbookFailMarket.instructions);
 
-    const blockhask = await connection.getLatestBlockhash();
+    const blockhash = await connection.getLatestBlockhash();
     passMarketTx.feePayer = wallet.publicKey!;
-    passMarketTx.recentBlockhash = blockhask.blockhash;
+    passMarketTx.recentBlockhash = blockhash.blockhash;
     failMarketTx.feePayer = wallet.publicKey!;
-    failMarketTx.recentBlockhash = blockhask.blockhash;
+    failMarketTx.recentBlockhash = blockhash.blockhash;
 
     passMarketTx.sign(...openbookPassMarket.signers);
     failMarketTx.sign(...openbookFailMarket.signers);
@@ -217,9 +217,9 @@ export function useInitializeProposal() {
       createFailTwapMarketIx,
     );
 
-    const blockhask = await connection.getLatestBlockhash();
+    const blockhash = await connection.getLatestBlockhash();
     twapsTx.feePayer = wallet.publicKey!;
-    twapsTx.recentBlockhash = blockhask.blockhash;
+    twapsTx.recentBlockhash = blockhash.blockhash;
 
     const txs = [twapsTx].filter(Boolean) as Transaction[];
     const signedTxs = await wallet.signAllTransactions(txs);
@@ -281,9 +281,9 @@ export function useInitializeProposal() {
           .instruction(),
       );
 
-      const blockhask = await connection.getLatestBlockhash();
+      const blockhash = await connection.getLatestBlockhash();
       initProposalTx.feePayer = wallet.publicKey!;
-      initProposalTx.recentBlockhash = blockhask.blockhash;
+      initProposalTx.recentBlockhash = blockhash.blockhash;
       initProposalTx.sign(proposalKeypair);
 
       const txs = [initProposalTx];
