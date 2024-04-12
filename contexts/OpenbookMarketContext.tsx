@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, AccountMeta } from '@solana/web3.js';
-import { priceLotsToUi, baseLotsToUi, MarketAccount } from '@openbook-dex/openbook-v2';
+import { priceLotsToUi, baseLotsToUi } from '@openbook-dex/openbook-v2';
 import { BN } from '@coral-xyz/anchor';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   OpenOrdersAccountWithKey,
   LeafNode,
@@ -15,7 +16,6 @@ import { getLeafNodes } from '../lib/openbook';
 import { debounce } from '../lib/utils';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { useOpenbook } from '@/hooks/useOpenbook';
-import { useQueryClient } from '@tanstack/react-query';
 import { BalancesProvider } from './BalancesContext';
 
 export interface OpenbookMarketInterface {
@@ -56,7 +56,7 @@ export function OpenbookMarketProvider({
   const [orders, setOrders] = useState<OpenOrdersAccountWithKey[]>([]);
   const [eventHeapCount, setEventHeapCount] = useState<number>();
   const {
-    program: _openbook,
+    program: openbook,
     placeOrderTransactions,
     cancelAndSettleFundsTransactions,
   } = useOpenbook();
@@ -65,20 +65,20 @@ export function OpenbookMarketProvider({
   const marketPubkey = new PublicKey(marketId);
 
   const findEventHeapCount = useCallback(async () => {
-    if (!_openbook || !market) return;
+    if (!openbook || !market) return;
     let accounts: PublicKey[] = new Array<PublicKey>();
-    const _eventHeap = await _openbook.program.account.eventHeap.fetch(market?.market.eventHeap);
+    const _eventHeap = await openbook.account.eventHeap.fetch(market?.market.eventHeap);
     if (_eventHeap != null) {
       // eslint-disable-next-line no-restricted-syntax
       for (const node of _eventHeap.nodes) {
         if (node.event.eventType === 0) {
-          const fillEvent: FillEvent = _openbook.program.coder.types.decode(
+          const fillEvent: FillEvent = openbook.coder.types.decode(
             'FillEvent',
             Buffer.from([0, ...node.event.padding]),
           );
           accounts = accounts.filter((a) => a !== fillEvent.maker).concat([fillEvent.maker]);
         } else {
-          const outEvent: OutEvent = _openbook.program.coder.types.decode(
+          const outEvent: OutEvent = openbook.coder.types.decode(
             'OutEvent',
             Buffer.from([0, ...node.event.padding]),
           );
@@ -94,16 +94,16 @@ export function OpenbookMarketProvider({
     } else {
       setEventHeapCount(0);
     }
-  }, [_openbook, market]);
+  }, [openbook, market]);
 
   const fetchMarketInfo = useCallback(
     debounce(async () => {
-      if (!marketId || !_openbook || !connection) {
+      if (!marketId || !openbook || !connection) {
         return;
       }
       const accountInfos = await connection.getMultipleAccountsInfo([new PublicKey(marketId)]);
 
-      const _market = await _openbook.program.coder.accounts.decode(
+      const _market = await openbook.coder.accounts.decode(
         'market',
         accountInfos[0]!.data,
       );
@@ -114,12 +114,12 @@ export function OpenbookMarketProvider({
         _market.bids,
       ]);
       const asks = getLeafNodes(
-        await _openbook.program.coder.accounts.decode('bookSide', bookAccountInfos[0]!.data),
-        _openbook.program,
+        await openbook.coder.accounts.decode('bookSide', bookAccountInfos[0]!.data),
+        openbook,
       );
       const bids = getLeafNodes(
-        await _openbook.program.coder.accounts.decode('bookSide', bookAccountInfos[1]!.data),
-        _openbook.program,
+        await openbook.coder.accounts.decode('bookSide', bookAccountInfos[1]!.data),
+        openbook,
       );
 
       setMarket({
@@ -128,20 +128,20 @@ export function OpenbookMarketProvider({
         market: _market,
       });
     }, 1000),
-    [marketId, _openbook, connection],
+    [marketId, openbook, connection],
   );
   const fetchOpenOrders = useCallback(
     debounce<[PublicKey]>(async (owner: PublicKey) => {
-      if (!_openbook || !marketId) {
+      if (!openbook || !marketId) {
         return;
       }
-      const _orders = await _openbook.program.account.openOrdersAccount.all([
+      const _orders = await openbook.account.openOrdersAccount.all([
         { memcmp: { offset: 8, bytes: owner.toBase58() } },
         { memcmp: { offset: 40, bytes: new PublicKey(marketId).toBase58() } },
       ]);
       setOrders(_orders.sort((a, b) => (a.account.accountNum < b.account.accountNum ? 1 : -1)));
     }, 1000),
-    [_openbook, marketId],
+    [openbook, marketId],
   );
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useNetworkConfiguration } from './useNetworkConfiguration';
 import { useEffect, useState } from 'react';
 import { Connection } from '@solana/web3.js';
+import { useNetworkConfiguration } from './useNetworkConfiguration';
 
 const useInitializeClusterDataSubscription = () => {
   const config = useNetworkConfiguration();

@@ -24,7 +24,6 @@ import { SystemProgram } from '@solana/web3.js';
 import { IconChevronLeft } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-
 import numeral from 'numeral';
 import classes from '@/app/globals.module.css';
 import { useAutocrat } from '@/contexts/AutocratContext';
@@ -33,7 +32,6 @@ import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 import { useConditionalVault } from '@/hooks/useConditionalVault';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import { useOpenbookTwap } from '@/hooks/useOpenbookTwap';
-import { useTokens } from '@/hooks/useTokens';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { Proposal } from '@/lib/types';
 import { shortKey } from '@/lib/utils';
@@ -48,15 +46,28 @@ import { ProposalOrdersCard } from './ProposalOrdersCard';
 import { StateBadge } from './StateBadge';
 import useTwapSubscription from '@/hooks/useTwapSubscription';
 import { getWinningTwap } from '@/lib/openbookTwap';
-import { NUMERAL_FORMAT } from '@/lib/constants';
+import { NUMERAL_FORMAT, AUTOCRAT_VERSIONS } from '@/lib/constants';
 import useClusterDataSubscription from '@/hooks/useClusterDataSubscription';
 import useInitializeClusterDataSubscription from '@/hooks/useInitializeClusterDataSubscription';
 
-export function ProposalDetailCard() {
+export type ProposalProps = {
+  programKey: string | null;
+  proposalNumber: number | null;
+};
+
+export function ProposalDetailCard(props: ProposalProps) {
+  const { programKey, proposalNumber } = props;
   const wallet = useWallet();
-  const { fetchProposals, daoTreasury, daoState } = useAutocrat();
+  const { daoTreasuryKey, daoTokens, daoState, programVersion, setProgramVersion } = useAutocrat();
+  if (
+    !daoTokens || !daoState || !programVersion
+    || (!programVersion?.programId.toString() && programKey)
+  ) return <Loader />;
+  // NOTE: Added as we don't want to willy nilly just update stuff already set.
+  const isSameProgram = programVersion.programId.toString() === programKey;
+
+  const tokens = daoTokens;
   const { redeemTokensTransactions } = useConditionalVault();
-  const { tokens } = useTokens();
   const { proposal, finalizeProposalTransactions } = useProposal();
   const {
     openOrders,
@@ -101,6 +112,17 @@ export function ProposalDetailCard() {
     proposal?.account.openbookTwapFailMarket,
     failMidPrice,
   );
+
+  if (programKey && proposalNumber && !isSameProgram) {
+    const haveUrlProgram = AUTOCRAT_VERSIONS.find(
+      (program) => program.programId.toString() === programKey
+    );
+    if (haveUrlProgram) {
+      // NOTE: This sets up our autocrat from using the URL
+      setProgramVersion(AUTOCRAT_VERSIONS.indexOf(haveUrlProgram));
+    }
+  }
+
   const winningMarket = getWinningTwap(passTwapStructure?.twap, failTwapStructure?.twap, daoState);
 
   const daoPercentageMargin = daoState
@@ -134,13 +156,13 @@ export function ProposalDetailCard() {
   }, [proposal, lastSlot, daoState]);
 
   const handleFinalize = useCallback(async () => {
-    if (!tokens?.meta || !daoTreasury || !wallet?.publicKey) return;
+    if (!tokens?.meta || !daoTreasuryKey || !wallet?.publicKey) return;
 
     setIsFinalizing(true);
     // HACK: Use a UI to add remaining accounts
     const txs = await finalizeProposalTransactions([
       {
-        pubkey: getAssociatedTokenAddressSync(tokens.meta.publicKey, daoTreasury, true),
+        pubkey: getAssociatedTokenAddressSync(tokens.meta.publicKey, daoTreasuryKey, true),
         isSigner: false,
         isWritable: true,
       },
@@ -150,7 +172,7 @@ export function ProposalDetailCard() {
         isWritable: true,
       },
       {
-        pubkey: daoTreasury,
+        pubkey: daoTreasuryKey,
         isSigner: false,
         isWritable: true,
       },
@@ -178,11 +200,11 @@ export function ProposalDetailCard() {
     if (!txs) return;
     try {
       await sender.send(txs);
-      await fetchProposals();
+      // await fetchProposals();
     } finally {
       setIsFinalizing(false);
     }
-  }, [tokens, daoTreasury, sender, finalizeProposalTransactions, fetchProposals]);
+  }, [tokens, daoTreasuryKey, sender, finalizeProposalTransactions]);
 
   const handleCloseOrders = useCallback(async () => {
     if (!proposal || !openOrders || !markets || !wallet.publicKey) {
@@ -263,7 +285,7 @@ export function ProposalDetailCard() {
     } finally {
       setIsRedeeming(false);
     }
-  }, [sender, redeemTokensTransactions, fetchProposals]);
+  }, [sender, redeemTokensTransactions]);
 
   const router = useRouter();
   const { proposals } = useAutocrat();
@@ -280,11 +302,11 @@ export function ProposalDetailCard() {
     const proposalId = pendingProposals?.filter((p) => p?.title === title)[0]?.account.number;
 
     if (proposalId) {
-      router.replace(`/proposal?id=${proposalId}`);
+      router.replace(`/program/proposal?programKey=${programKey || programVersion.programId.toString()}&proposalNumber=${proposalId}`);
     }
   };
 
-  return !proposal || !markets ? (
+  return !proposal || !markets || !programVersion ? (
     <Group justify="center">
       <Loader />
     </Group>
@@ -315,7 +337,7 @@ export function ProposalDetailCard() {
                 <ActionIcon
                   my="auto"
                   className={classes.colorschemebutton}
-                  href="/"
+                  href={`/program?programKey=${programKey || programVersion.programId.toString()}`}
                   component="a"
                   style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
                 >
@@ -324,7 +346,7 @@ export function ProposalDetailCard() {
                   <Button
                     className={classes.colorschemebutton}
                     leftSection={<IconChevronLeft />}
-                    href="/"
+                    href={`/program?programKey=${programKey || programVersion.programId.toString()}`}
                     component="a"
                     style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
                   >
@@ -335,7 +357,7 @@ export function ProposalDetailCard() {
               <Button
                 className={classes.colorschemebutton}
                 leftSection={<IconChevronLeft />}
-                href="/"
+                href={`/program?programKey=${programKey || programVersion.programId.toString()}`}
                 component="a"
                 style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
               >

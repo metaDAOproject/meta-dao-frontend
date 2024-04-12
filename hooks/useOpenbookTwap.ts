@@ -13,14 +13,15 @@ import {
   createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
-import { PlaceOrderArgs } from '@openbook-dex/openbook-v2/dist/types/client';
+import { PlaceOrderArgs, uiPriceToLots, uiQuoteToLots, uiBaseToLots } from '@openbook-dex/openbook-v2';
 import {
   SelfTradeBehavior,
   OrderType,
   SideUtils,
 } from '@openbook-dex/openbook-v2/dist/cjs/utils/utils';
-import { OpenbookTwap } from '@/lib/idl/openbook_twap';
-import { OPENBOOK_PROGRAM_ID, OPENBOOK_TWAP_PROGRAM_ID, QUOTE_LOTS } from '@/lib/constants';
+import { OpenbookTwapV0_1 } from '@/lib/idl/openbook_twap_v0.1';
+import { OpenbookTwapV0_2 } from '@/lib/idl/openbook_twap_v0.2';
+import { OPENBOOK_PROGRAM_ID, OPENBOOK_TWAP_PROGRAM_IDV0_1, OPENBOOK_TWAP_PROGRAM_IDV0_2 } from '@/lib/constants';
 import {
   FillEvent,
   MarketAccountWithKey,
@@ -40,53 +41,100 @@ import { useConditionalVault } from './useConditionalVault';
 import { useOpenbook } from './useOpenbook';
 import { useTransactionSender } from './useTransactionSender';
 import { getTwapMarketKey } from '../lib/openbookTwap';
+import { useAutocrat } from '@/contexts/AutocratContext';
 
-const OPENBOOK_TWAP_IDL: OpenbookTwap = require('@/lib/idl/openbook_twap.json');
+// const OPENBOOK_TWAP_IDLV0: OpenbookTwapV0 = require('@/lib/idl')
+const OPENBOOK_TWAP_IDLV0_1: OpenbookTwapV0_1 = require('@/lib/idl/openbook_twap_v0.1.json');
+const OPENBOOK_TWAP_IDLV0_2: OpenbookTwapV0_2 = require('@/lib/idl/openbook_twap_v0.2.json');
 
 const SYSTEM_PROGRAM: PublicKey = new PublicKey('11111111111111111111111111111111');
 
 export function useOpenbookTwap() {
   const wallet = useWallet();
   const provider = useProvider();
+  const { programVersion } = useAutocrat();
+
   const sender = useTransactionSender({
     commitment: 'confirmed',
   });
   const { getVaultMint } = useConditionalVault();
-  const openbook = useOpenbook().program;
-  const openbookTwap = useMemo(() => {
-    if (!provider) {
+  const { program: openbook } = useOpenbook();
+
+  const OPENBOOK_TWAP_PROGRAM_ID = useMemo(() => {
+    if (!provider || !programVersion) {
       return;
     }
-    return new Program<OpenbookTwap>(OPENBOOK_TWAP_IDL, OPENBOOK_TWAP_PROGRAM_ID, provider);
-  }, [provider]);
+    if (['V0.2', 'V0.3'].includes(programVersion?.label!)) {
+      return OPENBOOK_TWAP_PROGRAM_IDV0_2;
+    }
+    return OPENBOOK_TWAP_PROGRAM_IDV0_1;
+  }, [provider, programVersion]) || OPENBOOK_TWAP_PROGRAM_IDV0_1;
+  const openbookTwap = useMemo(() => {
+    if (!provider || !programVersion) {
+      return;
+    }
+    if (['V0.2', 'V0.3'].includes(programVersion?.label!)) {
+      return new Program<OpenbookTwapV0_2>(
+        OPENBOOK_TWAP_IDLV0_2,
+        OPENBOOK_TWAP_PROGRAM_IDV0_2,
+        provider
+      );
+    }
+    // TODO: Need v0
+    return new Program<OpenbookTwapV0_1>(
+      OPENBOOK_TWAP_IDLV0_1,
+      OPENBOOK_TWAP_PROGRAM_IDV0_1,
+      provider
+    );
+  }, [provider, programVersion]);
 
   const createPlaceOrderArgs = ({
     amount,
     price,
-    limitOrder,
-    ask,
+    isLimitOrder,
+    isPostOnlyOrder,
+    isAsk,
     accountIndex,
+    market,
   }: {
     amount: number;
     price: number;
+    isLimitOrder?: boolean;
+    isPostOnlyOrder?: boolean;
+    isAsk?: boolean;
     accountIndex: number;
-    limitOrder?: boolean;
-    ask?: boolean;
-  }): PlaceOrderArgs => {
-    let priceLots = new BN(Math.floor(price / QUOTE_LOTS));
-    const maxBaseLots = new BN(Math.floor(amount));
-    let maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
-    if (!limitOrder) {
-      priceLots = new BN(1_000_000_000_000_000);
-      maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
+    market: MarketAccountWithKey;
+  }): PlaceOrderArgs | string => {
+    let priceLots = uiPriceToLots(market.account, price);
+    const _priceLots = uiPriceToLots(market.account, price);
+    const maxBaseLots = uiBaseToLots(market.account, amount);
+    let maxQuoteLotsIncludingFees = uiQuoteToLots(market.account, priceLots.mul(maxBaseLots));
+
+    if (!isLimitOrder) {
+      if (!isAsk) {
+        // TODO: Want to setup max price (TBD)
+        priceLots = new BN(1_000_000_000_000_000);
+        maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
+      } else {
+        // TODO: Check working
+        priceLots = market.account.quoteLotSize;
+        maxQuoteLotsIncludingFees = priceLots.mul(maxBaseLots);
+      }
     }
+    if (_priceLots === priceLots) {
+      return 'error price';
+    }
+    // Setup our order type
+    // eslint-disable-next-line max-len
+    const orderType = isPostOnlyOrder ? OrderType.PostOnly : isLimitOrder ? OrderType.Limit : OrderType.Market;
+
     return {
-      side: ask ? SideUtils.Ask : SideUtils.Bid,
+      side: isAsk ? SideUtils.Ask : SideUtils.Bid,
       priceLots,
       maxBaseLots,
       maxQuoteLotsIncludingFees,
       clientOrderId: accountIndex,
-      orderType: limitOrder ? OrderType.Limit : OrderType.Market,
+      orderType,
       expiryTimestamp: new BN(0),
       selfTradeBehavior: SelfTradeBehavior.AbortTransaction,
       limit: 255,
@@ -104,12 +152,12 @@ export function useOpenbookTwap() {
     const openOrdersIndexer = findOpenOrdersIndexer(signer);
     let accountIndex = new BN(1);
     try {
-      const indexer = await openbook.program.account.openOrdersIndexer.fetch(openOrdersIndexer);
+      const indexer = await openbook.account.openOrdersIndexer.fetch(openOrdersIndexer);
       accountIndex = new BN((indexer?.createdCounter || 0) + 1 + (indexOffset || 0));
     } catch {
       if (!indexOffset) {
         openTx.add(
-          await createOpenOrdersIndexerInstruction(openbook.program, openOrdersIndexer, signer),
+          await createOpenOrdersIndexerInstruction(openbook, openOrdersIndexer, signer),
         );
       } else {
         accountIndex = new BN(1 + (indexOffset || 0));
@@ -124,23 +172,24 @@ export function useOpenbookTwap() {
       amount: number,
       price: number,
       market: MarketAccountWithKey,
-      limitOrder?: boolean,
-      ask?: boolean,
-      pass?: boolean,
+      isLimitOrder?: boolean,
+      isPostOnlyOrder?: boolean,
+      isAsk?: boolean,
       indexOffset?: number,
     ) => {
       if (!wallet.publicKey || !openbook || !openbookTwap) {
         return;
       }
 
-      const mint = ask ? market.account.baseMint : market.account.quoteMint;
+      const mint = isAsk ? market.account.baseMint : market.account.quoteMint;
       const openOrdersIndexer = findOpenOrdersIndexer(wallet.publicKey);
+      const marketVault = isAsk ? market.account.marketBaseVault : market.account.marketQuoteVault;
       const [accountIndex, openTx] = await findOpenOrdersIndex({
         indexOffset,
         signer: wallet.publicKey,
       });
       const [ixs, openOrdersAccount] = await createOpenOrdersInstruction(
-        openbook.program,
+        openbook,
         market.publicKey,
         accountIndex,
         `${shortKey(wallet.publicKey)}-${accountIndex.toString()}`,
@@ -149,7 +198,19 @@ export function useOpenbookTwap() {
       );
       openTx.add(...ixs);
 
-      const args = createPlaceOrderArgs({ amount, price, limitOrder, ask, accountIndex });
+      const args = createPlaceOrderArgs({
+        amount,
+        price,
+        isLimitOrder,
+        isPostOnlyOrder,
+        isAsk,
+        accountIndex,
+        market,
+      });
+      if (typeof args === 'string') {
+        console.error('Error matching price');
+        return;
+      }
 
       const placeTx = await openbookTwap.methods
         .placeOrder(args)
@@ -159,8 +220,8 @@ export function useOpenbookTwap() {
           bids: market.account.bids,
           eventHeap: market.account.eventHeap,
           market: market.publicKey,
-          marketVault: ask ? market.account.marketBaseVault : market.account.marketQuoteVault,
-          twapMarket: getTwapMarketKey(market.publicKey),
+          marketVault,
+          twapMarket: getTwapMarketKey(market.publicKey, OPENBOOK_TWAP_PROGRAM_ID),
           userTokenAccount: getAssociatedTokenAddressSync(mint, wallet.publicKey, true),
           openbookProgram: openbook.programId,
         })
@@ -178,20 +239,20 @@ export function useOpenbookTwap() {
         return;
       }
       let accounts: PublicKey[] = new Array<PublicKey>();
-      const _eventHeap = await openbook.program.account.eventHeap.fetch(eventHeap);
+      const _eventHeap = await openbook.account.eventHeap.fetch(eventHeap);
       // TODO: If null we should bail...
       if (!individualEvent) {
         if (_eventHeap != null) {
           // eslint-disable-next-line no-restricted-syntax
           for (const node of _eventHeap.nodes) {
             if (node.event.eventType === 0) {
-              const fillEvent: FillEvent = openbook.program.coder.types.decode(
+              const fillEvent: FillEvent = openbook.coder.types.decode(
                 'FillEvent',
                 Buffer.from([0, ...node.event.padding]),
               );
               accounts = accounts.filter((a) => a !== fillEvent.maker).concat([fillEvent.maker]);
             } else {
-              const outEvent: OutEvent = openbook.program.coder.types.decode(
+              const outEvent: OutEvent = openbook.coder.types.decode(
                 'OutEvent',
                 Buffer.from([0, ...node.event.padding]),
               );
@@ -207,13 +268,13 @@ export function useOpenbookTwap() {
         // eslint-disable-next-line no-restricted-syntax
         for (const node of _eventHeap.nodes) {
           if (node.event.eventType === 0) {
-            const fillEvent: FillEvent = openbook.program.coder.types.decode(
+            const fillEvent: FillEvent = openbook.coder.types.decode(
               'FillEvent',
               Buffer.from([0, ...node.event.padding]),
             );
             accounts = accounts.filter((a) => a !== fillEvent.maker).concat([fillEvent.maker]);
           } else {
-            const outEvent: OutEvent = openbook.program.coder.types.decode(
+            const outEvent: OutEvent = openbook.coder.types.decode(
               'OutEvent',
               Buffer.from([0, ...node.event.padding]),
             );
@@ -233,7 +294,7 @@ export function useOpenbookTwap() {
           (order) => order.pubkey.toString() === individualEvent.toString(),
         );
       }
-      const crankIx = await openbook.program.methods
+      const crankIx = await openbook.methods
         .consumeEvents(new BN(filteredAccounts.length))
         .accounts({
           consumeEventsAdmin: openbook.programId,
@@ -315,7 +376,7 @@ export function useOpenbookTwap() {
         userQuoteAccount = userQuotePass;
       }
       // TODO: 2x Txns for each side..
-      const placeTx = await openbook.program.methods
+      const placeTx = await openbook.methods
         .settleFunds()
         .accounts({
           owner: wallet.publicKey,
@@ -327,7 +388,7 @@ export function useOpenbookTwap() {
           marketQuoteVault: market.account.marketQuoteVault,
           userBaseAccount,
           userQuoteAccount,
-          //TODO Add this
+          //TODO Add this for fee..
           referrerAccount: null,
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SYSTEM_PROGRAM,
@@ -366,35 +427,32 @@ export function useOpenbookTwap() {
       const quoteVault = await getVaultMint(proposal.account.quoteVault);
       const baseVault = await getVaultMint(proposal.account.baseVault);
       const openOrdersAccount = findOpenOrders(new BN(orderId), wallet.publicKey);
-      // TODO: Determine if order is on pass or fail market?
-      const userBasePass = getAssociatedTokenAddressSync(
-        baseVault.conditionalOnFinalizeTokenMint,
-        wallet.publicKey,
-        true,
-      );
-      const userQuotePass = getAssociatedTokenAddressSync(
-        quoteVault.conditionalOnFinalizeTokenMint,
-        wallet.publicKey,
-        true,
-      );
-      const userBaseFail = getAssociatedTokenAddressSync(
+
+      // NOTE: Difference here is calling the different revert vs finalize
+      let userBaseAccount = getAssociatedTokenAddressSync(
         baseVault.conditionalOnRevertTokenMint,
         wallet.publicKey,
         true,
       );
-      const userQuoteFail = getAssociatedTokenAddressSync(
+      let userQuoteAccount = getAssociatedTokenAddressSync(
         quoteVault.conditionalOnRevertTokenMint,
         wallet.publicKey,
         true,
       );
-      let userBaseAccount = userBaseFail;
-      let userQuoteAccount = userQuoteFail;
       if (passMarket) {
-        userBaseAccount = userBasePass;
-        userQuoteAccount = userQuotePass;
+        userBaseAccount = getAssociatedTokenAddressSync(
+          baseVault.conditionalOnFinalizeTokenMint,
+          wallet.publicKey,
+          true,
+        );
+        userQuoteAccount = getAssociatedTokenAddressSync(
+          quoteVault.conditionalOnFinalizeTokenMint,
+          wallet.publicKey,
+          true,
+        );
       }
       // TODO: 2x Txns for each side..
-      const placeTx = await openbook.program.methods
+      const placeTx = await openbook.methods
         .settleFunds()
         .accounts({
           owner: wallet.publicKey,
@@ -452,7 +510,7 @@ export function useOpenbookTwap() {
 
       const openOrdersIndexer = findOpenOrdersIndexer(wallet.publicKey);
       const openOrdersAccount = findOpenOrders(orderId, wallet.publicKey);
-      const closeTx = await openbook.program.methods
+      const closeTx = await openbook.methods
         .closeOpenOrdersAccount()
         .accounts({
           owner: wallet.publicKey,
@@ -499,15 +557,17 @@ export function useOpenbookTwap() {
       orderId,
       amount,
       price,
-      limitOrder,
-      ask,
+      isLimitOrder,
+      isPostOnlyOrder,
+      isAsk,
       market,
     }: {
       orderId: BN;
       amount: number;
       price: number;
-      limitOrder: boolean;
-      ask: boolean;
+      isLimitOrder: boolean;
+      isPostOnlyOrder: boolean;
+      isAsk: boolean;
       market: MarketAccountWithKey;
     }) => {
       if (!wallet.publicKey || !openbookTwap) {
@@ -527,7 +587,19 @@ export function useOpenbookTwap() {
         wallet.publicKey,
         true,
       );
-      const args = createPlaceOrderArgs({ amount, price, limitOrder, ask, accountIndex: orderId });
+      const args = createPlaceOrderArgs({
+        amount,
+        price,
+        isLimitOrder,
+        isPostOnlyOrder,
+        isAsk,
+        accountIndex: orderId,
+        market,
+      });
+      if (typeof args === 'string') {
+        console.log('error with order');
+        return;
+      }
       const editTx = await openbookTwap.methods
         .cancelAndPlaceOrders([orderId], [args])
         .accounts({
@@ -537,7 +609,7 @@ export function useOpenbookTwap() {
           eventHeap: market.account.eventHeap,
           marketBaseVault: market.account.marketBaseVault,
           marketQuoteVault: market.account.marketQuoteVault,
-          twapMarket: getTwapMarketKey(market.publicKey),
+          twapMarket: getTwapMarketKey(market.publicKey, OPENBOOK_TWAP_PROGRAM_ID),
           openOrdersAccount,
           userBaseAccount,
           userQuoteAccount,
@@ -570,16 +642,18 @@ export function useOpenbookTwap() {
       accountIndex,
       amount,
       price,
-      limitOrder,
-      ask,
+      isLimitOrder,
+      isPostOnlyOrder,
+      isAsk,
       market,
     }: {
       order: OpenOrdersAccountWithKey;
       accountIndex: BN;
       amount: number;
       price: number;
-      limitOrder: boolean;
-      ask: boolean;
+      isLimitOrder: boolean;
+      isPostOnlyOrder: boolean;
+      isAsk: boolean;
       market: MarketAccountWithKey;
     }) => {
       if (!wallet.publicKey || !openbookTwap) {
@@ -590,15 +664,21 @@ export function useOpenbookTwap() {
       const args = createPlaceOrderArgs({
         amount,
         price,
-        limitOrder,
-        ask,
+        isLimitOrder,
+        isPostOnlyOrder,
+        isAsk,
         accountIndex,
+        market,
       });
-      const expectedCancelSize = ask
+      if (typeof args === 'string') {
+        console.log('error with order');
+        return;
+      }
+      const expectedCancelSize = isAsk
         ? order.account.position.asksBaseLots.sub(new BN(amount)).abs()
         : new BN(amount).sub(order.account.position.bidsBaseLots).abs();
-      const mint = ask ? market.account.baseMint : market.account.quoteMint;
-      const marketVault = ask ? market.account.marketBaseVault : market.account.marketQuoteVault;
+      const mint = isAsk ? market.account.baseMint : market.account.quoteMint;
+      const marketVault = isAsk ? market.account.marketBaseVault : market.account.marketQuoteVault;
       const userTokenAccount = getAssociatedTokenAddressSync(mint, wallet.publicKey, true);
       const editTx = await openbookTwap.methods
         .editOrder(new BN(order.account.accountNum), expectedCancelSize, args)
@@ -608,7 +688,7 @@ export function useOpenbookTwap() {
           bids: market.account.bids,
           eventHeap: market.account.eventHeap,
           marketVault,
-          twapMarket: getTwapMarketKey(market.publicKey),
+          twapMarket: getTwapMarketKey(market.publicKey, OPENBOOK_TWAP_PROGRAM_ID),
           openOrdersAccount,
           userTokenAccount,
           openbookProgram: OPENBOOK_PROGRAM_ID,

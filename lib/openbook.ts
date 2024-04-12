@@ -371,7 +371,7 @@ export const totalUsdcInOrder = (orders: OpenOrdersAccountWithKey[]) => {
   return numeral(totalValueLocked).format(NUMERAL_FORMAT);
 };
 
-export const totalMetaInOrder = (orders: OpenOrdersAccountWithKey[]) => {
+export const totalBaseInOrder = (orders: OpenOrdersAccountWithKey[]) => {
   let sumOrders = [];
   sumOrders = orders.map((order) => {
     if (isBidOrAsk(order)) {

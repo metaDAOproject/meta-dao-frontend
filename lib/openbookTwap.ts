@@ -1,13 +1,16 @@
 import { PublicKey } from '@solana/web3.js';
-import { OPENBOOK_TWAP_PROGRAM_ID, QUOTE_LOTS } from './constants';
+import { QUOTE_LOTS } from './constants';
 import { DaoState, TWAPOracle } from './types';
 
 export const calculateTWAP = (twapOracle?: TWAPOracle) => {
+  // NOTE: Quote lots is because we're using USDC which is 6 decimals and using 100
+  // so it ends up being 100_000 / 100
   if (!twapOracle) return undefined;
 
   // only the initial twap record is recorded, use initial value
   if (twapOracle.lastUpdatedSlot.eq(twapOracle.initialSlot)) {
-    return parseInt(twapOracle.observationAggregator.toString(), 10) * QUOTE_LOTS;
+    return parseInt(
+      twapOracle.observationAggregator.toString(), 10) * QUOTE_LOTS;
   }
 
   const slotsPassed = twapOracle.lastUpdatedSlot.sub(twapOracle.initialSlot);
@@ -24,10 +27,10 @@ export const getLastObservedAndSlot = (twapOracle?: TWAPOracle) => {
   };
 };
 
-export const getTwapMarketKey = (market: PublicKey) =>
+export const getTwapMarketKey = (market: PublicKey, program: PublicKey) =>
   PublicKey.findProgramAddressSync(
     [Buffer.from('twap_market'), market.toBuffer()],
-    OPENBOOK_TWAP_PROGRAM_ID,
+    program,
   )[0];
 
 export const getWinningTwap = (
@@ -36,7 +39,7 @@ export const getWinningTwap = (
   daoState: DaoState | undefined,
 ): 'pass' | 'fail' | undefined => {
   if (passTwap && failTwap && daoState) {
-    const fail = (failTwap * (10000 + daoState.passThresholdBps)) / 10000;
+    const fail = (failTwap * (10000 + daoState.passThresholdBps)) * QUOTE_LOTS;
     return passTwap > fail ? 'pass' : 'fail';
   }
 };

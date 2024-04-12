@@ -19,7 +19,7 @@ export interface ProposalInterface {
   proposalNumber?: number;
   loading: boolean;
   isCranking: boolean;
-  metaDisabled: boolean;
+  baseDisabled: boolean;
   usdcDisabled: boolean;
   crankMarkets: (individualEvent?: PublicKey) => Promise<void>;
   createTokenAccounts: (fromBase?: boolean) => Promise<void>;
@@ -54,7 +54,7 @@ export function ProposalProvider({
   fromProposal?: ProposalAccountWithKey;
 }) {
   const client = useQueryClient();
-  const { autocratProgram, dao, daoState, daoTreasury, proposals } = useAutocrat();
+  const { autocratProgram, daoKey, daoState, daoTokens, daoTreasuryKey, proposals } = useAutocrat();
   const { connection } = useConnection();
   const { markets, fetchMarketsInfo } = useProposalMarkets();
   const wallet = useWallet();
@@ -66,7 +66,7 @@ export function ProposalProvider({
     createConditionalTokensAccounts,
   } = useConditionalVault();
   const [loading, setLoading] = useState(false);
-  const [metaDisabled, setMetaDisabled] = useState(false);
+  const [baseDisabled, setBaseDisabled] = useState(false);
   const [usdcDisabled, setUsdcDisabled] = useState(false);
   const [isCranking, setIsCranking] = useState<boolean>(false);
   const { crankMarketTransactions } = useOpenbookTwap();
@@ -101,12 +101,12 @@ export function ProposalProvider({
   const createTokenAccounts = useCallback(
     async (fromBase?: boolean) => {
       const txs = await createTokenAccountsTransactions(fromBase);
-      if (!txs || !proposal || !wallet.publicKey) {
+      if (!txs || !proposal || !wallet.publicKey || !daoTokens || !daoTokens.baseToken) {
         return;
       }
       let error = false;
-      let metaBalance = null;
-      const metaMint = new PublicKey('METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr');
+      let baseBalance = null;
+      const baseMint = daoTokens.baseToken.publicKey;
       const quoteVault = await getVaultMint(proposal.account.quoteVault);
       const baseVault = await getVaultMint(proposal.account.baseVault);
       const userBasePass = getAssociatedTokenAddressSync(
@@ -119,16 +119,16 @@ export function ProposalProvider({
         wallet.publicKey,
         true,
       );
-      const metaTokenAccount = getAssociatedTokenAddressSync(metaMint, wallet.publicKey, true);
+      const baseTokenAccount = getAssociatedTokenAddressSync(baseMint, wallet.publicKey, true);
 
       try {
-        metaBalance = await client.fetchQuery({
-          queryKey: [`getTokenAccountBalance-${metaTokenAccount.toString()}-undefined`],
-          queryFn: () => connection.getTokenAccountBalance(metaTokenAccount),
+        baseBalance = await client.fetchQuery({
+          queryKey: [`getTokenAccountBalance-${baseTokenAccount.toString()}-undefined`],
+          queryFn: () => connection.getTokenAccountBalance(baseTokenAccount),
           staleTime: 10_000,
         });
       } catch (err) {
-        console.error('unable to fetch balance for META token account');
+        console.error('unable to fetch balance for BASE token account');
       }
       try {
         if (fromBase) {
@@ -148,21 +148,21 @@ export function ProposalProvider({
           autoClose: 5000,
         });
         if (fromBase) {
-          setMetaDisabled(true);
+          setBaseDisabled(true);
         } else {
           setUsdcDisabled(true);
         }
       }
 
       if (error) {
-        if (metaBalance === null) {
+        if (baseBalance === null) {
           const tx = new Transaction();
           tx.add(
             createAssociatedTokenAccountInstruction(
               wallet.publicKey, // payer
-              metaTokenAccount, // ata
+              baseTokenAccount, // ata
               wallet.publicKey, // owner
-              metaMint, // mint
+              baseMint, // mint
             ),
           );
           txs.unshift(tx);
@@ -183,7 +183,7 @@ export function ProposalProvider({
 
   const finalizeProposalTransactions = useCallback(
     async (remainingAccounts: AccountMeta[] = []) => {
-      if (!autocratProgram || !proposal || !dao || !daoState || !vaultProgram) return;
+      if (!autocratProgram || !proposal || !daoKey || !daoState || !vaultProgram) return;
 
       const tx = await autocratProgram.methods
         .finalizeProposal()
@@ -191,8 +191,8 @@ export function ProposalProvider({
           proposal: proposal.publicKey,
           openbookTwapPassMarket: proposal.account.openbookTwapPassMarket,
           openbookTwapFailMarket: proposal.account.openbookTwapFailMarket,
-          dao,
-          daoTreasury,
+          dao: daoKey,
+          daoTreasury: daoTreasuryKey,
           baseVault: proposal.account.baseVault,
           quoteVault: proposal.account.quoteVault,
           vaultProgram: vaultProgram.programId,
@@ -202,7 +202,7 @@ export function ProposalProvider({
 
       return [tx];
     },
-    [autocratProgram, proposal, vaultProgram, dao, daoTreasury],
+    [autocratProgram, proposal, vaultProgram, daoKey, daoTreasuryKey],
   );
 
   const mintTokensTransactions = useCallback(
@@ -237,7 +237,7 @@ export function ProposalProvider({
         await sender.send(txs);
         await fetchMarketsInfo();
       } catch (err) {
-        console.error(err);
+        // console.error(err);
       } finally {
         setLoading(false);
       }
@@ -267,7 +267,7 @@ export function ProposalProvider({
         const txs = [...passTxs, ...failTxs].filter(Boolean);
         await sender.send(txs as VersionedTransaction[]);
       } catch (err) {
-        console.error(err);
+        // console.error(err);
       } finally {
         setIsCranking(false);
       }
@@ -282,7 +282,7 @@ export function ProposalProvider({
         proposalNumber,
         loading,
         isCranking,
-        metaDisabled,
+        baseDisabled,
         usdcDisabled,
         createTokenAccounts,
         createTokenAccountsTransactions,

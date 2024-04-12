@@ -15,7 +15,7 @@ export function ConditionalMarketOrderBook({
   spreadString: string;
   lastSlotUpdated: number;
   orderBookObject: _OrderBook;
-  setPriceFromOrderBook: (price: string) => void;
+  setPriceFromOrderBook: (price: number) => void;
 }) {
   if (!orderBookObject) return null;
   const { colorScheme } = useMantineColorScheme();

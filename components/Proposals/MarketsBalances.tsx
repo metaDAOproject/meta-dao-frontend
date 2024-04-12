@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { MintConditionalTokenCard } from './MintConditionalTokenCard';
 import { useExplorerConfiguration } from '@/hooks/useExplorerConfiguration';
 import useConditionalTokens, { ConditionalToken } from '@/hooks/useConditionalTokens';
+import { toCompactNumber } from '@/lib/utils';
 
 function Balance({
   token,
@@ -21,11 +22,14 @@ function Balance({
   const { balance, address } = useMemo(() => {
     if (market === 'pass') {
       return {
-        balance: token.balancePass?.uiAmountString || 0,
+        balance: toCompactNumber(token.balancePass?.uiAmountString) || 0,
         address: token.finalize.toString(),
       };
     }
-    return { balance: token.balanceFail?.uiAmountString || 0, address: token.revert.toString() };
+    return {
+      balance: toCompactNumber(token.balanceFail?.uiAmountString) || 0,
+      address: token.revert.toString(),
+    };
   }, [market, token]);
 
   return (
@@ -83,21 +87,29 @@ export default function MarketsBalances() {
         <Group gap={24} w="100%">
           <Fieldset legend="Pass market" flex={1}>
             <Stack>
-              <Balance token={baseToken} market="pass" imageSrc="/metaToken.png" />
+              <Balance
+                token={baseToken}
+                market="pass"
+                imageSrc={`/${baseToken.symbol.toLowerCase()}Token.png`}
+              />
               <Balance
                 token={quoteToken}
                 market="pass"
-                imageSrc="https://s3.coinmarketcap.com/static-gravity/image/5a8229787b5e4c809b5914eef709b59a.png"
+                imageSrc={`/${quoteToken.symbol.toLowerCase()}Token.png`}
               />
             </Stack>
           </Fieldset>
           <Fieldset legend="Fail market" flex={1}>
             <Stack>
-              <Balance token={baseToken} market="fail" imageSrc="/metaToken.png" />
+              <Balance
+                token={baseToken}
+                market="fail"
+                imageSrc={`/${baseToken.symbol.toLowerCase()}Token.png`}
+              />
               <Balance
                 token={quoteToken}
                 market="fail"
-                imageSrc="https://s3.coinmarketcap.com/static-gravity/image/5a8229787b5e4c809b5914eef709b59a.png"
+                imageSrc={`/${quoteToken.symbol.toLowerCase()}Token.png`}
               />
             </Stack>
           </Fieldset>

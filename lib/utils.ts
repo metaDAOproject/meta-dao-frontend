@@ -43,3 +43,10 @@ export const validateType = async (type: InstructionFieldTypes, value?: string) 
 export const toScientificNotation = (number: number, decimalPlaces: number) =>
   // Convert number to scientific notation with specified decimal places
    number.toExponential(decimalPlaces);
+
+export const toCompactNumber = (number: any) => {
+  const value = Number(number);
+  if (Number.isNaN(value)) return Number(0.0);
+  // Convert number to compact form 123,000,000 becomes 123M
+  return new Intl.NumberFormat('en', { notation: 'compact', maximumSignificantDigits: 4 }).format(value);
+};

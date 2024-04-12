@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import {
   ActionIcon,
   Card,
@@ -12,9 +12,11 @@ import {
   Tooltip,
   NativeSelect,
   Group,
+  Loader,
 } from '@mantine/core';
 import numeral from 'numeral';
 import { Icon12Hours, IconWallet } from '@tabler/icons-react';
+import { BN } from '@coral-xyz/anchor';
 import { ConditionalMarketOrderBook } from './ConditionalMarketOrderBook';
 import { BASE_FORMAT, NUMERAL_FORMAT } from '../../lib/constants';
 import { useProposal } from '@/contexts/ProposalContext';
@@ -26,6 +28,7 @@ import { useBalance } from '@/hooks/useBalance';
 import TwapDisplay from './TwapDisplay';
 
 import { TwapSubscriptionRes } from '@/hooks/useTwapSubscription';
+import { useAutocrat } from '@/contexts/AutocratContext';
 
 type Props = {
   asks: any[][];
@@ -48,13 +51,14 @@ export function ConditionalMarketCard({
   isWinning,
   twapDescription,
 }: Props) {
+  const { daoTokens } = useAutocrat();
   const { proposal, isCranking, crankMarkets } = useProposal();
   const { orderBookObject, markets, placeOrder } = useProposalMarkets();
   const { setBalanceByMint } = useBalances();
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
-  const [price, setPrice] = useState<string>('');
+  const [price, setPrice] = useState<number | undefined>(0);
   const [priceError, setPriceError] = useState<string | null>(null);
   const [amountError, setAmountError] = useState<string | null>(null);
   const [orderValue, setOrderValue] = useState<string>('0');
@@ -88,25 +92,48 @@ export function ConditionalMarketCard({
       : markets?.quoteVault.conditionalOnRevertTokenMint,
   );
 
-  if (!markets) return <></>;
+  if (!markets) return <Loader />;
   const isAskSide = orderSide === 'Sell';
   const isLimitOrder = orderType === 'Limit';
 
   // TODO: Review this as anything less than this fails to work
-  const minMarketPrice = 10;
+  // const minMarketPriceIncrement: number = new BN(1).div(markets.fail.quoteLotSize).toString();
+  const minMarketPriceIncrement = useMemo(() => ((10 ** (
+    markets.fail.baseDecimals - markets.fail.quoteDecimals
+  )) * markets.fail.quoteLotSize.toNumber()) / markets.fail.baseLotSize.toNumber(),
+  [markets.fail.baseLotSize]);
+
+  // const testPrice = new BN(10)
+  //   .pow(
+  //     new BN(markets.fail.baseDecimals.toString())
+  //     .sub(new BN(markets.fail.quoteDecimals.toString()))
+  //   )
+  //   .mul(markets.fail.quoteLotSize)
+  //   .div(markets.fail.baseLotSize)
+  //   .toNumber();
+
+  const minMarketBaseIncrement = useMemo(() => markets.fail.baseLotSize.toNumber() / (
+    10 ** markets.fail.baseDecimals
+  ), [markets.fail.baseLotSize]);
+
+  const lotsToUI: number = useMemo(() => markets.fail.baseLotSize
+    .div(new BN(10)
+      .pow(new BN(markets.fail.baseDecimals.toString()))
+    )
+    .toNumber(), [markets.fail.baseLotSize]);
   // TODO: Review this number as max safe doesn't work
-  const maxMarketPrice = 10000000000;
+  const maxMarketPrice = 10_000_000_000;
 
   const updateOrderValue = () => {
-    if (!Number.isNaN(amount) && !Number.isNaN(+price)) {
+    if (price && !Number.isNaN(amount) && !Number.isNaN(+price)) {
       const formatter = new Intl.NumberFormat('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       });
-      const _price = formatter.format(parseFloat((+price * amount).toString()));
+      const _price = `$${formatter.format(parseFloat((+price * amount).toString()))}`;
       setOrderValue(_price);
     } else {
-      setOrderValue('0');
+      setOrderValue('$0');
     }
   };
 
@@ -119,13 +146,19 @@ export function ConditionalMarketCard({
       return 0;
     }
     if (orderSide === 'Sell') {
-      return minMarketPrice;
+      return minMarketPriceIncrement;
     }
     return maxMarketPrice;
   };
 
-  const priceValidator = (value: string) => {
+  const priceValidator = (value: number) => {
     if (isLimitOrder) {
+      const valueAsFlaot = parseFloat(value.toString());
+      const minPriceAsFloat = parseFloat(minMarketPriceIncrement.toString());
+      if (valueAsFlaot < minPriceAsFloat) {
+        setPriceError('You must set a higher price');
+        return;
+      }
       if (Number(value) > 0) {
         if (isAskSide) {
           if (isPassMarket) {
@@ -162,7 +195,7 @@ export function ConditionalMarketCard({
     }
   };
 
-  const setPriceFromOrderBook = (value: string) => {
+  const setPriceFromOrderBook = (value: number) => {
     priceValidator(value);
     setPrice(value);
   };
@@ -176,23 +209,47 @@ export function ConditionalMarketCard({
     }
     if (quoteBalance && price) {
       const _maxAmountRatio = Math.floor(
-        Number(quoteBalance?.data?.uiAmountString) / Number(price),
+        Number(quoteBalance.data?.uiAmountString) / Number(price),
       );
       return _maxAmountRatio;
     }
     return 0;
   };
 
+  const minOrderAmount = () => lotsToUI > 0 ? lotsToUI : minMarketBaseIncrement;
+
+  const minOrderByStepSize = (value: number) => {
+    const unitFactor = lotsToUI > 0 ? lotsToUI : minMarketBaseIncrement;
+    if (value > 0 && value !== unitFactor) {
+      if (value % unitFactor === 0) {
+        return value;
+      }
+      // TODO: Dunno if we should ceil
+      const _minAmountRatio = Math.round(value / unitFactor) * unitFactor;
+      return _minAmountRatio;
+    }
+    return unitFactor;
+  };
+
   const amountValidator = (value: number) => {
     if (value > 0) {
+      const unitFactor = lotsToUI > 0 ? lotsToUI : minMarketBaseIncrement;
+      const valueAsFloat = parseFloat(value.toString());
+      const maxOrderAmountAsFloat = parseFloat(maxOrderAmount().toString());
+      const minOrderAmountAsFloat = parseFloat(minOrderAmount().toString());
+      const minRoundedAmountAsFloat = parseFloat(minOrderByStepSize(value).toString());
       if (!isLimitOrder) {
         setAmountError(`A market order may execute at an 
         extremely ${isAskSide ? 'low' : 'high'} price
         be sure you know what you're doing`);
         return;
       }
-      if (value > maxOrderAmount()) {
+      if (valueAsFloat > maxOrderAmountAsFloat) {
         setAmountError("You don't have enough funds");
+      } else if (valueAsFloat < minOrderAmountAsFloat) {
+        setAmountError(`You must trade at least ${unitFactor}`);
+      } else if (valueAsFloat < minRoundedAmountAsFloat || value > minRoundedAmountAsFloat) {
+        setAmountError(`You must trade whole increments of ${unitFactor}. Suggested ${minRoundedAmountAsFloat.toString()}`);
       } else {
         setAmountError(null);
       }
@@ -211,13 +268,13 @@ export function ConditionalMarketCard({
     // Check and change values to match order type
     if (isLimitOrder) {
       // We can safely reset our price to nothing
-      setPrice('');
+      setPrice(undefined);
     } else if (side === 'Buy') {
       // Sets up the market order for the largest value
-      setPrice(maxMarketPrice.toString());
+      setPrice(maxMarketPrice);
     } else {
       // Sets up the market order for the smallest value
-      setPrice(minMarketPrice.toString());
+      setPrice(minMarketPriceIncrement);
     }
   };
 
@@ -228,15 +285,18 @@ export function ConditionalMarketCard({
 
   const handlePlaceOrder = useCallback(async () => {
     try {
+      const isPostOnly = false;
       setIsPlacingOrder(true);
       const txsSent = await placeOrder(
         amount,
         _orderPrice(),
         isLimitOrder,
+        isPostOnly,
         isAskSide,
         isPassMarket,
       );
       if (txsSent && txsSent.length > 0) {
+        // TODO: We're assessing market in multiple places, we should be doing this in one
         const marketAccount = isPassMarket
           ? { account: markets.pass, publicKey: proposal?.account.openbookPassMarket }
           : { account: markets.fail, publicKey: proposal?.account.openbookFailMarket };
@@ -261,12 +321,12 @@ export function ConditionalMarketCard({
 
   useEffect(() => {
     updateOrderValue();
-    if (amount !== 0) amountValidator(amount);
+    if (amount && amount !== 0) amountValidator(amount);
   }, [amount]);
 
   useEffect(() => {
     updateOrderValue();
-    if (price !== '') priceValidator(price);
+    if (price && price !== 0) priceValidator(price);
   }, [price]);
 
   const winningMarket = () => {
@@ -306,7 +366,7 @@ export function ConditionalMarketCard({
           twapMarket={
             isPassMarket
               ? proposal!.account.openbookTwapPassMarket
-              : proposal!.account.openbookTwapPassMarket
+              : proposal!.account.openbookTwapFailMarket
           }
           lastObservationValue={lastObservationValue ?? 0}
           lastObservedSlot={lastObservedSlot}
@@ -347,12 +407,12 @@ export function ConditionalMarketCard({
               setOrderType(e.target.value);
               if (e.target.value === 'Market') {
                 if (isAskSide) {
-                  setPrice(minMarketPrice.toString());
+                  setPrice(minMarketPriceIncrement);
                 } else {
-                  setPrice(maxMarketPrice.toString());
+                  setPrice(maxMarketPrice);
                 }
               } else {
-                setPrice('');
+                setPrice(undefined);
               }
               setPriceError(null);
               setAmountError(null);
@@ -365,11 +425,11 @@ export function ConditionalMarketCard({
                 placeholder="Enter price..."
                 type="number"
                 w="100%"
-                value={!isLimitOrder ? '' : price}
+                value={!isLimitOrder ? undefined : (price || undefined)}
                 disabled={!isLimitOrder}
                 error={priceError}
                 onChange={(e) => {
-                  setPrice(e.target.value);
+                  setPrice(Number(e.target.value));
                 }}
               />
             </Grid.Col>
@@ -377,13 +437,12 @@ export function ConditionalMarketCard({
               <TextInput
                 label={
                   <Group justify="space-between" align="center">
-                    <Text size="sm">Amount of META</Text>
+                    <Text size="sm">Amount of {daoTokens?.baseToken?.symbol}</Text>
                   </Group>
                 }
                 placeholder="Enter amount..."
                 type="number"
-                value={amount || ''}
-                defaultValue={amount || ''}
+                value={amount || undefined}
                 rightSectionWidth={70}
                 rightSection={
                   <ActionIcon
@@ -398,11 +457,6 @@ export function ConditionalMarketCard({
                   >
                     <Text size="xs">
                       Max{' '}
-                      {maxOrderAmount() && maxOrderAmount() < 1000
-                        ? !isOrderAmountNan()
-                          ? numeral(maxOrderAmount()).format(BASE_FORMAT)
-                          : ''
-                        : ''}
                     </Text>
                   </ActionIcon>
                 }
@@ -419,10 +473,10 @@ export function ConditionalMarketCard({
                 <IconWallet height={12} />
                 <Text size="xs">
                   {isAskSide
-                    ? `${isPassMarket ? 'p' : 'f'}META ${
+                    ? `${isPassMarket ? 'p' : 'f'}${daoTokens?.baseToken?.symbol} ${
                         numeral(baseBalance?.data?.uiAmountString || 0).format(BASE_FORMAT) || ''
                       }`
-                    : `${isPassMarket ? 'p' : 'f'}USDC $${
+                    : `${isPassMarket ? 'p' : 'f'}${daoTokens?.quoteToken?.symbol} $${
                         numeral(quoteBalance?.data?.uiAmountString || 0).format(NUMERAL_FORMAT) ||
                         ''
                       }`}
@@ -445,7 +499,7 @@ export function ConditionalMarketCard({
                 disabled={!amount || (isLimitOrder ? !price : false)}
                 loading={isPlacingOrder}
               >
-                {orderSide} {isPassMarket ? 'p' : 'f'}META
+                {orderSide} {isPassMarket ? 'p' : 'f'}{daoTokens?.baseToken?.symbol}
               </Button>
             </GridCol>
           </Grid>

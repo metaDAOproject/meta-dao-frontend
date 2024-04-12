@@ -1,53 +1,45 @@
-import { ActionIcon, Button, Divider, Group, Text, Title, TextInput } from '@mantine/core';
+import { ActionIcon, Button, Divider, Group, Text, Title, TextInput, Loader } from '@mantine/core';
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { IconArrowsDownUp, IconWallet } from '@tabler/icons-react';
-// import { debounce } from '@/lib/utils';
-import { VersionedTransaction, PublicKey } from '@solana/web3.js';
+import { VersionedTransaction } from '@solana/web3.js';
 import { createJupiterApiClient } from '@jup-ag/api';
 import { useProvider } from '@/hooks/useProvider';
 import poweredByJup from '../../public/poweredbyjupiter-grayscale.svg';
 import { useTransactionSender } from '@/hooks/useTransactionSender';
 import { useBalance } from '@/hooks/useBalance';
-import { META_BASE_LOTS, USDC_BASE_LOTS } from '@/hooks/useTokens';
-
-const tokens = [
-  {
-    mintAddress: 'METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr',
-    name: 'meta',
-  },
-  {
-    mintAddress: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-    name: 'usdc',
-  },
-];
+import { useAutocrat } from '@/contexts/AutocratContext';
+import { toCompactNumber } from '@/lib/utils';
 
 export function JupSwapCard() {
   const provider = useProvider();
+  const { daoTokens } = useAutocrat();
   const [inAmount, setInAmount] = useState<number>(1);
   const [outAmount, setOutAmount] = useState<number>();
-  const [base, setBase] = useState<string>('meta');
-  const [quote, setQuote] = useState<string>('usdc');
   const [isSwapping, setIsSwapping] = useState(false);
   const jupiterQuoteApi = createJupiterApiClient();
   const sender = useTransactionSender();
-  const {
-    amount: { data: balance },
-  } = useBalance(new PublicKey(tokens.filter((token) => token.name === base)[0].mintAddress));
+
+  if (!daoTokens || !daoTokens.baseToken || !daoTokens.quoteToken) return <Loader />;
+
+  const { baseToken } = daoTokens;
+  const { quoteToken } = daoTokens;
+
+  const [base, setBase] = useState<string>(baseToken.symbol);
+  const [quote, setQuote] = useState<string>(quoteToken.symbol);
+
+  const baseSymbolLower = baseToken.symbol.toLowerCase();
+  const quoteSymbolLower = quoteToken.symbol.toLowerCase();
+
+  const { amount: { data: balance } } = useBalance(baseToken.publicKey);
 
   const fetchQuote = async (amount: number, slippage: number) => {
-    const baseMint: {
-      mintAddress: string;
-      name: string;
-    } = tokens.filter((token) => token.name === base)[0];
-    const quoteMint: {
-      mintAddress: string;
-      name: string;
-    } = tokens.filter((token) => token.name === quote)[0];
+    const baseMint = baseToken.publicKey;
+    const quoteMint = quoteToken.publicKey;
 
     const quoteResponse = await jupiterQuoteApi.quoteGet({
-      inputMint: baseMint.mintAddress,
-      outputMint: quoteMint.mintAddress,
+      inputMint: baseMint.toString(),
+      outputMint: quoteMint.toString(),
       amount,
       slippageBps: slippage,
       swapMode: 'ExactIn',
@@ -76,19 +68,19 @@ export function JupSwapCard() {
     return swapResult;
   };
 
-  const convertFromJup = (amount: number, token: string) =>
-    token === 'meta' ? amount / META_BASE_LOTS : amount / USDC_BASE_LOTS;
+  const convertFromJup = (amount: number, isBase: boolean): number =>
+    isBase ? amount / (10 ** baseToken.decimals) : amount / (10 ** quoteToken.decimals);
 
-  const convertToJup = (amount: number, token: string) =>
-    token === 'meta' ? amount * META_BASE_LOTS : amount * USDC_BASE_LOTS;
+  const convertToJup = (amount: number, isBase: boolean): number =>
+    isBase ? amount * (10 ** baseToken.decimals) : amount * (10 ** quoteToken.decimals);
 
   const updateAndFetchQuote = async (amount: number) => {
     setInAmount((_amount) => (_amount === amount ? _amount : amount));
-    const jupAmount = convertToJup(amount, base);
+    const jupAmount = convertToJup(amount, true);
     try {
       const quoteResponse = await fetchQuote(jupAmount, 50);
       if (!quoteResponse) return;
-      const readableAmount = convertFromJup(Number(quoteResponse.outAmount), quote);
+      const readableAmount = convertFromJup(Number(quoteResponse.outAmount), false);
       setOutAmount((_outAmount) => (_outAmount === readableAmount ? _outAmount : readableAmount));
       return quoteResponse;
     } catch (err) {
@@ -116,8 +108,8 @@ export function JupSwapCard() {
   }, [updateAndFetchQuote, buildTransaction, inAmount]);
 
   const swapBase = () => {
-    setBase((_base) => (_base === 'meta' ? 'usdc' : 'meta'));
-    setQuote((_quote) => (_quote === 'usdc' ? 'meta' : 'usdc'));
+    setBase((_base) => (_base === baseSymbolLower ? quoteSymbolLower : baseSymbolLower));
+    setQuote((_quote) => (_quote === quoteSymbolLower ? baseSymbolLower : quoteSymbolLower));
   };
 
   useEffect(() => {
@@ -134,7 +126,7 @@ export function JupSwapCard() {
           <Group p={0} m={0}>
             <Text ml={0} size="xs">
               <IconWallet height={12} />
-              {balance.uiAmount}
+              {toCompactNumber(balance.uiAmount)}
             </Text>
           </Group>
         )}

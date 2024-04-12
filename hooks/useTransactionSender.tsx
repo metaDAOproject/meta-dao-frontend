@@ -7,7 +7,7 @@ import {
   Transaction as LegacyTransaction,
   PublicKey,
   SignatureResult,
-  VersionedTransaction
+  VersionedTransaction,
 } from '@solana/web3.js';
 import { IconCircleCheck, IconCircleX, IconExclamationCircle } from '@tabler/icons-react';
 import base58 from 'bs58';
@@ -345,7 +345,7 @@ export const useTransactionSender = <T extends Transaction>(args?: {
       });
       const txsWithPriorityFee = sequence.map((set) =>
         set.map((el) =>
-          addPriorityFee(el.tx, {
+          addComputeBudgetInstructions(el.tx, {
             fee: priorityFee,
             blockhash,
             payer: wallet.publicKey!,
@@ -395,7 +395,7 @@ export const useTransactionSender = <T extends Transaction>(args?: {
  * One thing we need to figure out is how to adapt this logic for VersionedTransaction objects, or at least
  * how to allow configuration + setting before creating the VersionedTransaction.
  */
-const addPriorityFee = <T extends Transaction>(
+const addComputeBudgetInstructions = <T extends Transaction>(
   tx: T,
   config?: {
     fee?: number | bigint;
@@ -409,7 +409,19 @@ const addPriorityFee = <T extends Transaction>(
   if (config?.blockhash) tx.recentBlockhash = config?.blockhash;
   if (config?.payer) tx.feePayer = config?.payer;
 
+  // Compute limit ix & priority fee ix
+  // Create Open Orders Account & Place Order (73.8k) needs 80k https://explorer.solana.com/tx/5b4LCzgkgFyFY25qUDMnftExLvFsXsP9XopAn88HXKhUHg43QY62rGJqiEhsbfYPvccNMNQj1eRTxLqurSo9vsHX
+  // Mint (59.095) needs 70k https://explorer.solana.com/tx/4gFeSPnHB59FH12vpuhnjznc2aZA2nf4krwLwhQRLUgiMQU1kuTn49TtPiqxkry5cQ6NYr9xMA8aT7frHBxtXa3r
+  // Crank (6.4k) needs 10k https://explorer.solana.com/tx/5sf9b225oNZVu2WyiDTTXFiC6wytZQPJrK5JsBK1QfLtmkCkDyCvPWbte8X83t1q2zyoSzxUsQu6qYDvN56GCnVS
+  // Close open orders account (9.9k) needs 15k https://explorer.solana.com/tx/5jY5CsmSHoiU9npaCTqYCKMjxT4uzQUe33NJ7BVwSakG6KzNo8f2A5nNgoX4ktao1Wp4FK11SH5QVZerjvQjeG9D
+  // Cancel order & settle funds (56.4k) needs 60k https://explorer.solana.com/tx/5W6Mt8vzC9dh8CdVe4oi1S769VkGbHXprdpJmx8qMpHu7F5sZSkCY3wT9D3hV9Dh2fXMJzPgYBip2SU4q9wAUh9K
+  // Settle funds (38.8k) needs 50k https://explorer.solana.com/tx/5cuDkbi8bNQTKzC4TUhjRFfzPefZnKX8qJvaGak7y8qEjsGshYnuJwfuoVdXVk43jDq4qrsqpuGdwUL5TWB9tVzo
+  // Redeem (60.9k) needs 80k https://explorer.solana.com/tx/4jpgdd7RoHwSv8Ci15z4K2G2rVxfrSqyPMuf1F7YotdNjmyRg5froCHp7NBzMu2fMNEHUH2WkgkEtKxMeGsjQouN
+  // TODO: Finalize
+  // TODO: Create Proposal
+  // TODO: Initialize DAO
   tx.instructions = [
+    ComputeBudgetProgram.setComputeUnitLimit({ units: 90_000 }),
     ComputeBudgetProgram.setComputeUnitPrice({ microLamports: config?.fee }),
     ...tx.instructions,
   ];

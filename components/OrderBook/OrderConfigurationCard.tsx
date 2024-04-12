@@ -32,9 +32,9 @@ export function OrderConfigurationCard({
 }) {
   const openbookMarket = useOpenbookMarket();
   // TODO: Review this as anything less than this fails to work
-  const minMarketPrice = 10;
+  const minMarketPrice = market.market.quoteLotSize.toNumber();
   // TODO: Review this number as max safe doesn't work
-  const maxMarketPrice = 10000000000;
+  const maxMarketPrice = 10_000_000_000;
   const [orderType, setOrderType] = useState<string>('Limit');
   const [orderSide, setOrderSide] = useState<string>('Buy');
   const [amount, setAmount] = useState<number>(0);
