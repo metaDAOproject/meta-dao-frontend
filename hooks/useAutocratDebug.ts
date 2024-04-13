@@ -34,9 +34,9 @@ export function useAutocratDebug() {
         .instruction(),
     );
 
-    const blockhask = await connection.getLatestBlockhash();
+    const blockhash = await connection.getLatestBlockhash();
     daoTx.feePayer = wallet.publicKey!;
-    daoTx.recentBlockhash = blockhask.blockhash;
+    daoTx.recentBlockhash = blockhash.blockhash;
 
     txs.push(daoTx);
 
