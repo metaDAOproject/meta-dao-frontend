@@ -53,7 +53,10 @@ export function useOpenbookTwap() {
   const wallet = useWallet();
   const provider = useProvider();
   const { programVersion } = useAutocrat();
-  const sender = useTransactionSender();
+
+  const sender = useTransactionSender({
+    commitment: 'confirmed',
+  });
   const { getVaultMint } = useConditionalVault();
   const { program: openbook } = useOpenbook();
 
@@ -301,7 +304,9 @@ export function useOpenbookTwap() {
         .remainingAccounts(filteredAccounts)
         .instruction();
 
-      const latestBlockhash = await provider.connection.getLatestBlockhash();
+      const latestBlockhash = await provider.connection.getLatestBlockhash({
+        commitment: 'confirmed',
+      });
 
       const message = MessageV0.compile({
         payerKey: provider.wallet.publicKey,
