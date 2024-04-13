@@ -42,11 +42,23 @@ export const validateType = async (type: InstructionFieldTypes, value?: string) 
 
 export const toScientificNotation = (number: number, decimalPlaces: number) =>
   // Convert number to scientific notation with specified decimal places
-   number.toExponential(decimalPlaces);
+  number.toExponential(decimalPlaces);
 
 export const toCompactNumber = (number: any) => {
   const value = Number(number);
   if (Number.isNaN(value)) return Number(0.0);
   // Convert number to compact form 123,000,000 becomes 123M
-  return new Intl.NumberFormat('en', { notation: 'compact', maximumSignificantDigits: 4 }).format(value);
+  return new Intl.NumberFormat('en', { notation: 'compact', maximumSignificantDigits: 4 }).format(
+    value,
+  );
+};
+
+export const parsePossibleBoolean = (value?: string): boolean | undefined => {
+  if (value === undefined) return undefined;
+
+  const normalizedValue = value.trim().toLowerCase();
+  if (normalizedValue === 'true' || normalizedValue === '1') return true;
+  if (normalizedValue === 'false' || normalizedValue === '0') return false;
+
+  return undefined;
 };
