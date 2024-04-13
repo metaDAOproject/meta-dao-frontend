@@ -4,7 +4,7 @@ import { parsePossibleBoolean } from './utils';
 
 config();
 
-const VERBOSE = parsePossibleBoolean(process.env.VERBOSE) ?? false;
+const VERBOSE_LOGGING = parsePossibleBoolean(process.env.VERBOSE_LOGGING) ?? false;
 
 const LOG_LEVELS = {
   log: { var: 'LOG_ENABLED', method: console.log },
@@ -16,11 +16,8 @@ const LOG_LEVELS = {
 
 const _log = (level: keyof typeof LOG_LEVELS, ...args: any[]): void => {
   if (
-    VERBOSE ||
-    (parsePossibleBoolean(
-      process.env[LOG_LEVELS[level as keyof typeof LOG_LEVELS].var]
-    ) ??
-      false)
+    VERBOSE_LOGGING ||
+    (parsePossibleBoolean(process.env[LOG_LEVELS[level as keyof typeof LOG_LEVELS].var]) ?? false)
   ) {
     LOG_LEVELS[level].method(...args);
   }

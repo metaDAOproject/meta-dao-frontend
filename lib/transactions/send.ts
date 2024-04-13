@@ -10,6 +10,7 @@ import { SignatureError } from './errors';
 import { TransactionLifecycleEventCallback } from './events';
 import { SendTransactionConfig } from './types';
 import { abortableSleep, getTransactionSignatureOrThrow } from './utils';
+import { DEFAULT_POLLING_TIMEOUT } from './constants';
 
 const MAX_SEND_TX_RETRIES = 10;
 
@@ -38,12 +39,7 @@ const TRANSACTION_ALREADY_PROCESSED_MESSAGE = 'This transaction has already been
 export const sendSignedTransaction = async ({
   signedTransaction,
   connection,
-  config = {
-    sendOptions: {
-      skipPreflight: true,
-      maxRetries: MAX_SEND_TX_RETRIES,
-    },
-  },
+  config,
   onTransactionEvent,
 }: {
   signedTransaction: Transaction | VersionedTransaction;
@@ -53,6 +49,16 @@ export const sendSignedTransaction = async ({
 }): Promise<string> => {
   const transactionProcessedController = new AbortController();
   let rawTransaction: Buffer | Uint8Array;
+  const {
+    sendOptions = {
+      skipPreflight: true,
+      maxRetries: MAX_SEND_TX_RETRIES,
+      preflightCommitment: 'confirmed',
+    },
+    pollingSendTransactionTimeoutMs = DEFAULT_POLLING_TIMEOUT,
+    continuouslySendTransactions = false,
+    controller,
+  } = config ?? {};
 
   try {
     /**
@@ -71,16 +77,13 @@ export const sendSignedTransaction = async ({
 
   const transactionId = getTransactionSignatureOrThrow(signedTransaction);
   (async () => {
-    const pollingSendTransactionTimeoutMs = config.pollingSendTransactionTimeoutMs ?? 1_000;
-    const continuouslySendTransactions = config.continuouslySendTransactions ?? false;
-
-    if (continuouslySendTransactions && !config.controller) {
+    if (continuouslySendTransactions && !controller) {
       throw new Error(
         'AbortController is required to continuously send a transaction to the cluster',
       );
     }
 
-    while (!transactionProcessedController.signal.aborted && !config.controller?.signal.aborted) {
+    while (!transactionProcessedController.signal.aborted && !controller?.signal.aborted) {
       onTransactionEvent?.({
         type: 'send',
         phase: 'pending',
@@ -94,7 +97,7 @@ export const sendSignedTransaction = async ({
        * source: https://github.com/solana-labs/solana-web3.js/blob/2d48c0954a3823b937a9b4e572a8d63cd7e4631c/packages/library-legacy/src/connection.ts#L5918-L5927
        */
       connection
-        .sendRawTransaction(rawTransaction, config.sendOptions)
+        .sendRawTransaction(rawTransaction, sendOptions)
         .catch((err: SendTransactionError) => {
           if (err.message.includes(TRANSACTION_ALREADY_PROCESSED_MESSAGE)) {
             transactionProcessedController.abort();
@@ -117,7 +120,7 @@ export const sendSignedTransaction = async ({
       }
 
       /* eslint-disable no-await-in-loop */
-      await abortableSleep(pollingSendTransactionTimeoutMs, config.controller);
+      await abortableSleep(pollingSendTransactionTimeoutMs, controller);
     }
   })();
 

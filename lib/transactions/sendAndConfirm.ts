@@ -2,10 +2,11 @@ import { Connection, Transaction, VersionedTransaction } from '@solana/web3.js';
 
 import { log } from '../logger';
 import { awaitTransactionSignatureConfirmation } from './confirm';
-import { ConfirmationTimeoutError, InstructionError } from './errors';
+import { ConfirmationTimeoutError } from './errors';
 import { TransactionError } from './errors/transaction';
 import { TransactionLifecycleEventCallback } from './events';
 import { sendSignedTransaction } from './send';
+import { simulateTransaction } from './simulate';
 import {
   NoTimeoutConfig,
   SendTransactionConfig,
@@ -35,20 +36,13 @@ const DEFAULT_CONFIRMATION_TIMEOUT = 30_000;
 export const sendAndConfirmTransaction = async ({
   signedTransaction,
   connection,
-  config = {
-    type: 'static',
-    timeoutMs: DEFAULT_CONFIRMATION_TIMEOUT,
-  },
+  config,
   onTransactionEvent,
 }: {
   signedTransaction: Transaction | VersionedTransaction;
   connection: Connection;
   config?: SendTransactionConfig &
-    (
-      | StaticTimeoutConfig
-      | TransactionExpirationTimeoutConfig
-      | NoTimeoutConfig
-    );
+    (StaticTimeoutConfig | TransactionExpirationTimeoutConfig | NoTimeoutConfig);
   onTransactionEvent?: TransactionLifecycleEventCallback;
 }): Promise<string> => {
   const startTime = getUnixTs();
@@ -59,7 +53,10 @@ export const sendAndConfirmTransaction = async ({
     pollingSendTransactionTimeoutMs,
     sendOptions,
     ...confirmationConfig
-  } = config;
+  } = config ?? {
+    type: 'static',
+    timeoutMs: DEFAULT_CONFIRMATION_TIMEOUT,
+  };
 
   const transactionId = await sendSignedTransaction({
     signedTransaction,
@@ -76,7 +73,7 @@ export const sendAndConfirmTransaction = async ({
   if (confirmationConfig.type === 'none') {
     controller.abort();
     log(
-      'Caller requested no confirmation, skipping all confirmation and returning after initial transaction sent to cluster'
+      'Caller requested no confirmation, skipping all confirmation and returning after initial transaction sent to cluster',
     );
 
     return transactionId;
@@ -95,11 +92,7 @@ export const sendAndConfirmTransaction = async ({
           : undefined,
     });
 
-    log(
-      'Finished transaction status confirmation: ',
-      transactionId,
-      getUnixTs() - startTime
-    );
+    log('Finished transaction status confirmation: ', transactionId, getUnixTs() - startTime);
   } catch (error: any) {
     if (error.timeout) {
       throw new ConfirmationTimeoutError({
@@ -107,15 +100,13 @@ export const sendAndConfirmTransaction = async ({
         message: 'Timed out awaiting confirmation on transaction',
         config: ConfirmationTimeoutError.formatConfig(confirmationConfig),
       });
-    } else if (error.err) {
-      throw new InstructionError({
-        transactionId,
-        error: error.err,
-        transaction: signedTransaction,
-      });
     }
 
-    // note: if we want to try and get more information about a transaction failure, we could make a simulate transaction request here
+    await simulateTransaction({
+      transaction: signedTransaction,
+      connection,
+      onTransactionEvent,
+    });
 
     // question: is there any additional processing we can do to give back more information to the caller?
     throw new TransactionError({
@@ -126,11 +117,7 @@ export const sendAndConfirmTransaction = async ({
     tryInvokeAbort(controller);
   }
 
-  log(
-    'Transaction confirmation latency: ',
-    transactionId,
-    getUnixTs() - startTime
-  );
+  log('Transaction confirmation latency: ', transactionId, getUnixTs() - startTime);
 
   return transactionId;
 };
