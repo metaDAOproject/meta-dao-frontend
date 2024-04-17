@@ -37,7 +37,6 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 import React, { useEffect, useRef, useState } from 'react';
-import useSWR from 'swr';
 import { Networks, useNetworkConfiguration } from '../../hooks/useNetworkConfiguration';
 import { shortKey } from '@/lib/utils';
 import icon from '@/public/meta.png';
@@ -48,6 +47,7 @@ import { usePriorityFee } from '../../hooks/usePriorityFee';
 import { NUMERAL_FORMAT } from '../../lib/constants';
 import { NavigationLinks } from './NavigationLinks';
 import { DialectNotificationComponent } from '@/components/Plugins/DialectNotification';
+import { useFetchSpotPrice } from '@/hooks/useFetchSpotPrice';
 
 const links = [
   {
@@ -75,35 +75,13 @@ const explorers = [
   { label: 'Solana Explorer', value: Explorers.Solana.toString() },
 ];
 
-function getTokenPrice(data: any) {
-  const price = Math.round((Number(data.outAmount) / Number(data.inAmount)) * 1000000) / 1000;
-  return price;
-}
+export type LayoutProps = {
+  programKey: string | null;
+  children: React.ReactNode;
+};
 
-function useTokenPrice() {
-  const url =
-    'https://quote-api.jup.ag/v6/quote?inputMint=METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr&' +
-    'outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&' +
-    'amount=100000000&' +
-    'slippageBps=50&' +
-    'swapMode=ExactIn&' +
-    'onlyDirectRoutes=false&' +
-    'maxAccounts=64&' +
-    'experimentalDexes=Jupiter%20LO';
-  const tokenPriceFetcher = () =>
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => getTokenPrice(data));
-  const { data, error, isLoading } = useSWR('metaSpotPrice', tokenPriceFetcher);
-
-  return {
-    price: data,
-    isLoading,
-    isError: error,
-  };
-}
-
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout(props: LayoutProps) {
+  const { children, programKey } = props;
   const wallet = useWallet();
   const modal = useWalletModal();
   const pinned = useHeadroom({ fixedAt: 200 });
@@ -111,6 +89,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { explorer, setExplorer } = useExplorerConfiguration();
   const colorScheme = useMantineColorScheme();
   const theme = useMantineTheme();
+  const tokenPrice = useFetchSpotPrice({ programKey });
   const isTiny = useMediaQuery(`(max-width: ${theme.breakpoints.xs})`);
   const logoRef = useRef(null);
   const { priorityFee, setPriorityFee } = usePriorityFee();
@@ -145,7 +124,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     // Call fetchData immediately when component mounts
     fetchData();
   }, []); // Empty dependency array means this effect will only run once
-  const tokenPrice = useTokenPrice();
 
   const feesCost = (((priorityFee / 100000) * 200000) / LAMPORTS_PER_SOL) * (solPrice || 0);
 
@@ -198,7 +176,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 {tokenPrice.isLoading
                   ? 'loading...'
                   : !tokenPrice.isError
-                  ? `1 META ≈ $${tokenPrice.price}`
+                  ? `1 ${tokenPrice.token} ≈ $${tokenPrice.price}`
                   : ''}
                 <Link
                   target="_blank"

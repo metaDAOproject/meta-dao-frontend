@@ -7,7 +7,7 @@ import CreateDaoButton from '../../components/ManageDao/CreateDaoButton';
 
 export default function AnalyticsPage() {
   return (
-    <Layout>
+    <Layout programKey={null}>
       <Container>
         <Stack gap="15">
           <CreateTestTokensCard />

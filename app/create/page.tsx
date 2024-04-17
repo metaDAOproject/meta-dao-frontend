@@ -5,7 +5,7 @@ import { CreateProposalCard } from '../../components/Proposals/CreateProposalCar
 
 export default function CreateProposalPage() {
   return (
-    <Layout>
+    <Layout programKey={null}>
       <CreateProposalCard />
     </Layout>
   );

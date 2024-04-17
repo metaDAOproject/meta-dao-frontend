@@ -6,7 +6,7 @@ import ProposalList from '@/components/Proposals/ProposalList';
 
 export default function ProposalsPage() {
   return (
-    <Layout>
+    <Layout programKey={null}>
       <Container p="0">
         <Stack gap="15">
           <ProposalList programKey={null} />

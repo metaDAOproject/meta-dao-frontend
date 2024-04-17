@@ -11,7 +11,7 @@ export default function ProposalsPage() {
   const proposalNumber = Number(params.get('id'));
 
   return (
-    <Layout>
+    <Layout programKey={null}>
       <ProposalMarketsProvider proposalNumber={proposalNumber}>
         <ProposalProvider proposalNumber={proposalNumber}>
           <ProposalDetailCard programKey={null} proposalNumber={proposalNumber} />

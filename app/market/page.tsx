@@ -10,7 +10,7 @@ export default function MarketPage() {
   const marketId = params.get('id');
 
   return (
-    <Layout>
+    <Layout programKey={null}>
       <OpenbookMarketProvider marketId={marketId}>
         <MarketDetailCard />
       </OpenbookMarketProvider>

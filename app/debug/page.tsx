@@ -27,7 +27,7 @@ export default function DebugPage() {
   }, [wallet.publicKey, connection]);
 
   return (
-    <Layout>
+    <Layout programKey={null}>
       <Container>
         <Stack gap="15">
           <Button onClick={handleAirdrop}>Airdrop</Button>

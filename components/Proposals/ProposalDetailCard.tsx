@@ -59,12 +59,9 @@ export function ProposalDetailCard(props: ProposalProps) {
   const { programKey, proposalNumber } = props;
   const wallet = useWallet();
   const { daoTreasuryKey, daoTokens, daoState, programVersion, setProgramVersion } = useAutocrat();
-  if (
-    !daoTokens || !daoState || !programVersion
-    || (!programVersion?.programId.toString() && programKey)
-  ) return <Loader />;
+
   // NOTE: Added as we don't want to willy nilly just update stuff already set.
-  const isSameProgram = programVersion.programId.toString() === programKey;
+  const isSameProgram = programVersion?.programId.toString() === programKey;
 
   const tokens = daoTokens;
   const { redeemTokensTransactions } = useConditionalVault();
@@ -302,11 +299,13 @@ export function ProposalDetailCard(props: ProposalProps) {
     const proposalId = pendingProposals?.filter((p) => p?.title === title)[0]?.account.number;
 
     if (proposalId) {
-      router.replace(`/program/proposal?programKey=${programKey || programVersion.programId.toString()}&proposalNumber=${proposalId}`);
+      router.replace(`/program/proposal?programKey=${programKey || programVersion?.programId.toString()}&proposalNumber=${proposalId}`);
     }
   };
 
-  return !proposal || !markets || !programVersion ? (
+  return !daoTokens || !daoState || !proposal
+  || !markets || !programVersion
+  || (!programVersion?.programId.toString() && programKey) ? (
     <Group justify="center">
       <Loader />
     </Group>
