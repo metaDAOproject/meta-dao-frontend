@@ -1,4 +1,5 @@
 import { PublicKey, TransactionSignature } from '@solana/web3.js';
+import { BN } from '@coral-xyz/anchor';
 import { InstructionFieldTypes } from './types';
 
 export const shortKey = (key?: PublicKey | string) => {
@@ -50,3 +51,43 @@ export const toCompactNumber = (number: any) => {
   // Convert number to compact form 123,000,000 becomes 123M
   return new Intl.NumberFormat('en', { notation: 'compact', maximumSignificantDigits: 4 }).format(value);
 };
+
+// NOTE: Bringing these in from the updated OpenBook as we can't upgrade...
+// https://github.com/openbook-dex/openbook-v2/blob/d7d909c876e161d0a2bed9678c3dc5b9d0d430fb/ts/client/src/utils/utils.ts#L51
+// eslint-disable-next-line max-len
+export const toNative = (
+  uiAmount: number,
+  decimals: number
+) => new BN(Math.round(uiAmount * 10 ** decimals));
+
+// eslint-disable-next-line max-len
+export const toUiDecimals = (nativeAmount: number, decimals: number): number => nativeAmount / 10 ** decimals;
+
+export const priceUiToLots = (
+  uiAmount: number,
+  baseLotSize: BN,
+  quoteLotSize: BN,
+  quoteDecimals: number,
+  baseDecimals: number
+): BN => toNative(uiAmount * Number(baseLotSize.toString()), quoteDecimals)
+    .div(
+      new BN(10 ** baseDecimals).imul(
+      quoteLotSize,
+      ),
+    );
+
+export const quoteUiToLots = (
+  uiAmount: number,
+  quoteDecimals: number,
+  quoteLotSize: BN
+): BN => toNative(uiAmount, quoteDecimals).div(
+    quoteLotSize,
+  );
+
+export const baseUiToLots = (
+  uiAmount: number,
+  baseDecimals: number,
+  baseLotSize: BN
+): BN => toNative(uiAmount, baseDecimals).div(
+    baseLotSize,
+  );
