@@ -26,9 +26,9 @@ import { useProposalMarkets } from '@/contexts/ProposalMarketsContext';
 import { useBalances } from '@/contexts/BalancesContext';
 import { useBalance } from '@/hooks/useBalance';
 import TwapDisplay from './TwapDisplay';
-
 import { TwapSubscriptionRes } from '@/hooks/useTwapSubscription';
 import { useAutocrat } from '@/contexts/AutocratContext';
+import { getDecimalCount } from '@/lib/utils';
 
 type Props = {
   asks: any[][];
@@ -102,13 +102,17 @@ export function ConditionalMarketCard({
   )) * markets.fail.quoteLotSize.toNumber()) / markets.fail.baseLotSize.toNumber(),
   [markets.fail.baseLotSize]);
 
+  const maxDecimalsPrice = useMemo(() => (minMarketPriceIncrement
+    ? getDecimalCount(minMarketPriceIncrement) - 1 : minMarketPriceIncrement),
+  [minMarketPriceIncrement]);
+
   // https://github.com/openbook-dex/openbook-v2/blob/d7d909c876e161d0a2bed9678c3dc5b9d0d430fb/ts/client/src/accounts/market.ts#L44
   const minMarketBaseIncrement = useMemo(() => markets.fail.baseLotSize.toNumber() / (
     10 ** markets.fail.baseDecimals
   ), [markets.fail.baseLotSize]);
 
   const maxDecimalsAmount = useMemo(() => (minMarketBaseIncrement
-  ? splitDecimals(minMarketBaseIncrement) - 1 : minMarketBaseIncrement),
+  ? getDecimalCount(minMarketBaseIncrement) - 1 : minMarketBaseIncrement),
   [minMarketBaseIncrement]);
 
   const lotsToUI: number = useMemo(() => markets.fail.baseLotSize
@@ -151,7 +155,7 @@ export function ConditionalMarketCard({
       if (Number(value) > 0) {
         const valueAsFloat = parseFloat(value.toString());
         const minPriceAsFloat = parseFloat(minMarketPriceIncrement.toString());
-        const priceDecimals = splitDecimals(value);
+        const priceDecimals = getDecimalCount(value);
         if (priceDecimals && (priceDecimals > maxDecimalsPrice)) {
           setPriceError(`You can only use ${maxDecimalsPrice} decimals`);
           return;
@@ -238,7 +242,7 @@ export function ConditionalMarketCard({
       const maxOrderAmountAsFloat = parseFloat(maxOrderAmount().toString());
       const minOrderAmountAsFloat = parseFloat(minOrderAmount().toString());
       const minRoundedAmountAsFloat = parseFloat(minOrderByStepSize(value).toString());
-      const amountDecimals = splitDecimals(value);
+      const amountDecimals = getDecimalCount(value);
       if (!isLimitOrder) {
         setAmountError(`A market order may execute at an 
         extremely ${isAskSide ? 'low' : 'high'} price
