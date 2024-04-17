@@ -7,7 +7,7 @@ import { OpenbookProvider } from '@/contexts/OpenbookContext';
 
 export default function MarketsPage() {
   return (
-    <Layout programKey={null}>
+    <Layout>
       <Container p="0">
         <Stack gap="15">
           <OpenbookProvider>

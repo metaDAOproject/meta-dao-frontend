@@ -1,12 +1,10 @@
 import useSWR from 'swr';
+import { useSearchParams } from 'next/navigation';
 import { convertTokenPrice } from '@/lib/utils';
 
-export type FetchSpotPriceProps = {
-  programKey: string | null;
-};
-
-export function useFetchSpotPrice(props: FetchSpotPriceProps) {
-  const { programKey } = props;
+export function useFetchSpotPrice() {
+  const params = useSearchParams();
+  const programKey = params.get('programKey');
   let inputMint = 'METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr';
   let tokenBase = 100_000_000;
   let decimals = 3;

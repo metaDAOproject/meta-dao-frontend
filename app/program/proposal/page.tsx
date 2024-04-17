@@ -12,7 +12,7 @@ export default function DaoProposalPage() {
   const programKey = params.get('programKey');
 
   return (
-    <Layout programKey={programKey}>
+    <Layout>
       <ProposalMarketsProvider proposalNumber={proposalNumber}>
         <ProposalProvider proposalNumber={proposalNumber}>
           <ProposalDetailCard proposalNumber={proposalNumber} programKey={programKey} />

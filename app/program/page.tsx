@@ -9,7 +9,7 @@ export default function DaoPage() {
   const params = useSearchParams();
   const programKey = params.get('programKey');
   return (
-    <Layout programKey={programKey}>
+    <Layout>
       <Container p="0">
         <Stack gap="15">
           <ProposalList programKey={programKey} />
