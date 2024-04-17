@@ -29,6 +29,13 @@ export function debounce<T extends any[]>(
   };
 }
 
+export const convertTokenPrice = (data: any, decimals: number) => {
+  const price = Math.round(
+    (Number(data.outAmount) / Number(data.inAmount)) * 1_000 * (10 ** decimals)
+  ) / 10 ** decimals;
+  return price;
+};
+
 export const validateType = async (type: InstructionFieldTypes, value?: string) => {
   switch (type) {
     case InstructionFieldTypes.Key:

@@ -18,7 +18,7 @@ import {
   useMantineColorScheme,
   useMantineTheme,
 } from '@mantine/core';
-import { useDisclosure, useFavicon, useMediaQuery, useHeadroom } from '@mantine/hooks';
+import { useDisclosure, useFavicon, useMediaQuery } from '@mantine/hooks';
 import '@mantine/notifications/styles.css';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import numeral from 'numeral';
@@ -31,13 +31,11 @@ import {
   IconBrandTwitter,
   IconSun,
   IconMoonStars,
-  IconExternalLink,
   IconPlugConnected,
 } from '@tabler/icons-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import React, { useEffect, useRef, useState } from 'react';
-import useSWR from 'swr';
 import { Networks, useNetworkConfiguration } from '../../hooks/useNetworkConfiguration';
 import { shortKey } from '@/lib/utils';
 import icon from '@/public/meta.png';
@@ -48,6 +46,7 @@ import { usePriorityFee } from '../../hooks/usePriorityFee';
 import { NUMERAL_FORMAT } from '../../lib/constants';
 import { NavigationLinks } from './NavigationLinks';
 import { DialectNotificationComponent } from '@/components/Plugins/DialectNotification';
+import { TokenPrice } from './TokenPrice';
 
 const links = [
   {
@@ -75,49 +74,25 @@ const explorers = [
   { label: 'Solana Explorer', value: Explorers.Solana.toString() },
 ];
 
-function getTokenPrice(data: any) {
-  const price = Math.round((Number(data.outAmount) / Number(data.inAmount)) * 1000000) / 1000;
-  return price;
-}
+export type LayoutProps = {
+  children: React.ReactNode;
+};
 
-function useTokenPrice() {
-  const url =
-    'https://quote-api.jup.ag/v6/quote?inputMint=METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr&' +
-    'outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&' +
-    'amount=100000000&' +
-    'slippageBps=50&' +
-    'swapMode=ExactIn&' +
-    'onlyDirectRoutes=false&' +
-    'maxAccounts=64&' +
-    'experimentalDexes=Jupiter%20LO';
-  const tokenPriceFetcher = () =>
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => getTokenPrice(data));
-  const { data, error, isLoading } = useSWR('metaSpotPrice', tokenPriceFetcher);
-
-  return {
-    price: data,
-    isLoading,
-    isError: error,
-  };
-}
-
-export function Layout({ children }: { children: React.ReactNode }) {
+export function Layout(props: LayoutProps) {
+  const { children } = props;
   const wallet = useWallet();
   const modal = useWalletModal();
-  const pinned = useHeadroom({ fixedAt: 200 });
   const { network, endpoint, setNetwork, setCustomEndpoint } = useNetworkConfiguration();
   const { explorer, setExplorer } = useExplorerConfiguration();
   const colorScheme = useMantineColorScheme();
   const theme = useMantineTheme();
+
   const isTiny = useMediaQuery(`(max-width: ${theme.breakpoints.xs})`);
   const logoRef = useRef(null);
   const { priorityFee, setPriorityFee } = usePriorityFee();
   const [solPrice, setSolPrice] = useState<number>();
   const [mobileOpened, { toggle: toggleMobile }] = useDisclosure();
   const [desktopOpened, { toggle: toggleDesktop }] = useDisclosure(false);
-  const [collapseFooter, setCollapseFooter] = useState(false);
 
   useFavicon(_favicon.src);
   useEffect(() => {
@@ -145,7 +120,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     // Call fetchData immediately when component mounts
     fetchData();
   }, []); // Empty dependency array means this effect will only run once
-  const tokenPrice = useTokenPrice();
 
   const feesCost = (((priorityFee / 100000) * 200000) / LAMPORTS_PER_SOL) * (solPrice || 0);
 
@@ -161,24 +135,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
     />
   );
 
-  const hasScrollbar = () => document.body.clientHeight > window.innerHeight;
-
-  useEffect(() => {
-    if (pinned && hasScrollbar()) {
-      setCollapseFooter(true);
-    }
-    if (!pinned && hasScrollbar()) {
-      setCollapseFooter(false);
-    }
-  }, [pinned]);
-
   return (
     <div>
       <AppShell
         header={{ height: 60 }}
         navbar={{ breakpoint: 'md', width: 200, collapsed: { mobile: !mobileOpened, desktop: !desktopOpened } }}
         padding="md"
-        footer={{ height: 100, collapsed: collapseFooter, offset: true }}
+        footer={{ height: 100, offset: true }}
       >
         <AppShell.Header withBorder>
           <Flex justify="space-between" align="center" p="md" w="100%" h="100%">
@@ -193,21 +156,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             </Group>
 
-            <Group gap="0" justify="center" ta="center">
-              <div style={{ fontSize: 'small' }}>
-                {tokenPrice.isLoading
-                  ? 'loading...'
-                  : !tokenPrice.isError
-                  ? `1 META ≈ $${tokenPrice.price}`
-                  : ''}
-                <Link
-                  target="_blank"
-                  href="https://birdeye.so/token/METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr?chain=solana"
-                >
-                  <IconExternalLink height=".7rem" width="1rem" />
-                </Link>
-              </div>
-            </Group>
+            <TokenPrice />
 
             <Group>
               {wallet?.publicKey ? (
