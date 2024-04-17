@@ -107,6 +107,10 @@ export function ConditionalMarketCard({
     10 ** markets.fail.baseDecimals
   ), [markets.fail.baseLotSize]);
 
+  const maxDecimalsAmount = useMemo(() => (minMarketBaseIncrement
+  ? splitDecimals(minMarketBaseIncrement) - 1 : minMarketBaseIncrement),
+  [minMarketBaseIncrement]);
+
   const lotsToUI: number = useMemo(() => markets.fail.baseLotSize
     .div(new BN(10)
       .pow(new BN(markets.fail.baseDecimals.toString()))
@@ -144,13 +148,18 @@ export function ConditionalMarketCard({
 
   const priceValidator = (value: number) => {
     if (isLimitOrder) {
-      const valueAsFlaot = parseFloat(value.toString());
-      const minPriceAsFloat = parseFloat(minMarketPriceIncrement.toString());
-      if (valueAsFlaot < minPriceAsFloat) {
-        setPriceError('You must set a higher price');
-        return;
-      }
       if (Number(value) > 0) {
+        const valueAsFloat = parseFloat(value.toString());
+        const minPriceAsFloat = parseFloat(minMarketPriceIncrement.toString());
+        const priceDecimals = splitDecimals(value);
+        if (priceDecimals && (priceDecimals > maxDecimalsPrice)) {
+          setPriceError(`You can only use ${maxDecimalsPrice} decimals`);
+          return;
+        }
+        if (valueAsFloat <= minPriceAsFloat) {
+          setPriceError('You must set a higher price');
+          return;
+        }
         if (isAskSide) {
           if (isPassMarket) {
             if (Number(value) <= Number(orderBookObject?.passToB.topBid)) {
@@ -229,13 +238,16 @@ export function ConditionalMarketCard({
       const maxOrderAmountAsFloat = parseFloat(maxOrderAmount().toString());
       const minOrderAmountAsFloat = parseFloat(minOrderAmount().toString());
       const minRoundedAmountAsFloat = parseFloat(minOrderByStepSize(value).toString());
+      const amountDecimals = splitDecimals(value);
       if (!isLimitOrder) {
         setAmountError(`A market order may execute at an 
         extremely ${isAskSide ? 'low' : 'high'} price
         be sure you know what you're doing`);
         return;
       }
-      if (valueAsFloat > maxOrderAmountAsFloat) {
+      if (amountDecimals > maxDecimalsAmount) {
+        setAmountError(`You can only use ${maxDecimalsAmount} decimals`);
+      } else if (valueAsFloat > maxOrderAmountAsFloat) {
         setAmountError("You don't have enough funds");
       } else if (valueAsFloat < minOrderAmountAsFloat) {
         setAmountError(`You must trade at least ${unitFactor}`);
