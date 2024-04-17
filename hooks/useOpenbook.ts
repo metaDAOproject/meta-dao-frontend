@@ -4,7 +4,7 @@ import {
   PublicKey,
   Transaction,
 } from '@solana/web3.js';
-import { OPENBOOK_PROGRAM_ID, OpenBookV2Client, uiPriceToLots, uiQuoteToLots, uiBaseToLots, OpenbookV2, IDL as OPENBOOK_IDL } from '@openbook-dex/openbook-v2';
+import { OPENBOOK_PROGRAM_ID, OpenBookV2Client, OpenbookV2, IDL as OPENBOOK_IDL } from '@openbook-dex/openbook-v2';
 import { PlaceOrderArgs } from '@openbook-dex/openbook-v2/dist/types/client';
 import { BN, Program } from '@coral-xyz/anchor';
 import {
@@ -27,7 +27,7 @@ import {
   findOpenOrders,
   findOpenOrdersIndexer,
 } from '../lib/openbook';
-import { shortKey } from '@/lib/utils';
+import { shortKey, priceUiToLots, quoteUiToLots, baseUiToLots } from '@/lib/utils';
 
 const SYSTEM_PROGRAM: PublicKey = new PublicKey('11111111111111111111111111111111');
 
@@ -54,9 +54,23 @@ export function useOpenbook() {
     limitOrder?: boolean;
     ask?: boolean;
   }): PlaceOrderArgs => {
-    const priceLots = uiPriceToLots(market, price);
-    const maxBaseLots = uiBaseToLots(market, amount);
-    const maxQuoteLotsIncludingFees = uiQuoteToLots(market, priceLots.mul(maxBaseLots));
+    const priceLots = priceUiToLots(
+      price,
+      market.baseLotSize,
+      market.quoteLotSize,
+      market.quoteDecimals,
+      market.baseDecimals
+    );
+    const maxBaseLots = baseUiToLots(
+      amount,
+      market.baseDecimals,
+      market.baseLotSize
+    );
+    const maxQuoteLotsIncludingFees = quoteUiToLots(
+      priceLots.mul(maxBaseLots),
+      market.quoteDecimals,
+      market.quoteLotSize
+    );
 
     return {
       side: ask ? SideUtils.Ask : SideUtils.Bid,

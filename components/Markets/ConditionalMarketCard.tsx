@@ -96,22 +96,13 @@ export function ConditionalMarketCard({
   const isAskSide = orderSide === 'Sell';
   const isLimitOrder = orderType === 'Limit';
 
-  // TODO: Review this as anything less than this fails to work
-  // const minMarketPriceIncrement: number = new BN(1).div(markets.fail.quoteLotSize).toString();
+  // https://github.com/openbook-dex/openbook-v2/blob/d7d909c876e161d0a2bed9678c3dc5b9d0d430fb/ts/client/src/accounts/market.ts#L50
   const minMarketPriceIncrement = useMemo(() => ((10 ** (
     markets.fail.baseDecimals - markets.fail.quoteDecimals
   )) * markets.fail.quoteLotSize.toNumber()) / markets.fail.baseLotSize.toNumber(),
   [markets.fail.baseLotSize]);
 
-  // const testPrice = new BN(10)
-  //   .pow(
-  //     new BN(markets.fail.baseDecimals.toString())
-  //     .sub(new BN(markets.fail.quoteDecimals.toString()))
-  //   )
-  //   .mul(markets.fail.quoteLotSize)
-  //   .div(markets.fail.baseLotSize)
-  //   .toNumber();
-
+  // https://github.com/openbook-dex/openbook-v2/blob/d7d909c876e161d0a2bed9678c3dc5b9d0d430fb/ts/client/src/accounts/market.ts#L44
   const minMarketBaseIncrement = useMemo(() => markets.fail.baseLotSize.toNumber() / (
     10 ** markets.fail.baseDecimals
   ), [markets.fail.baseLotSize]);

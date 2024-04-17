@@ -13,7 +13,7 @@ import {
   createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
-import { PlaceOrderArgs, uiPriceToLots, uiQuoteToLots, uiBaseToLots } from '@openbook-dex/openbook-v2';
+import { PlaceOrderArgs } from '@openbook-dex/openbook-v2';
 import {
   SelfTradeBehavior,
   OrderType,
@@ -29,7 +29,7 @@ import {
   OutEvent,
   ProposalAccountWithKey,
 } from '@/lib/types';
-import { shortKey } from '@/lib/utils';
+import { shortKey, priceUiToLots, quoteUiToLots, baseUiToLots } from '@/lib/utils';
 import { useProvider } from '@/hooks/useProvider';
 import {
   createOpenOrdersIndexerInstruction,
@@ -105,10 +105,30 @@ export function useOpenbookTwap() {
     accountIndex: number;
     market: MarketAccountWithKey;
   }): PlaceOrderArgs | string => {
-    let priceLots = uiPriceToLots(market.account, price);
-    const _priceLots = uiPriceToLots(market.account, price);
-    const maxBaseLots = uiBaseToLots(market.account, amount);
-    let maxQuoteLotsIncludingFees = uiQuoteToLots(market.account, priceLots.mul(maxBaseLots));
+    let priceLots = priceUiToLots(
+      price,
+      market.account.baseLotSize,
+      market.account.quoteLotSize,
+      market.account.quoteDecimals,
+      market.account.baseDecimals
+    );
+    const _priceLots = priceUiToLots(
+      price,
+      market.account.baseLotSize,
+      market.account.quoteLotSize,
+      market.account.quoteDecimals,
+      market.account.baseDecimals
+    );
+    const maxBaseLots = baseUiToLots(
+      amount,
+      market.account.baseDecimals,
+      market.account.baseLotSize
+    );
+    let maxQuoteLotsIncludingFees = quoteUiToLots(
+      priceLots.mul(maxBaseLots),
+      market.account.quoteDecimals,
+      market.account.quoteLotSize
+    );
 
     if (!isLimitOrder) {
       if (!isAsk) {
