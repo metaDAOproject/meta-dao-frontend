@@ -80,7 +80,10 @@ export const toCompactNumber = (number: any) => {
 export const toNative = (
   uiAmount: number,
   decimals: number
-) => new BN(Math.round(uiAmount * 10 ** decimals));
+) => {
+  const roundedAmount = Math.round(uiAmount * 10 ** decimals);
+  return new BN(roundedAmount.toString());
+};
 
 // eslint-disable-next-line max-len
 export const toUiDecimals = (nativeAmount: number, decimals: number): number => nativeAmount / 10 ** decimals;
@@ -91,7 +94,7 @@ export const priceUiToLots = (
   quoteLotSize: BN,
   quoteDecimals: number,
   baseDecimals: number
-): BN => toNative(uiAmount * Number(baseLotSize.toString()), quoteDecimals)
+) => toNative(uiAmount * Number(baseLotSize.toString()), quoteDecimals)
     .div(
       new BN(10 ** baseDecimals).imul(
       quoteLotSize,
@@ -102,7 +105,7 @@ export const quoteUiToLots = (
   uiAmount: number,
   quoteDecimals: number,
   quoteLotSize: BN
-): BN => toNative(uiAmount, quoteDecimals).div(
+) => toNative(uiAmount, quoteDecimals).div(
     quoteLotSize,
   );
 
@@ -110,6 +113,6 @@ export const baseUiToLots = (
   uiAmount: number,
   baseDecimals: number,
   baseLotSize: BN
-): BN => toNative(uiAmount, baseDecimals).div(
+) => toNative(uiAmount, baseDecimals).div(
     baseLotSize,
   );
