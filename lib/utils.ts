@@ -36,6 +36,21 @@ export const convertTokenPrice = (data: any, decimals: number) => {
   return price;
 };
 
+export const getDecimalCount = (value: number) => {
+  if (!value) {
+    return 0;
+  }
+  let splitString = value.toString().split('.');
+  if (splitString.length === 1) {
+    splitString = value.toString().split('e-');
+    return Number(splitString[1]);
+  }
+  if (splitString.length > 1) {
+    return splitString[1].length;
+  }
+  return 0;
+};
+
 export const validateType = async (type: InstructionFieldTypes, value?: string) => {
   switch (type) {
     case InstructionFieldTypes.Key:
