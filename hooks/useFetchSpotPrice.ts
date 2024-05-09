@@ -18,7 +18,7 @@ export function useFetchSpotPrice() {
     tokenName = 'FUTURE';
   }
   const url =
-    `https://quote-api.jup.ag/v6/quote?inputMint=${inputMint}&` +
+    `https://public.jupiterapi.com/quote?inputMint=${inputMint}&` +
     'outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&' +
     `amount=${tokenBase.toString()}&` +
     'slippageBps=50&' +

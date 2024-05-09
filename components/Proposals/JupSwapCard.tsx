@@ -17,7 +17,9 @@ export function JupSwapCard() {
   const [inAmount, setInAmount] = useState<number>(1);
   const [outAmount, setOutAmount] = useState<number>();
   const [isSwapping, setIsSwapping] = useState(false);
-  const jupiterQuoteApi = createJupiterApiClient();
+  const jupiterQuoteApi = createJupiterApiClient({
+    basePath: 'https://public.jupiterapi.com',
+  });
   const sender = useTransactionSender();
 
   if (!daoTokens || !daoTokens.baseToken || !daoTokens.quoteToken) return <Loader />;
