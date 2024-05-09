@@ -39,3 +39,7 @@ See Meta-DAO's repo for more details.
 ## Contributing
 
 You can find instructions and guidelines on how to contribute in [CONTRIBUTING.md](/CONTRIBUTING.md)
+
+## Using custom Swap API endpoints
+
+You can get Swap API urls from [Jupiter Station](https://station.jup.ag/docs/apis/swap-api), [QuickNode](https://marketplace.quicknode.com/add-on/metis-jupiter-v6-swap-api) or [JupiterAPI.com](https://www.jupiterapi.com/). You can adjust the `basePath` for `createJupiterApiClient` to your preference.
