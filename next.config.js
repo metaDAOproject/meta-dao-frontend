@@ -18,6 +18,7 @@ module.exports = withBundleAnalyzer( {
   webpack: ( config ) =>
   {
     config.resolve.fallback = { fs: false, path: false }
+    config.externals.push("pino-pretty", "encoding")
     return config
   }
 } );
