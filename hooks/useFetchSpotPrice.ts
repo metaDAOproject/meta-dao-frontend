@@ -30,7 +30,8 @@ export function useFetchSpotPrice() {
     fetch(url)
       .then((res) => res.json())
       .then((data) => convertTokenPrice(data, decimals));
-  const { data, error, isLoading } = useSWR(`${tokenName}SpotPrice`, tokenPriceFetcher);
+  const { data, error } = useSWR(`${tokenName}SpotPrice`, tokenPriceFetcher);
+  const isLoading = !data && !error;
   return {
     token: tokenName,
     price: data,

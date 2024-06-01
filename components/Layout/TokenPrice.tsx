@@ -1,4 +1,4 @@
-import { Group } from '@mantine/core';
+import { Group, Skeleton, Text } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import Link from 'next/link';
 import { useFetchSpotPrice } from '@/hooks/useFetchSpotPrice';
@@ -6,28 +6,23 @@ import { useFetchSpotPrice } from '@/hooks/useFetchSpotPrice';
 export function TokenPrice() {
   const tokenPrice = useFetchSpotPrice();
 
-  const tokenPriceStatus = () => {
-    let tokenPriceString = '';
-    if (tokenPrice.isLoading) {
-      tokenPriceString = 'loading...';
-    }
-    if (!tokenPrice.isError) {
-      tokenPriceString = `1 ${tokenPrice.token} ≈ $${tokenPrice.price}`;
-    }
-    return tokenPriceString;
-  };
+  const tokenPriceStatus = tokenPrice.isLoading
+    ? null
+    : tokenPrice.isError
+    ? 'Error fetching price'
+    : `1 ${tokenPrice.token} ≈ $${tokenPrice.price}`;
 
   return (
-    <Group gap="0" justify="center" ta="center">
-      <div style={{ fontSize: 'small' }}>
-        {tokenPriceStatus()}
+    <Skeleton visible={!tokenPriceStatus} width="14rem">
+      <Group gap={2} justify="center">
+        <Text size="xs">{tokenPriceStatus}</Text>
         <Link
           target="_blank"
           href="https://birdeye.so/token/METADDFL6wWMWEoKTFJwcThTbUmtarRJZjRpzUvkxhr?chain=solana"
         >
           <IconExternalLink height=".7rem" width="1rem" />
         </Link>
-      </div>
-    </Group>
+      </Group>
+    </Skeleton>
   );
 }
