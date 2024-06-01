@@ -162,6 +162,8 @@ export const useTransactionSender = <T extends Transaction>(args?: {
   const [idsToClear, setIdsToClear] = useState<Array<string>>([]);
 
   useEffect(() => {
+    if (idsToClear.length === 0) return;
+
     idsToClear.forEach((id) => {
       if (!(id in idToTransactionInfos)) return;
 
@@ -188,11 +190,8 @@ export const useTransactionSender = <T extends Transaction>(args?: {
       );
     });
 
-    return () => {
-      // TODO: This is causing an infinite loop exceeding max depth.
-      setIdsToClear([]);
-    };
-  }, [idsToClear]);
+    setIdsToClear([]);
+  }, [idsToClear, idToTransactionInfos]);
 
   /**
    * all state that we process in this function wasn't yet updated. i failed
