@@ -1,12 +1,13 @@
 import { OrderBook } from '@lab49/react-order-book';
 import { Card, Text, useMantineColorScheme } from '@mantine/core';
 import { OrderBook as _OrderBook } from '@/lib/types';
+import { useEffect, useRef } from 'react';
 
 export function ConditionalMarketOrderBook({
-  asks,
-  bids,
-  spreadString,
-  lastSlotUpdated,
+  asks = [],
+  bids = [],
+  spreadString = '',
+  lastSlotUpdated = 0,
   orderBookObject,
   setPriceFromOrderBook,
 }: {
@@ -19,6 +20,32 @@ export function ConditionalMarketOrderBook({
 }) {
   if (!orderBookObject) return null;
   const { colorScheme } = useMantineColorScheme();
+  const orderBookRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      const listItem = target.closest('.MakeItNice__list-item');
+      if (listItem) {
+        const priceElement = listItem.querySelector('.MakeItNice__price');
+        if (priceElement) {
+          const price = parseFloat(priceElement.textContent || '0');
+          setPriceFromOrderBook(price);
+        }
+      }
+    };
+
+    const orderBookElement = orderBookRef.current;
+    if (orderBookElement) {
+      orderBookElement.addEventListener('click', handleClick);
+    }
+
+    return () => {
+      if (orderBookElement) {
+        orderBookElement.removeEventListener('click', handleClick);
+      }
+    };
+  }, [setPriceFromOrderBook]);
 
   return (
     <>
@@ -101,20 +128,25 @@ export function ConditionalMarketOrderBook({
         `,
           }}
         />
-        <OrderBook
-          book={{
-            bids: bids || [[0, 0]],
-            asks: asks || [[Number.MAX_SAFE_INTEGER, 0]],
-          }}
-          fullOpacity
-          onClickFunction={setPriceFromOrderBook}
-          spread={spreadString}
-          interpolateColor={(color) => color}
-          listLength={5}
-          stylePrefix="MakeItNice"
-        />
+        <div ref={orderBookRef}>
+          <OrderBook
+            book={{
+              bids: bids.length ? bids : [[0, 0]],
+              asks: asks.length ? asks : [[Number.MAX_SAFE_INTEGER, 0]],
+            }}
+            fullOpacity
+            spread={spreadString}
+            interpolateColor={(color) => color}
+            listLength={5}
+            stylePrefix="MakeItNice"
+          />
+        </div>
       </Card>
-      {(lastSlotUpdated !== 0) ? <Text size="xs">Book last updated {lastSlotUpdated} (slot)</Text> : <Text>{' '}</Text>}
+      {lastSlotUpdated !== 0 ? (
+        <Text size="xs">Book last updated {lastSlotUpdated} (slot)</Text>
+      ) : (
+        <Text> </Text>
+      )}
     </>
   );
 }
