@@ -8,12 +8,14 @@ export const MemoProgramInstructionCard = ({
 }: {
   instruction: DecodedInstruction;
 }) => (
-  <Text>
-    Invoke the{' '}
-    <span>
-      Memo Program (<PublicKeyAsCodeLink publicKey={instruction.programId} />)
-    </span>{' '}
-    with the following data
+  <div>
+    <Text>
+      Invoke the{' '}
+      <span>
+        Memo Program (<PublicKeyAsCodeLink publicKey={instruction.programId} />)
+      </span>{' '}
+      with the following data
+    </Text>
     <hr
       className="solid"
       style={{
@@ -26,5 +28,5 @@ export const MemoProgramInstructionCard = ({
       }}
     />
     <Text fs="italic">{instruction.args[0].data}</Text>
-  </Text>
+  </div>
 );
