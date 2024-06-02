@@ -49,6 +49,7 @@ import { getWinningTwap } from '@/lib/openbookTwap';
 import { NUMERAL_FORMAT, AUTOCRAT_VERSIONS } from '@/lib/constants';
 import useClusterDataSubscription from '@/hooks/useClusterDataSubscription';
 import useInitializeClusterDataSubscription from '@/hooks/useInitializeClusterDataSubscription';
+import { ConditionalMarketTable } from '../Markets/ConditionalMarketTable';
 
 export type ProposalProps = {
   programKey: string | null;
@@ -112,7 +113,7 @@ export function ProposalDetailCard(props: ProposalProps) {
 
   if (programKey && proposalNumber && !isSameProgram) {
     const haveUrlProgram = AUTOCRAT_VERSIONS.find(
-      (program) => program.programId.toString() === programKey
+      (program) => program.programId.toString() === programKey,
     );
     if (haveUrlProgram) {
       // NOTE: This sets up our autocrat from using the URL
@@ -128,8 +129,8 @@ export function ProposalDetailCard(props: ProposalProps) {
   const minimumToPass =
     daoState && failTwapStructure?.twap
       ? `(> ${numeral(
-        ((failTwapStructure?.twap ?? 0) * (10000 + daoState.passThresholdBps)) / 10000,
-      ).format(NUMERAL_FORMAT)})`
+          ((failTwapStructure?.twap ?? 0) * (10000 + daoState.passThresholdBps)) / 10000,
+        ).format(NUMERAL_FORMAT)})`
       : null;
 
   const twapDescription = `The Time Weighted Average Price (TWAP) is the measure used to decide if the proposal
@@ -299,13 +300,20 @@ export function ProposalDetailCard(props: ProposalProps) {
     const proposalId = pendingProposals?.filter((p) => p?.title === title)[0]?.account.number;
 
     if (proposalId) {
-      router.replace(`/program/proposal?programKey=${programKey || programVersion?.programId.toString()}&proposalNumber=${proposalId}`);
+      router.replace(
+        `/program/proposal?programKey=${
+          programKey || programVersion?.programId.toString()
+        }&proposalNumber=${proposalId}`,
+      );
     }
   };
 
-  return !daoTokens || !daoState || !proposal
-  || !markets || !programVersion
-  || (!programVersion?.programId.toString() && programKey) ? (
+  return !daoTokens ||
+    !daoState ||
+    !proposal ||
+    !markets ||
+    !programVersion ||
+    (!programVersion?.programId.toString() && programKey) ? (
     <Group justify="center">
       <Loader />
     </Group>
@@ -317,7 +325,6 @@ export function ProposalDetailCard(props: ProposalProps) {
       gap={isMedium ? 'xl' : 'md'}
       mt="-1rem"
     >
-
       <Stack
         pos={isMedium ? 'relative' : 'sticky'}
         top={isMedium ? '10px' : '100px'}
@@ -332,7 +339,7 @@ export function ProposalDetailCard(props: ProposalProps) {
             align="start"
           >
             {isMedium ? (
-              isSmall ?
+              isSmall ? (
                 <ActionIcon
                   my="auto"
                   className={classes.colorschemebutton}
@@ -341,17 +348,18 @@ export function ProposalDetailCard(props: ProposalProps) {
                   style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
                 >
                   <IconChevronLeft />
-                </ActionIcon> : (
-                  <Button
-                    className={classes.colorschemebutton}
-                    leftSection={<IconChevronLeft />}
-                    href={`/program?programKey=${programKey || programVersion.programId.toString()}`}
-                    component="a"
-                    style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
-                  >
-                    Back to Proposals
-                  </Button>
-                )
+                </ActionIcon>
+              ) : (
+                <Button
+                  className={classes.colorschemebutton}
+                  leftSection={<IconChevronLeft />}
+                  href={`/program?programKey=${programKey || programVersion.programId.toString()}`}
+                  component="a"
+                  style={{ textDecoration: 'none', width: 'fit-content', zIndex: '40' }}
+                >
+                  Back to Proposals
+                </Button>
+              )
             ) : (
               <Button
                 className={classes.colorschemebutton}
@@ -452,28 +460,31 @@ export function ProposalDetailCard(props: ProposalProps) {
       <Container mt="1rem" p={isMedium ? '0' : 'sm'}>
         <Stack style={{ flex: 1 }}>
           {markets ? (
-            <Group gap="md" justify="space-around" mt="xl" p="0">
-              <ConditionalMarketCard
-                asks={passAsks ?? []}
-                bids={passBids ?? []}
-                lastSlotUpdated={lastPassSlotUpdated}
-                spreadString={passSpreadString}
-                isPassMarket
-                isWinning={winningMarket === 'pass'}
-                twapData={passTwapStructure}
-                twapDescription={twapDescription}
-              />
-              <ConditionalMarketCard
-                asks={failAsks ?? []}
-                bids={failBids ?? []}
-                lastSlotUpdated={lastFailSlotUpdated}
-                spreadString={failSpreadString}
-                isPassMarket={false}
-                isWinning={winningMarket === 'fail'}
-                twapData={failTwapStructure}
-                twapDescription={twapDescription}
-              />
-            </Group>
+            <>
+              {/* <ConditionalMarketTable passTwap={passTwapStructure} failTwap={failTwapStructure} /> */}
+              <Group gap="md" justify="space-around" mt="xl" p="0">
+                <ConditionalMarketCard
+                  asks={passAsks ?? []}
+                  bids={passBids ?? []}
+                  lastSlotUpdated={lastPassSlotUpdated}
+                  spreadString={passSpreadString}
+                  isPassMarket
+                  isWinning={winningMarket === 'pass'}
+                  twapData={passTwapStructure}
+                  twapDescription={twapDescription}
+                />
+                <ConditionalMarketCard
+                  asks={failAsks ?? []}
+                  bids={failBids ?? []}
+                  lastSlotUpdated={lastFailSlotUpdated}
+                  spreadString={failSpreadString}
+                  isPassMarket={false}
+                  isWinning={winningMarket === 'fail'}
+                  twapData={failTwapStructure}
+                  twapDescription={twapDescription}
+                />
+              </Group>
+            </>
           ) : null}
           <ProposalOrdersCard />
         </Stack>
